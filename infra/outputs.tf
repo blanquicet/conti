@@ -31,7 +31,7 @@ output "postgres_admin_password" {
 # Connection string for the Go backend (DATABASE_URL format)
 output "database_url" {
   description = "PostgreSQL connection string for the backend (sensitive)"
-  value       = "postgres://${azurerm_postgresql_flexible_server.auth.administrator_login}:${random_password.postgres_admin.result}@${azurerm_postgresql_flexible_server.auth.fqdn}:5432/${azurerm_postgresql_flexible_server_database.auth.name}?sslmode=require"
+  value       = "postgres://${azurerm_postgresql_flexible_server.auth.administrator_login}:${urlencode(random_password.postgres_admin.result)}@${azurerm_postgresql_flexible_server.auth.fqdn}:5432/${azurerm_postgresql_flexible_server_database.auth.name}?sslmode=require"
   sensitive   = true
 }
 

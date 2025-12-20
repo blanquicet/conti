@@ -1,5 +1,5 @@
 -- Create users table for authentication
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+-- Note: gen_random_uuid() is available natively in PostgreSQL 13+
 
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -11,7 +11,7 @@ Terraform es una herramienta de **Infraestructura como Código (IaC)**. En lugar
 ### Ventajas
 
 | Sin Terraform | Con Terraform |
-|---------------|---------------|
+| ------------- | ------------- |
 | Clics manuales en Azure Portal | Comandos automatizados |
 | "¿Cómo creé esto?" | El código documenta todo |
 | Difícil de replicar | `terraform apply` recrea todo |
@@ -52,7 +52,7 @@ graph TB
 ## Archivos en esta carpeta
 
 | Archivo | Propósito |
-|---------|-----------|
+| ------- | --------- |
 | `main.tf` | Define los recursos de Azure (PostgreSQL, firewall, etc.) |
 | `variables.tf` | Variables configurables con defaults (nombres, SKUs, etc.) |
 | `outputs.tf` | Valores de salida (connection strings, IPs, etc.) |
@@ -76,7 +76,7 @@ flowchart LR
 ### Comandos principales
 
 | Comando | Qué hace |
-|---------|----------|
+| ------- | -------- |
 | `terraform init` | Inicializa el proyecto, descarga providers de Azure |
 | `terraform plan` | Muestra qué cambios se harán (sin ejecutar nada) |
 | `terraform apply` | Crea/modifica los recursos en Azure |
@@ -103,7 +103,7 @@ terraform --version
 #### Datos de la cuenta Azure
 
 | Parámetro | Valor |
-|-----------|-------|
+| --------- | ----- |
 | **Tenant ID** | `9de9ca20-a74e-40c6-9df8-61b9e313a5b3` |
 | **Subscription ID** | `0f6b14e8-ade9-4dc5-9ef9-d0bcbaf5f0d8` |
 | **Subscription Name** | Visual Studio Enterprise Subscription |
@@ -147,6 +147,7 @@ dev_ip_address = "TU_IP_AQUI"
 > Como `terraform.tfvars` no está en el repo (contiene secretos), cada vez que GitHub Actions ejecuta `terraform apply`, la variable `dev_ip_address` está vacía y Terraform elimina la regla de firewall.
 >
 > **Después de cada push a main**, recupera tu acceso ejecutando:
+>
 > ```bash
 > terraform apply -var="dev_ip_address=$(curl -s ifconfig.me)" -target=azurerm_postgresql_flexible_server_firewall_rule.dev_ip -auto-approve
 > ```
@@ -160,7 +161,8 @@ terraform plan
 Esto muestra **qué recursos se van a crear** sin crear nada. Revisa que todo se vea correcto.
 
 Salida esperada:
-```
+
+```text
 Plan: 6 to add, 0 to change, 0 to destroy.
 ```
 
@@ -213,7 +215,7 @@ graph TD
 ### Detalles del servidor PostgreSQL
 
 | Propiedad | Valor |
-|-----------|-------|
+| --------- | ----- |
 | **SKU** | B_Standard_B1ms (Burstable) |
 | **vCores** | 1 |
 | **RAM** | 2 GB |
@@ -337,16 +339,16 @@ terraform apply
 Después de crear el PostgreSQL:
 
 1. **Guardar DATABASE_URL** como secret para el backend
-2. **Ejecutar migrations** para crear las tablas de auth
+2. **Ejecutar migrations** para crear las tablas de auth (ver [documentación de migraciones](../backend/migrations/README.md))
 3. **Desplegar el backend Go** que usará esta base de datos
 
 ```bash
 # Exportar para uso local
 export DATABASE_URL="$(terraform output -raw database_url)"
 
-# Ejecutar migrations (cuando existan)
+# Ejecutar migrations
 cd ../backend
-migrate -path migrations -database "$DATABASE_URL" up
+migrate -path ./migrations -database "$DATABASE_URL" up
 ```
 
 ---
@@ -358,7 +360,7 @@ El workflow de Terraform está configurado en `.github/workflows/terraform.yml`.
 ### Estado actual
 
 | Componente | Estado |
-|------------|--------|
+| ---------- | ------ |
 | Service Principal | ✅ `github-actions-gastos` |
 | `ARM_CLIENT_ID` | ✅ Configurado en GitHub |
 | `ARM_CLIENT_SECRET` | ✅ Configurado en GitHub |
@@ -369,7 +371,7 @@ El workflow de Terraform está configurado en `.github/workflows/terraform.yml`.
 ### Comportamiento del workflow
 
 | Evento | Acción |
-|--------|--------|
+| ------ | ------ |
 | **PR** con cambios en `infra/` | Ejecuta `terraform plan` y comenta el resultado |
 | **Push a main** con cambios en `infra/` | Ejecuta `terraform apply` automáticamente |
 
@@ -383,6 +385,7 @@ cd infra/scripts
 ```
 
 Este script:
+
 1. Crea el Service Principal en Azure
 2. Muestra los valores de los secrets
 3. (Opcional) Configura los secrets en GitHub automáticamente si tienes `gh` CLI
@@ -409,7 +412,7 @@ Este comando devuelve un JSON con los secrets. **Guárdalos, solo se muestran un
 Ir a: Repository → Settings → Secrets and variables → Actions → New repository secret
 
 | Secret Name | Valor | Descripción |
-|-------------|-------|-------------|
+| ----------- | ----- | ----------- |
 | `ARM_CLIENT_ID` | `appId` del JSON | ID de la aplicación |
 | `ARM_CLIENT_SECRET` | `password` del JSON | Contraseña del SP |
 | `ARM_SUBSCRIPTION_ID` | `0f6b14e8-ade9-4dc5-9ef9-d0bcbaf5f0d8` | ID de suscripción |
@@ -492,12 +495,12 @@ El estado de Terraform se almacena en Azure Storage, permitiendo:
 - Backup automático
 
 | Componente | Estado |
-|------------|--------|
+| ---------- | ------ |
 | Storage Account | ✅ `gastostfstate` |
 | Container | ✅ `tfstate` |
 | Backend en main.tf | ✅ Configurado |
 
-#### Reconfigurar (si es necesario)
+#### Reconfigurar estado remoto (si es necesario)
 
 ```bash
 cd infra/scripts
@@ -509,7 +512,7 @@ cd infra/scripts
 ## Resumen de valores Azure
 
 | Recurso | Valor |
-|---------|-------|
+| ------- | ----- |
 | **GitHub Repo** | `blanquicet/gastos` |
 | **Tenant ID** | `9de9ca20-a74e-40c6-9df8-61b9e313a5b3` |
 | **Subscription ID** | `0f6b14e8-ade9-4dc5-9ef9-d0bcbaf5f0d8` |

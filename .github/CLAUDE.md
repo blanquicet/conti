@@ -16,24 +16,24 @@
 
 ### Frontend: Azure Static Web Apps (SWA)
 
-| Setting | Value |
-|---------|-------|
-| Custom domain | `gastos.blanquicet.com.co` |
-| DNS | Cloudflare (DNS-only, **not proxied**) |
-| App path | `/registrar-movimiento` |
-| Build | None (pure static HTML/CSS/JS) |
-| Deploy | GitHub Actions on push |
+| Setting       | Value                                   |
+| ------------- | --------------------------------------- |
+| Custom domain | `gastos.blanquicet.com.co`              |
+| DNS           | Cloudflare (DNS-only, **not proxied**)  |
+| App path      | `/registrar-movimiento`                 |
+| Build         | None (pure static HTML/CSS/JS)          |
+| Deploy        | GitHub Actions on push                  |
 
 > **Important:** SWA must find `index.html` in `app_location`, so `app_location` is `/registrar-movimiento` and `skip_app_build=true`. The `staticwebapp.config.json` handles route rewrites.
 
 ### Backend: n8n on VM behind Caddy
 
-| Setting | Value |
-|---------|-------|
-| Domain | `https://n8n.blanquicet.com.co` |
+| Setting          | Value                                                             |
+| ---------------- | ----------------------------------------------------------------- |
+| Domain           | `https://n8n.blanquicet.com.co`                                   |
 | Webhook endpoint | `POST https://n8n.blanquicet.com.co/webhook/movimientos/reportar` |
-| CORS origin | `https://gastos.blanquicet.com.co` |
-| Auth | Header Auth via `X-API-Key` |
+| CORS origin      | `https://gastos.blanquicet.com.co`                                |
+| Auth             | Header Auth via `X-API-Key`                                       |
 
 > **Important:** CORS must include `X-API-Key` in `Access-Control-Allow-Headers`, otherwise browser preflight will fail.
 
@@ -57,11 +57,11 @@ The app writes rows to the "Gastos" table with computed `Mes` (YYYY-MM) and `Sem
 
 ### Tipos de Movimiento
 
-| Tipo | Descripción | Campos visibles |
-|------|-------------|-----------------|
-| `FAMILIAR` | Gasto familiar | Método de pago, Categoría |
-| `COMPARTIDO` | Gasto dividido entre participantes | Pagador, Método de pago (si Jose/Caro), Participantes |
-| `PAGO_DEUDA` | Pago/cobro de deuda entre personas | Pagador + Tomador (lado a lado), Método de pago (si Jose/Caro), Categoría (si Jose/Caro) |
+| Tipo         | Descripción                        | Campos visibles                                                                                  |
+| ------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `FAMILIAR`   | Gasto familiar                     | Método de pago, Categoría                                                                        |
+| `COMPARTIDO` | Gasto dividido entre participantes | Pagador, Método de pago (si Jose/Caro), Participantes                                            |
+| `PAGO_DEUDA` | Pago/cobro de deuda entre personas | Pagador + Tomador (lado a lado), Método de pago (si Jose/Caro), Categoría (si Jose/Caro)         |
 
 ### Reglas de Deuda (`PAGO_DEUDA`)
 
@@ -79,17 +79,17 @@ The app writes rows to the "Gastos" table with computed `Mes` (YYYY-MM) and `Sem
 
 ## 👥 Usuarios
 
-| Nombre | Familia |
-|--------|---------|
-| Jose | ✅ |
-| Caro | ✅ |
-| Maria Isabel | ❌ |
-| Papá Caro | ❌ |
-| Mamá Caro | ❌ |
-| Daniel | ❌ |
-| Yury | ❌ |
-| Prebby | ❌ |
-| Kelly Carolina | ❌ |
+| Nombre         | Familia |
+| -------------- | ------- |
+| Jose           | ✅      |
+| Caro           | ✅      |
+| Maria Isabel   | ❌      |
+| Papá Caro      | ❌      |
+| Mamá Caro      | ❌      |
+| Daniel         | ❌      |
+| Yury           | ❌      |
+| Prebby         | ❌      |
+| Kelly Carolina | ❌      |
 
 > El frontend usa `DEFAULT_USERS` con estos nombres (la ortografía exacta importa).
 
@@ -98,12 +98,13 @@ The app writes rows to the "Gastos" table with computed `Mes` (YYYY-MM) and `Sem
 ## 🏷️ Categorías
 
 Campo **obligatorio** para:
+
 - `FAMILIAR` (siempre)
 - `PAGO_DEUDA` (solo si pagador es Jose o Caro)
 
 Opciones disponibles:
 
-```
+```text
 Pago de SOAT/impuestos/mantenimiento
 Carro - Seguro
 Uber/Gasolina/Peajes/Parqueaderos
@@ -139,16 +140,17 @@ Préstamo
 ## 💳 Métodos de Pago
 
 **Reglas:**
+
 - `FAMILIAR`: Campo **siempre obligatorio**
 - `COMPARTIDO` / `PAGO_DEUDA`: Campo **obligatorio** solo si `Pagador` es Jose o Caro. Si no, se oculta.
 
 | Métodos disponibles (Jose y Caro) |
-|-----------------------------------|
-| Débito Jose |
-| AMEX Jose |
-| MasterCard Oro Jose |
-| Débito Caro |
-| Nu Caro |
+| --------------------------------- |
+| Débito Jose                       |
+| AMEX Jose                         |
+| MasterCard Oro Jose               |
+| Débito Caro                       |
+| Nu Caro                           |
 
 > Ambos usuarios pueden seleccionar cualquier método (para pagos cruzados).
 
@@ -156,7 +158,7 @@ Préstamo
 
 ## 📁 Estructura del Frontend
 
-```
+```text
 registrar-movimiento/
 ├── index.html
 ├── styles.css
@@ -182,11 +184,13 @@ registrar-movimiento/
 El API key se gestiona mediante **GitHub Secrets** para no exponerlo en el código fuente:
 
 1. En `app.js` se usa un placeholder:
+
    ```javascript
    const X_API_KEY = "__X_API_KEY__";
    ```
 
 2. El workflow de GitHub Actions reemplaza el placeholder antes del deploy:
+
    ```yaml
    - name: Replace API Key
      run: |
@@ -194,6 +198,7 @@ El API key se gestiona mediante **GitHub Secrets** para no exponerlo en el códi
    ```
 
 3. Todas las peticiones POST incluyen:
+
    ```http
    X-API-Key: <valor-del-secret>
    ```
