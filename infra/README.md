@@ -526,3 +526,109 @@ cd infra/scripts
 | **PostgreSQL Admin** | `gastosadmin` |
 | **PostgreSQL Version** | 16 |
 | **TF State Storage** | `gastostfstate` |
+
+---
+
+## Container Apps (Backend API)
+
+El backend Go se despliega en **Azure Container Apps**, un servicio serverless para contenedores.
+
+### Recursos creados por Terraform
+
+| Recurso | Nombre | Propósito |
+| ------- | ------ | --------- |
+| Log Analytics Workspace | `gastos-api-logs` | Logs y monitoreo |
+| Container App Environment | `gastos-api-env` | Entorno de ejecución |
+| Container App | `gastos-api` | La aplicación Go |
+
+### Configuración
+
+- **Image**: `ghcr.io/blanquicet/gastos/api:latest` (público)
+- **CPU/Memory**: 0.25 vCPU / 0.5 Gi
+- **Scale**: 0-2 replicas (escala a 0 cuando no hay tráfico)
+- **Ingress**: HTTPS externo en puerto 8080
+
+### URLs
+
+| Tipo | URL |
+| ---- | --- |
+| Default Azure | `https://gastos-api.happytree-8a8e768b.westus2.azurecontainerapps.io` |
+| Custom Domain | `https://api.gastos.blanquicet.com.co` |
+
+---
+
+## Custom Domain Setup (Cloudflare + Azure)
+
+Para configurar un custom domain en Container Apps con certificado SSL gratuito:
+
+### Paso 1: Agregar registros DNS en Cloudflare
+
+Agrega estos registros en Cloudflare para `blanquicet.com.co`:
+
+| Type | Name | Content | Proxy |
+| ---- | ---- | ------- | ----- |
+| CNAME | `api.gastos` | `gastos-api.happytree-8a8e768b.westus2.azurecontainerapps.io` | **DNS only** (nube gris) |
+| TXT | `asuid.api.gastos` | `0CD2548528D10CDD6B09A5598CD441F5D60B7C8E60684BD84B0655BFE8B8A25E` | - |
+
+> **Importante**: El proxy de Cloudflare DEBE estar deshabilitado (DNS only) para que Azure pueda validar el dominio y emitir el certificado.
+
+### Paso 2: Agregar hostname en Azure
+
+```bash
+# Agregar el hostname
+az containerapp hostname add \
+  --name gastos-api \
+  --resource-group gastos-rg \
+  --hostname api.gastos.blanquicet.com.co
+
+# Vincular con certificado SSL managed (gratuito)
+az containerapp hostname bind \
+  --name gastos-api \
+  --resource-group gastos-rg \
+  --hostname api.gastos.blanquicet.com.co \
+  --environment gastos-api-env \
+  --validation-method CNAME
+```
+
+### Paso 3: Verificar estado
+
+```bash
+# Ver hostnames configurados
+az containerapp hostname list \
+  --name gastos-api \
+  --resource-group gastos-rg \
+  -o table
+
+# Ver estado del certificado
+az containerapp env certificate list \
+  --name gastos-api-env \
+  --resource-group gastos-rg \
+  --query "[].{name:name, subject:properties.subjectName, state:properties.provisioningState}" \
+  -o table
+```
+
+Estados del certificado:
+
+- `Pending`: Azure está validando DNS y generando el certificado (puede tomar varios minutos)
+- `Succeeded`: Certificado listo, HTTPS funcionando
+- `Failed`: Verificar que los registros DNS estén correctos
+
+### Paso 4: Probar
+
+```bash
+curl https://api.gastos.blanquicet.com.co/health
+# {"status":"healthy"}
+```
+
+---
+
+## Costos estimados
+
+| Recurso | Costo/mes |
+| ------- | --------- |
+| PostgreSQL B1ms | ~$15 |
+| Container Apps (scale-to-zero) | ~$0-5 |
+| Log Analytics | ~$2-3 |
+| Static Web Apps | Gratis |
+| GHCR (público) | Gratis |
+| **Total estimado** | **~$20-25** |
