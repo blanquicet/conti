@@ -16,19 +16,15 @@ on:
   push:
     paths:
       - 'infra/**'
+      - '!infra/**/*.md'
       - '.github/workflows/terraform.yml'
-    paths-ignore:
-      - 'infra/README.md'
-      - 'infra/**/*.md'
     branches:
       - main
   pull_request:
     paths:
       - 'infra/**'
+      - '!infra/**/*.md'
       - '.github/workflows/terraform.yml'
-    paths-ignore:
-      - 'infra/README.md'
-      - 'infra/**/*.md'
 
 env:
   ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
