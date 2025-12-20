@@ -39,7 +39,7 @@ Do not suggest splitting into multiple repositories at this stage.
 
 Do not change this structure unless explicitly requested.
 
-```
+```text
 gastos/
   frontend/
     registrar-movimiento/
@@ -86,6 +86,7 @@ gastos/
   - `https://gastos.blanquicet.com.co/registrar-movimiento`
 
 SWA settings:
+
 - `app_location = /frontend/registrar-movimiento`
 - `skip_app_build = true`
 - Cloudflare DNS must be **DNS-only**
@@ -108,6 +109,7 @@ Frontend must only talk to the backend API.
 - This pipeline must remain unchanged during the auth phase.
 
 Transition goal:
+
 - Browser → Go API
 - Go API → n8n (server-to-server)
 - Secrets never exposed to the browser.
@@ -202,6 +204,7 @@ Movements remain in Excel via n8n.
 ## 10) Explicit non-goals for this phase
 
 Do not:
+
 - Migrate Excel to DB
 - Add Supabase
 - Add RLS
@@ -216,18 +219,84 @@ Do not:
 
 Two independent workflows:
 
-1) deploy-swa.yml
-- Triggers on `frontend/**`
-- Deploys Azure Static Web App
+1) deploy-swa.yml ✅ DONE
+
+    - Triggers on `frontend/**`
+    - Deploys Azure Static Web App
 
 2) deploy-api.yml
-- Triggers on `backend/**`
-- Builds and deploys Go API
 
-Do not combine these workflows.
+    - Triggers on `backend/**`
+    - Builds and deploys Go API
+
+3) terraform.yml ✅ DONE
+
+    - Triggers on `infra/**` (ignores `*.md`)
+    - Runs `terraform plan` on PRs
+    - Runs `terraform apply` on push to main
+
+    Do not combine these workflows.
 
 ---
 
-## 12) First message for a new Claude chat
+## 12) Infrastructure status (completed)
 
-Use the context from `.github/CLAUDE_AUTH_PHASE.md` and start by designing the Go authentication API skeleton aligned with this document.
+### 12.1 PostgreSQL ✅ DONE
+
+| Property | Value                                                |
+| -------- | ---------------------------------------------------- |
+| Server   | `gastos-auth-postgres.postgres.database.azure.com`   |
+| Database | `gastos_auth`                                        |
+| Admin    | `gastosadmin`                                        |
+| Region   | `brazilsouth`                                        |
+| Version  | PostgreSQL 16                                        |
+| SKU      | B_Standard_B1ms                                      |
+| SSL      | Required                                             |
+
+### 12.2 Terraform state ✅ DONE
+
+| Property        | Value            |
+| --------------- | ---------------- |
+| Storage Account | `gastostfstate`  |
+| Container       | `tfstate`        |
+| Key             | `gastos.tfstate` |
+
+### 12.3 GitHub Actions secrets ✅ DONE
+
+All ARM_* secrets configured for Service Principal `github-actions-gastos`.
+
+### 12.4 Azure values
+
+| Resource        | Value                                    |
+| --------------- | ---------------------------------------- |
+| Tenant ID       | `9de9ca20-a74e-40c6-9df8-61b9e313a5b3`   |
+| Subscription ID | `0f6b14e8-ade9-4dc5-9ef9-d0bcbaf5f0d8`   |
+| Resource Group  | `gastos-rg`                              |
+
+---
+
+## 13) What's next: Go backend
+
+The backend skeleton needs to be created following the structure in section 3.
+
+Priority order:
+
+1. Create `backend/` folder structure with `go.mod`
+2. Create SQL migrations for auth tables (users, sessions, password_resets)
+3. Implement basic HTTP server with health endpoint
+4. Implement auth endpoints (register, login, logout, me)
+5. Add session middleware
+6. Create `deploy-api.yml` workflow
+
+---
+
+## 14) First message for a new Claude chat
+
+Use the context from `.github/CLAUDE_AUTH_PHASE.md` and create the Go backend skeleton for authentication. Start with:
+
+1. Initialize `backend/` with `go.mod` (module: `github.com/blanquicet/gastos/backend`)
+2. Create SQL migrations in `backend/migrations/` for users, sessions, password_resets tables
+3. Create `backend/cmd/api/main.go` with basic HTTP server
+4. Create the internal package structure as defined in section 3
+
+The PostgreSQL database is already running at `gastos-auth-postgres.postgres.database.azure.com` with database `gastos_auth`. Use `DATABASE_URL` environment variable for connection.
