@@ -1,0 +1,26 @@
+# Terraform state (contains secrets)
+*.tfstate
+*.tfstate.*
+
+# Local plugins (downloaded on terraform init)
+.terraform/
+
+# Keep .terraform.lock.hcl - ensures consistent provider versions
+
+# Sensitive variable files
+terraform.tfvars
+*.auto.tfvars
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI config
+.terraformrc
+terraform.rc
