@@ -134,3 +134,88 @@ resource "azurerm_postgresql_flexible_server_configuration" "log_connections" {
   server_id = azurerm_postgresql_flexible_server.auth.id
   value     = "ON"
 }
+
+# =============================================================================
+# Azure Container Apps (Backend API)
+# =============================================================================
+
+resource "azurerm_log_analytics_workspace" "api" {
+  name                = "gastos-api-logs"
+  location            = data.azurerm_resource_group.gastos.location
+  resource_group_name = data.azurerm_resource_group.gastos.name
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+
+  tags = var.tags
+}
+
+resource "azurerm_container_app_environment" "api" {
+  name                       = "gastos-api-env"
+  location                   = data.azurerm_resource_group.gastos.location
+  resource_group_name        = data.azurerm_resource_group.gastos.name
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.api.id
+
+  tags = var.tags
+}
+
+resource "azurerm_container_app" "api" {
+  name                         = "gastos-api"
+  container_app_environment_id = azurerm_container_app_environment.api.id
+  resource_group_name          = data.azurerm_resource_group.gastos.name
+  revision_mode                = "Single"
+
+  template {
+    min_replicas = 0
+    max_replicas = 2
+
+    container {
+      name   = "api"
+      image  = "ghcr.io/blanquicet/gastos/api:latest"
+      cpu    = 0.25
+      memory = "0.5Gi"
+
+      env {
+        name  = "SERVER_ADDR"
+        value = ":8080"
+      }
+
+      env {
+        name        = "DATABASE_URL"
+        secret_name = "database-url"
+      }
+
+      env {
+        name  = "SESSION_COOKIE_SECURE"
+        value = "true"
+      }
+
+      env {
+        name  = "ALLOWED_ORIGINS"
+        value = "https://gastos.blanquicet.com.co"
+      }
+    }
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 8080
+    transport        = "http"
+
+    traffic_weight {
+      percentage      = 100
+      latest_revision = true
+    }
+  }
+
+  secret {
+    name  = "database-url"
+    value = local.database_url
+  }
+
+  tags = var.tags
+}
+
+locals {
+  database_url = "postgres://${var.postgres_admin_username}:${urlencode(random_password.postgres_admin.result)}@${azurerm_postgresql_flexible_server.auth.fqdn}:5432/${var.postgres_database_name}?sslmode=require"
+}
+

@@ -40,18 +40,38 @@ output "next_steps" {
   description = "Instructions after applying"
   value       = <<-EOT
 
-    ✅ PostgreSQL server created successfully!
+    ✅ Infrastructure created successfully!
 
-    To get the connection string (DATABASE_URL):
+    PostgreSQL:
       terraform output -raw database_url
-
-    To connect with psql:
       psql "$(terraform output -raw database_url)"
 
-    To run migrations:
+    Container Apps API:
+      URL: ${azurerm_container_app.api.ingress[0].fqdn}
+
+    Run migrations:
       export DATABASE_URL="$(terraform output -raw database_url)"
       cd ../backend
       migrate -path migrations -database "$DATABASE_URL" up
 
   EOT
+}
+
+# =============================================================================
+# Container Apps Outputs
+# =============================================================================
+
+output "container_app_url" {
+  description = "URL of the Container App API"
+  value       = "https://${azurerm_container_app.api.ingress[0].fqdn}"
+}
+
+output "container_app_name" {
+  description = "Name of the Container App"
+  value       = azurerm_container_app.api.name
+}
+
+output "container_app_environment_name" {
+  description = "Name of the Container App Environment"
+  value       = azurerm_container_app_environment.api.name
 }
