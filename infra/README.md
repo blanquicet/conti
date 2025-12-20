@@ -142,6 +142,15 @@ Si quieres conectarte a PostgreSQL desde tu máquina, crea `terraform.tfvars`:
 dev_ip_address = "TU_IP_AQUI"
 ```
 
+> ⚠️ **Importante**: El CI/CD borra esta regla en cada push a main
+>
+> Como `terraform.tfvars` no está en el repo (contiene secretos), cada vez que GitHub Actions ejecuta `terraform apply`, la variable `dev_ip_address` está vacía y Terraform elimina la regla de firewall.
+>
+> **Después de cada push a main**, recupera tu acceso ejecutando:
+> ```bash
+> terraform apply -var="dev_ip_address=$(curl -s ifconfig.me)"
+> ```
+
 ### Paso 2: Ver el plan
 
 ```bash
