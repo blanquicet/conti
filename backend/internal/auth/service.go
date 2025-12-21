@@ -56,6 +56,36 @@ func (i *RegisterInput) Validate() error {
 	if len(i.Password) < 8 {
 		return errors.New("password must be at least 8 characters")
 	}
+
+	// Password strength requirements
+	hasLower := false
+	hasUpper := false
+	hasNumber := false
+	hasSymbol := false
+
+	for _, char := range i.Password {
+		if char >= 'a' && char <= 'z' {
+			hasLower = true
+		} else if char >= 'A' && char <= 'Z' {
+			hasUpper = true
+		} else if char >= '0' && char <= '9' {
+			hasNumber = true
+		} else {
+			// Any non-alphanumeric character is considered a symbol
+			hasSymbol = true
+		}
+	}
+
+	if !hasLower {
+		return errors.New("password must contain at least one lowercase letter")
+	}
+	if !hasUpper {
+		return errors.New("password must contain at least one uppercase letter")
+	}
+	if !hasNumber && !hasSymbol {
+		return errors.New("password must contain at least one number or symbol")
+	}
+
 	return nil
 }
 

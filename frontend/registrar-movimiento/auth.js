@@ -177,6 +177,17 @@ async function handleRegister(e) {
     return;
   }
 
+  // Password strength validation
+  const hasLower = /[a-z]/.test(password);
+  const hasUpper = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSymbol = /[^a-zA-Z0-9]/.test(password);
+
+  if (!hasLower || !hasUpper || (!hasNumber && !hasSymbol)) {
+    showError(registerError, "La contraseña debe tener: mayúsculas, minúsculas y números o símbolos");
+    return;
+  }
+
   // Set loading state
   setButtonLoading(registerBtn, true);
 
@@ -406,36 +417,48 @@ function checkPasswordStrength() {
     return;
   }
 
+  // Check basic requirements first (for "Aceptable" minimum)
+  const hasMinLength = password.length >= 8;
+  const hasLowerCase = /[a-z]/.test(password);
+  const hasUpperCase = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[^a-zA-Z0-9]/.test(password);
+  
+  // Basic requirements: 8+ chars + lowercase + uppercase + (number OR symbol)
+  const meetsBasicRequirements = hasMinLength && hasLowerCase && hasUpperCase && (hasNumber || hasSpecialChar);
+  
   let strength = 0;
-  let feedback = "";
+  
+  // Only count points if basic requirements are met
+  if (meetsBasicRequirements) {
+    strength = 2; // Start at "Aceptable" level
+    
+    // Additional points for making it stronger
+    if (password.length >= 12) strength++; // Longer password
+    if (hasNumber && hasSpecialChar) strength++; // Both numbers AND special chars
+  } else {
+    // Doesn't meet basic requirements = Débil
+    strength = 0;
+  }
 
-  // Length check
-  if (password.length >= 8) strength++;
-  if (password.length >= 12) strength++;
-
-  // Character variety checks
-  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++; // Mixed case
-  if (/[0-9]/.test(password)) strength++; // Numbers
-  if (/[^a-zA-Z0-9]/.test(password)) strength++; // Special characters
-
-  // Determine strength level (0-5)
+  // Determine strength level
   const strengthBar = passwordStrength.querySelector(".strength-bar-fill");
   const strengthText = passwordStrength.querySelector(".strength-text");
   
   passwordStrength.classList.remove("hidden");
   
   // Remove all strength classes
-  strengthBar.classList.remove("weak", "fair", "good", "strong");
+  strengthBar.classList.remove("weak", "acceptable", "good", "strong");
   
-  if (strength <= 1) {
+  if (strength === 0) {
     strengthBar.classList.add("weak");
     strengthText.textContent = "Débil";
     strengthBar.style.width = "25%";
   } else if (strength === 2) {
-    strengthBar.classList.add("fair");
-    strengthText.textContent = "Regular";
+    strengthBar.classList.add("acceptable");
+    strengthText.textContent = "Aceptable";
     strengthBar.style.width = "50%";
-  } else if (strength === 3 || strength === 4) {
+  } else if (strength === 3) {
     strengthBar.classList.add("good");
     strengthText.textContent = "Buena";
     strengthBar.style.width = "75%";
