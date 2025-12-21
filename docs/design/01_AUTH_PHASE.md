@@ -211,6 +211,29 @@ Movements remain in Excel via n8n.
   - Duration: 30 days
 - Email validation requires full domain format (user\@domain.com)
 
+### 9.1 Password Hashing Performance Optimization (Dec 2024)
+
+Argon2id parameters were optimized for Azure Container Apps limited resources (0.25 CPU, 0.5Gi RAM):
+
+**Current parameters:**
+
+- Memory: 19 MB (OWASP recommended for interactive systems)
+- Iterations: 2
+- Threads: 1
+- Key length: 32 bytes
+
+**Previous parameters (caused slow login):**
+
+- Memory: 64 MB (too high for 512MB container)
+- Iterations: 1
+- Threads: 4
+
+**Impact:**
+
+Login performance improved from ~5-10 seconds to <1 second while maintaining strong security. With 19MB per operation, the 512MB container can handle ~25 concurrent login/register operations comfortably.
+
+**Note:** Container App resources (0.25 CPU, 0.5Gi RAM) were kept at minimum tier since the app only has 2 users currently. If user base grows, consider scaling resources instead of reducing Argon2 security parameters.
+
 ---
 
 ## 10) Explicit non-goals for this phase
