@@ -389,13 +389,366 @@ Full setup guide available in `DEVELOPMENT.md`.
 
 ---
 
-## 14) First message for a new Claude chat
+## 14) Pending Auth Features (Not Yet Implemented)
 
-Use the context from `.github/CLAUDE_AUTH_PHASE.md` and create the Go backend skeleton for authentication. Start with:
+### 14.1 Password Reset Flow (Backend Complete, Frontend Pending)
 
-1. Initialize `backend/` with `go.mod` (module: `github.com/blanquicet/gastos/backend`)
-2. Create SQL migrations in `backend/migrations/` for users, sessions, password_resets tables
-3. Create `backend/cmd/api/main.go` with basic HTTP server
-4. Create the internal package structure as defined in section 3
+**Status:**
 
-The PostgreSQL database is already running at `gastos-auth-postgres.postgres.database.azure.com` with database `gastos_auth`. Use `DATABASE_URL` environment variable for connection.
+- ✅ Backend endpoints implemented and working
+- ✅ Database schema ready (`password_resets` table)
+- ❌ Frontend UI not connected
+- ❌ Email sending not implemented
+
+**Backend endpoints already available:**
+
+- `POST /auth/forgot-password` - Request password reset
+- `POST /auth/reset-password` - Reset password with token
+
+**What needs to be done:**
+
+1. **Email Service Integration**
+
+   - Use Azure Communication Services Email (recommended for Azure deployment)
+   - Alternative: SendGrid, AWS SES, or SMTP service
+   - Store credentials in environment variables
+   - Implement email sender in `backend/internal/email/sender.go`
+
+2. **Frontend Implementation**
+
+   - Add "Forgot Password?" link in login form
+   - Create forgot password form (email input)
+   - Create reset password page (`/reset-password?token=xxx`)
+   - Form with new password + confirmation
+   - Call backend endpoints
+   - Show success/error messages
+
+3. **Email Template**
+
+   - Subject: "Restablecer contraseña - Gastos"
+   - Body: HTML template with reset link
+   - Link format: `https://gastos.blanquicet.com.co/reset-password?token={token}`
+   - Include expiration notice (1 hour)
+
+4. **Environment Variables**
+
+   ```bash
+   # Azure Communication Services
+   AZURE_COMMUNICATION_CONNECTION_STRING=...
+   EMAIL_FROM=noreply@gastos.blanquicet.com.co
+
+   # Or SMTP (alternative)
+   SMTP_HOST=smtp.example.com
+   SMTP_PORT=587
+   SMTP_USER=...
+   SMTP_PASS=...
+   EMAIL_FROM=noreply@gastos.blanquicet.com.co
+   ```
+
+5. **Testing**
+
+   - Test token generation
+   - Test email delivery
+   - Test token expiration (1 hour)
+   - Test token invalidation after use
+
+**Estimated effort:** 2-3 hours
+
+**GitHub Issue:** Create issue for tracking this work
+
+### 14.2 Email Verification (Not Implemented)
+
+**Status:** Not started - requires database schema changes
+
+**Purpose:**
+
+Verify user email addresses to prevent fake accounts and improve security.
+
+**What needs to be done:**
+
+1. **Database Schema Changes**
+
+   New migration: `005_add_email_verification.up.sql`
+
+   ```sql
+   ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+   ALTER TABLE users ADD COLUMN email_verification_token TEXT;
+   ALTER TABLE users ADD COLUMN email_verification_expires_at TIMESTAMPTZ;
+
+   CREATE INDEX idx_users_verification_token ON users(email_verification_token)
+   WHERE email_verification_token IS NOT NULL;
+   ```
+
+2. **Backend Changes**
+
+   - Update `User` model with verification fields
+   - Modify registration flow:
+     - Create user with `email_verified=false`
+     - Generate verification token (UUID or secure random)
+     - Store hashed token in database
+     - Send verification email
+     - **Do NOT auto-login** after registration
+   - New endpoint: `GET /auth/verify-email?token=xxx`
+     - Validate token and expiration
+     - Mark `email_verified=true`
+     - Clear verification token
+     - Optional: create session (auto-login)
+   - New endpoint: `POST /auth/resend-verification`
+     - For users who didn't receive email
+     - Rate limit: 1 request per 5 minutes
+   - Update middleware:
+     - Check `email_verified=true` for protected routes
+     - Or allow limited access with verification banner
+
+3. **Frontend Changes**
+
+   - Update registration flow:
+     - After registration, show: "Check your email to activate your account"
+     - Do NOT redirect to app
+   - Create verification page: `/verify-email?token=xxx`
+     - Auto-verify on page load
+     - Show success message
+     - Redirect to login (or auto-login)
+   - Add "Resend verification email" link
+     - Show if user tries to login with unverified email
+   - Optional: Verification banner
+     - If allowing app access before verification
+     - "Please verify your email to continue using all features"
+
+4. **Email Templates**
+
+   **Welcome/Verification Email:**
+
+   - Subject: "Bienvenido a Gastos - Verifica tu email"
+   - Body: HTML template with verification link
+   - Link: `https://gastos.blanquicet.com.co/verify-email?token={token}`
+   - Expiration: 24 hours
+   - Include "Resend verification" link in email
+
+5. **User Flow Changes**
+
+   **Current flow (implemented):**
+
+   ```
+   Register → Auto-login → App
+   ```
+
+   **New flow (after implementation):**
+
+   ```
+   Register → "Check email" message
+   User clicks email link → Account verified → Login → App
+   ```
+
+   **If user tries to login before verification:**
+
+   ```
+   Login attempt → Show error: "Please verify your email first"
+   → Show "Resend verification email" button
+   ```
+
+6. **Edge Cases to Handle**
+
+   - User registers with already-verified email (prevent)
+   - Token expired (allow resend)
+   - Token already used (show message)
+   - User changes email later (require re-verification)
+   - Cleanup: Delete unverified accounts after X days (optional background job)
+
+7. **Environment Variables**
+
+   Same email service as password reset.
+
+   Additional config:
+
+   ```bash
+   EMAIL_VERIFICATION_EXPIRY=24h
+   EMAIL_VERIFICATION_RESEND_COOLDOWN=5m
+   ```
+
+8. **Security Considerations**
+
+   - Store verification tokens hashed (like password reset tokens)
+   - Use constant-time comparison for token validation
+   - Rate limit resend endpoint (prevent spam)
+   - Prevent email enumeration (always return success on resend)
+
+**Estimated effort:** 4-6 hours
+
+**Recommended approach:** Implement after password reset is working
+
+### 14.3 Email Service Infrastructure
+
+**Common infrastructure needed for both features above.**
+
+**Recommended solution: Azure Communication Services Email**
+
+**Why Azure Communication Services:**
+
+- Native Azure integration
+- Free tier available (100 emails/day)
+- Reliable delivery
+- Easy to configure with existing Azure setup
+- SMTP interface available if needed
+
+**Setup steps:**
+
+1. **Create Azure Communication Services resource**
+
+   ```bash
+   az communication create \
+     --name gastos-communication \
+     --resource-group gastos-rg \
+     --location global
+   ```
+
+2. **Configure Email Domain**
+
+   - Option A: Use Azure subdomain (azurecomm.net)
+   - Option B: Custom domain (gastos.blanquicet.com.co)
+     - Requires DNS configuration (SPF, DKIM)
+     - Better for production
+
+3. **Get connection string**
+
+   ```bash
+   az communication list-key \
+     --name gastos-communication \
+     --resource-group gastos-rg
+   ```
+
+4. **Add to Terraform** (`infra/main.tf`)
+
+   ```hcl
+   resource "azurerm_communication_service" "gastos" {
+     name                = "gastos-communication"
+     resource_group_name = azurerm_resource_group.main.name
+     data_location       = "United States"
+   }
+
+   output "communication_connection_string" {
+     value     = azurerm_communication_service.gastos.primary_connection_string
+     sensitive = true
+   }
+   ```
+
+5. **Add to backend** (`backend/internal/email/sender.go`)
+
+   ```go
+   package email
+
+   import (
+       "context"
+       "fmt"
+   )
+
+   type Sender interface {
+       SendPasswordReset(ctx context.Context, to, token string) error
+       SendEmailVerification(ctx context.Context, to, token string) error
+   }
+
+   type AzureCommunicationSender struct {
+       connectionString string
+       fromAddress     string
+       baseURL         string
+   }
+
+   func NewAzureCommunicationSender(connStr, from, baseURL string) *AzureCommunicationSender {
+       return &AzureCommunicationSender{
+           connectionString: connStr,
+           fromAddress:     from,
+           baseURL:         baseURL,
+       }
+   }
+
+   func (s *AzureCommunicationSender) SendPasswordReset(ctx context.Context, to, token string) error {
+       resetLink := fmt.Sprintf("%s/reset-password?token=%s", s.baseURL, token)
+       // Implement Azure Communication Services email sending
+       // See: https://learn.microsoft.com/en-us/azure/communication-services/quickstarts/email/send-email
+       return nil
+   }
+
+   func (s *AzureCommunicationSender) SendEmailVerification(ctx context.Context, to, token string) error {
+       verifyLink := fmt.Sprintf("%s/verify-email?token=%s", s.baseURL, token)
+       // Implement verification email
+       return nil
+   }
+   ```
+
+6. **Environment variables for backend**
+
+   ```bash
+   AZURE_COMMUNICATION_CONNECTION_STRING=endpoint=https://...
+   EMAIL_FROM=noreply@gastos.blanquicet.com.co
+   BASE_URL=https://gastos.blanquicet.com.co
+   ```
+
+7. **Add to Container Apps configuration**
+
+   ```bash
+   az containerapp update \
+     --name gastos-api \
+     --resource-group gastos-rg \
+     --set-env-vars \
+       AZURE_COMMUNICATION_CONNECTION_STRING=secretref:azure-communication-cs \
+       EMAIL_FROM=noreply@gastos.blanquicet.com.co \
+       BASE_URL=https://gastos.blanquicet.com.co
+   ```
+
+**Cost estimate:** Free tier covers development/low usage
+
+**Alternative (if needed): SendGrid**
+
+- Free tier: 100 emails/day
+- Easier setup (no Azure dependency)
+- Go SDK available
+
+---
+
+## 15) Next Steps After Auth Phase
+
+Once email verification is implemented, the auth phase will be complete.
+
+**Future enhancements (out of scope for auth phase):**
+
+- User profile management (update name, email, password)
+- Two-factor authentication (2FA)
+- OAuth integration (Google, Microsoft)
+- Session management (view/revoke active sessions)
+- Account deletion
+
+**Current focus should shift to:**
+
+Connecting the movement registration form to the authenticated backend and migrating from Excel + n8n to database storage.
+
+---
+
+## 16) First message for a new Claude chat
+
+### For implementing pending auth features:
+
+Use the context from `.github/CLAUDE_AUTH_PHASE.md` section 14 to implement:
+
+**For Password Reset Frontend:**
+
+1. Read section 14.1 for complete requirements
+2. Backend endpoints are already implemented (`POST /auth/forgot-password`, `POST /auth/reset-password`)
+3. Implement email sender using Azure Communication Services (section 14.3)
+4. Create frontend forms for forgot password flow
+5. Test with real email delivery
+
+**For Email Verification:**
+
+1. Read section 14.2 for complete requirements
+2. Create migration 005 for email verification fields
+3. Update User model and repository
+4. Modify registration flow to NOT auto-login
+5. Implement verification endpoint and email sending
+6. Update frontend registration flow
+7. Test complete verification flow
+
+### For new features (post-auth):
+
+The PostgreSQL database is already running at `gastos-auth-postgres.postgres.database.azure.com` with database `gastos_auth`. Authentication system is complete and deployed. Focus on integrating movement registration with the authenticated backend.
+
+---
