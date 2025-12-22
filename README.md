@@ -71,10 +71,10 @@ Money between people should be simple, transparent, and calm.
 
 ```mermaid
 graph TD
-    A[Frontend<br/>Azure Static Web Apps] --> B[Go API<br/>Azure Container Apps]
-    B --> C[PostgreSQL<br/>Auth & Sessions]
-    B --> D[n8n Webhook<br/>Movement Storage]
-    D --> E[Google Sheets]
+    A[Frontend<br/>Azure Static Web Apps] -->|HTTPS + CORS| B[Go API<br/>Azure Container Apps]
+    B -->|Auth & Sessions| C[PostgreSQL<br/>Azure Database for PostgreSQL]
+    B -->|Movements registration| D[n8n Backend<br/>VM with n8n + Caddy]
+    D -->|Store Data| E[Google Sheets]
 ```
 
 See [docs/design/](docs/design/) for detailed phase documentation.
