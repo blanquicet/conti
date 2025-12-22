@@ -418,12 +418,15 @@ input, select, textarea, button {
 /* Mobile responsiveness for auth */
 @media (max-width: 480px) {
   .auth-wrapper {
-    padding: 16px;
-    margin: -24px;
+    padding: 20px;
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    margin: 0;
   }
 
   .auth-box {
-    padding: 24px 20px;
+    padding: 28px 20px;
+    max-width: 100%;
   }
 
   .auth-header h1 {
