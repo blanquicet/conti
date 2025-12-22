@@ -1,9 +1,3 @@
-// Auth configuration - auto-detect local vs production
-// Use empty string for same-origin requests (works with cookies)
-const API_URL = window.location.hostname === "localhost"
-  ? ""
-  : "https://api.gastos.blanquicet.com.co";
-
 // Auth state
 let currentUser = null;
 

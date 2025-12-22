@@ -23,6 +23,10 @@ type Config struct {
 	// CORS configuration
 	AllowedOrigins []string
 
+	// n8n configuration (for movement registration during migration period)
+	N8NWebhookURL string
+	N8NAPIKey     string
+
 	// Static files (for local development)
 	StaticDir string
 }
@@ -60,6 +64,10 @@ func Load() (*Config, error) {
 		}
 	}
 
+	// n8n configuration (for movement registration during migration period)
+	n8nWebhookURL := os.Getenv("N8N_WEBHOOK_URL")
+	n8nAPIKey := os.Getenv("N8N_API_KEY")
+
 	// Static directory for serving frontend in development
 	staticDir := os.Getenv("STATIC_DIR")
 
@@ -70,6 +78,8 @@ func Load() (*Config, error) {
 		SessionCookieName:   sessionCookieName,
 		SessionCookieSecure: sessionCookieSecure,
 		AllowedOrigins:      allowedOrigins,
+		N8NWebhookURL:       n8nWebhookURL,
+		N8NAPIKey:           n8nAPIKey,
 		StaticDir:           staticDir,
 	}, nil
 }

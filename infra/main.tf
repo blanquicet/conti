@@ -193,6 +193,16 @@ resource "azurerm_container_app" "api" {
         name  = "ALLOWED_ORIGINS"
         value = var.allowed_origins
       }
+
+      env {
+        name  = "N8N_WEBHOOK_URL"
+        value = var.n8n_webhook_url
+      }
+
+      env {
+        name  = "N8N_API_KEY"
+        value = var.n8n_api_key
+      }
     }
   }
 

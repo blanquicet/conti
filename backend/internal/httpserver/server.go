@@ -13,6 +13,8 @@ import (
 	"github.com/blanquicet/gastos/backend/internal/auth"
 	"github.com/blanquicet/gastos/backend/internal/config"
 	"github.com/blanquicet/gastos/backend/internal/middleware"
+	"github.com/blanquicet/gastos/backend/internal/movements"
+	"github.com/blanquicet/gastos/backend/internal/n8nclient"
 	"github.com/blanquicet/gastos/backend/internal/sessions"
 	"github.com/blanquicet/gastos/backend/internal/users"
 )
@@ -60,6 +62,16 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		logger,
 	)
 
+	// Create n8n client and movements handler (for migration period)
+	var movementsHandler *movements.Handler
+	if cfg.N8NWebhookURL != "" && cfg.N8NAPIKey != "" {
+		n8nClient := n8nclient.New(cfg.N8NWebhookURL, cfg.N8NAPIKey)
+		movementsHandler = movements.NewHandler(n8nClient, logger)
+		logger.Info("n8n client configured for movements", "webhook", cfg.N8NWebhookURL)
+	} else {
+		logger.Info("n8n client not configured; movement endpoints will be disabled")
+	}
+
 	// Create rate limiters for auth endpoints
 	// Login/Register: 5 requests per minute per IP (strict to prevent brute force)
 	authLimiter := middleware.NewRateLimiter(5, time.Minute)
@@ -83,6 +95,11 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	mux.HandleFunc("GET /me", authHandler.Me)
 	mux.Handle("POST /auth/forgot-password", rateLimitReset(http.HandlerFunc(authHandler.ForgotPassword)))
 	mux.Handle("POST /auth/reset-password", rateLimitReset(http.HandlerFunc(authHandler.ResetPassword)))
+
+	// Movement endpoints (proxy to n8n during migration period)
+	if movementsHandler != nil {
+		mux.HandleFunc("POST /movements", movementsHandler.RecordMovement)
+	}
 
 	// Serve static files in development mode
 	if cfg.StaticDir != "" {

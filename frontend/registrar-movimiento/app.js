@@ -1,5 +1,9 @@
-const N8N_CREATE_URL = "https://n8n.blanquicet.com.co/webhook/movimientos/reportar";
-const X_API_KEY = "__X_API_KEY__";
+// Auth configuration - auto-detect local vs production
+// Use empty string for same-origin requests (works with cookies)
+const API_URL = window.location.hostname === "localhost"
+  ? ""
+  : "https://api.gastos.blanquicet.com.co";
+const MOVEMENTS_API_URL = `${API_URL}/movements`;
 
 const DEFAULT_USERS = [
   "Caro",
@@ -562,11 +566,10 @@ async function onSubmit(e) {
 
     submitBtn.disabled = true;
 
-    const res = await fetch(N8N_CREATE_URL, {
+    const res = await fetch(MOVEMENTS_API_URL, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
-        ...(X_API_KEY ? { "X-API-Key": X_API_KEY } : {})
+        "Content-Type": "application/json"
       },
       body: JSON.stringify(payload)
     });

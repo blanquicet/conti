@@ -19,18 +19,22 @@ type Client struct {
 
 // Movement represents an expense movement to be recorded.
 type Movement struct {
-	Fecha         string  `json:"fecha"`
-	Tipo          string  `json:"tipo"`
-	Monto         float64 `json:"monto"`
-	Pagador       string  `json:"pagador,omitempty"`
-	Contraparte   string  `json:"contraparte,omitempty"`
-	MetodoPago    string  `json:"metodoPago,omitempty"`
-	Categoria     string  `json:"categoria,omitempty"`
-	Descripcion   string  `json:"descripcion,omitempty"`
-	Participantes []struct {
-		Nombre     string  `json:"nombre"`
-		Porcentaje float64 `json:"porcentaje"`
-	} `json:"participantes,omitempty"`
+	Fecha                  string         `json:"fecha"`
+	Tipo                   string         `json:"tipo"`
+	Valor                  float64        `json:"valor"`
+	Pagador                string         `json:"pagador,omitempty"`
+	Contraparte            string         `json:"contraparte,omitempty"`
+	MetodoPago             string         `json:"metodo_pago,omitempty"`
+	Categoria              string         `json:"categoria,omitempty"`
+	Descripcion            string         `json:"descripcion,omitempty"`
+	Participantes          []Participante `json:"participantes,omitempty"`
+	DividirEquitativamente bool           `json:"dividir_equitativamente,omitempty"`
+}
+
+// Participante represents a participant in a shared expense.
+type Participante struct {
+	Nombre     string  `json:"nombre"`
+	Porcentaje float64 `json:"porcentaje"`
 }
 
 // Response represents the response from n8n webhook.
