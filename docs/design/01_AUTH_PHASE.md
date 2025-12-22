@@ -89,14 +89,40 @@ SWA settings:
 
 - `app_location = /frontend/registrar-movimiento`
 - `skip_app_build = true`
-- Cloudflare DNS must be **DNS-only**
+- Cloudflare DNS must be **DNS-only** (not proxied)
+
+**Cloudflare DNS Configuration:**
+
+```text
+Type   Name    Target                    Proxy Status
+CNAME  gastos  <Static Web App FQDN>     DNS only
+```
+
+**Important:**
+
+- Azure Static Web Apps requires DNS-only mode. If proxied through Cloudflare, the custom domain verification and SSL setup will fail.
+- No TXT record needed - SWA verifies domain ownership through the CNAME record itself.
 
 ### 4.2 Backend API (Go)
 
 - Written in Go
-- Deployed independently (VM + Caddy or Azure Container Apps)
-- Planned domain:
+- Deployed to **Azure Container Apps**
+- Served at:
   - `https://api.gastos.blanquicet.com.co`
+
+**Cloudflare DNS Configuration:**
+
+```text
+Type   Name              Target                          Proxy Status
+CNAME  api.gastos        <Container App FQDN>            DNS only
+TXT    asuid.api.gastos  <Azure verification token>      DNS only
+```
+
+**Notes:**
+
+- CNAME points to the Container App's default FQDN
+- TXT record (`asuid.api.gastos`) is required for Azure custom domain verification (Container Apps security requirement, unlike SWA which verifies via CNAME alone)
+- DNS-only mode required for Azure to manage SSL certificates
 
 Frontend must only talk to the backend API.
 
@@ -153,7 +179,200 @@ All protected endpoints must use auth middleware.
 
 ---
 
-## 8) Database decision (AUTH ONLY)
+## 8) CORS Configuration and Domain Architecture
+
+### 8.1 Current Architecture: Separate Domains
+
+The application currently uses separate domains for frontend and backend:
+
+- **Frontend:** `https://gastos.blanquicet.com.co` (Azure Static Web Apps)
+- **Backend:** `https://api.gastos.blanquicet.com.co` (Azure Container Apps)
+
+**Why CORS is required:**
+
+This cross-origin architecture requires CORS (Cross-Origin Resource Sharing) configuration for two reasons:
+
+1. **Browser Security:** Browsers block JavaScript requests from one domain to another by default (Same-Origin Policy). Without CORS headers, all frontend API calls would fail.
+
+2. **Credentials with Cookies:** To send session cookies in cross-origin requests, both sides must cooperate:
+   - **Frontend:** `credentials: "include"` in fetch calls
+   - **Backend:** CORS headers allowing the origin and credentials:
+     - `Access-Control-Allow-Origin: https://gastos.blanquicet.com.co`
+     - `Access-Control-Allow-Credentials: true`
+
+**Current CORS implementation:**
+
+```go
+// backend/internal/middleware/middleware.go
+func CORS(allowedOrigins string) func(http.Handler) http.Handler {
+    origins := strings.Split(allowedOrigins, ",")
+    return func(next http.Handler) http.Handler {
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+            origin := r.Header.Get("Origin")
+            for _, allowed := range origins {
+                if strings.TrimSpace(allowed) == origin {
+                    w.Header().Set("Access-Control-Allow-Origin", origin)
+                    w.Header().Set("Access-Control-Allow-Credentials", "true")
+                    w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+                    w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+                    break
+                }
+            }
+            if r.Method == "OPTIONS" {
+                w.WriteHeader(http.StatusOK)
+                return
+            }
+            next.ServeHTTP(w, r)
+        })
+    }
+}
+```
+
+**Environment configuration:**
+
+```bash
+# For local development (recommended setup)
+# CORS not needed - backend serves frontend at same origin (http://localhost:8080)
+# STATIC_DIR=../frontend/registrar-movimiento
+# Only set ALLOWED_ORIGINS if running frontend separately:
+# ALLOWED_ORIGINS=http://localhost:8000
+
+# For production (configured via GitHub Secret → Terraform → Container Apps)
+ALLOWED_ORIGINS=https://gastos.blanquicet.com.co
+```
+
+**Local development notes:**
+
+- **Recommended setup:** Backend serves frontend static files (`STATIC_DIR=../frontend/registrar-movimiento`)
+  - No CORS needed - same origin (http://localhost:8080)
+  - Frontend calls `/me`, `/auth/login`, etc. (relative URLs)
+  - Simplest configuration
+
+- **Alternative setup:** Run frontend separately (e.g., `python3 -m http.server 8000`)
+  - Requires `ALLOWED_ORIGINS=http://localhost:8000`
+  - Frontend runs on different port than backend
+  - Only use for specific testing scenarios
+
+See `backend/.env.example` and `docs/DEVELOPMENT.md` for complete local setup.
+
+**Security considerations:**
+
+- CORS provides **light protection** against malicious websites making authenticated requests
+- It does **not** prevent direct API calls via curl, Postman, or scripts
+- It only controls which web origins can make requests from browsers
+- Acts as basic CSRF (Cross-Site Request Forgery) protection
+
+### 8.2 Alternative Architecture: Same Domain (Future Enhancement)
+
+**Proposed architecture:**
+
+- **Frontend:** `https://gastos.blanquicet.com.co/`
+- **Backend:** `https://gastos.blanquicet.com.co/api/*`
+
+**Advantages:**
+
+1. **No CORS needed** - Same-origin requests work automatically
+2. **Simpler cookie handling** - No cross-origin cookie restrictions
+3. **Cleaner architecture** - Single domain, unified experience
+4. **Better SEO** - All content under one domain
+5. **Reduced configuration** - No CORS headers to manage
+
+**Disadvantages:**
+
+1. **Requires routing layer** - Need additional infrastructure
+2. **More complex deployment** - Two services behind one domain
+3. **Additional costs** - Front Door or Application Gateway required
+
+**Azure Solutions for Implementation:**
+
+#### Option 1: Azure Front Door
+
+**What it is:** Global CDN and application delivery service with advanced routing
+
+**Features:**
+
+- Global CDN with edge locations
+- SSL/TLS termination
+- Web Application Firewall (WAF)
+- DDoS protection
+- Health probes and automatic failover
+- Request/response transformations
+
+**Cost:** ~$35/month (Standard tier)
+
+#### Option 2: Azure Application Gateway
+
+**What it is:** Regional load balancer with application-level routing
+
+**Features:**
+
+- Layer 7 load balancing
+- SSL/TLS termination
+- URL-based routing
+- Web Application Firewall (WAF)
+- Regional deployment (lower latency for specific region)
+
+**Cost:** ~$145/month (Standard_v2 tier)
+
+#### Option 3: Azure API Management
+
+**What it is:** Full API management platform with gateway capabilities
+
+**Features:**
+
+- API versioning and documentation
+- Rate limiting and quotas
+- Request/response transformations
+- Analytics and monitoring
+- Developer portal
+
+**Cost:** Pay-per-use (Consumption tier) or ~$50/month (Developer tier)
+
+### 8.3 Recommendation
+
+**Current approach (separate domains + CORS) is the right long-term solution:**
+
+1. **Cost:** $0 extra infrastructure (aligns with pay-per-use philosophy)
+2. **Simplicity:** No additional services, no migration complexity
+3. **Performance:** CORS overhead is negligible (<1ms per request)
+4. **Scalability:** Works fine even with hundreds of users
+5. **Maintainability:** Fewer moving parts, easier to debug
+
+**Cost analysis of same-domain alternatives:**
+
+| Solution                           | Monthly Cost              | Makes Sense When                         |
+| ---------------------------------- | ------------------------- | ---------------------------------------- |
+| **Current (CORS)**                 | $0                        | Always (recommended)                     |
+| Azure API Management (Consumption) | ~$3.50 per million calls  | Need API versioning, analytics, quotas   |
+| Azure Front Door (Standard)        | ~$35 base + traffic       | Need global CDN, WAF, DDoS protection    |
+| Azure Application Gateway (v2)     | ~$145 base + traffic      | Need regional load balancing, WAF        |
+
+**When to reconsider same-domain architecture:**
+
+1. **Specific feature needs:**
+   - API versioning and lifecycle management → API Management
+   - Global CDN for international users → Front Door
+   - Advanced WAF/DDoS protection → Front Door or App Gateway
+
+2. **Not because of scale or CORS overhead** - CORS is not a bottleneck
+
+**Reality check:**
+
+- 2 users, ~100 requests/day = **CORS is free and fast**
+- Even 100 users, ~10,000 requests/day = **CORS still free and fast**
+- API Management Consumption: $3.50 per million calls = minimal cost but added complexity
+- You'd be paying (in maintenance burden) for features you don't need
+
+**Recommended approach:**
+
+1. ✅ Keep current CORS setup (already implemented)
+2. ✅ Monitor actual needs, not theoretical scalability
+3. ✅ Only add routing layer when you need its specific features (versioning, analytics, WAF)
+4. ✅ Prioritize pay-per-use alignment over architectural purity
+
+---
+
+## 9) Database decision (AUTH ONLY)
 
 **Decision: Use Azure Database for PostgreSQL (Flexible Server).**
 
