@@ -191,7 +191,7 @@ resource "azurerm_container_app" "api" {
 
       env {
         name  = "ALLOWED_ORIGINS"
-        value = "https://gastos.blanquicet.com.co"
+        value = var.allowed_origins
       }
     }
   }

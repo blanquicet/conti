@@ -50,6 +50,12 @@ variable "dev_ip_address" {
   default     = ""
 }
 
+variable "allowed_origins" {
+  description = "Comma-separated allowed origins for CORS (set via TF_VAR_allowed_origins in CI/CD)"
+  type        = string
+  default     = ""
+}
+
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
