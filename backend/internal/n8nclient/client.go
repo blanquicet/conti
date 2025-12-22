@@ -39,8 +39,9 @@ type Participante struct {
 
 // Response represents the response from n8n webhook.
 type Response struct {
-	OK      bool   `json:"ok"`
-	Message string `json:"message"`
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // New creates a new n8n client.
@@ -80,13 +81,23 @@ func (c *Client) RecordMovement(ctx context.Context, movement *Movement) (*Respo
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("n8n returned status %d: %s", resp.StatusCode, string(respBody))
-	}
-
+	// Parse response body for both success and error cases
 	var response Response
 	if err := json.Unmarshal(respBody, &response); err != nil {
+		// If JSON parsing fails, return raw body in error
+		if resp.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("n8n error (status %d): %s", resp.StatusCode, string(respBody))
+		}
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+
+	// Check HTTP status code
+	if resp.StatusCode != http.StatusOK {
+		errorMsg := response.Error
+		if errorMsg == "" {
+			errorMsg = string(respBody)
+		}
+		return nil, fmt.Errorf("n8n error (status %d): %s", resp.StatusCode, errorMsg)
 	}
 
 	return &response, nil
