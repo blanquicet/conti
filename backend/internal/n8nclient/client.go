@@ -19,6 +19,7 @@ type Client struct {
 
 // Movement represents an expense movement to be recorded.
 type Movement struct {
+	ID                     string         `json:"id,omitempty"`
 	Fecha                  string         `json:"fecha"`
 	Tipo                   string         `json:"tipo"`
 	Valor                  float64        `json:"valor"`

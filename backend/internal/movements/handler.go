@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/blanquicet/gastos/backend/internal/n8nclient"
+	"github.com/google/uuid"
 )
 
 // Handler handles movement-related HTTP requests.
@@ -32,6 +33,13 @@ func (h *Handler) RecordMovement(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
+
+	// Generate unique ID for this movement
+	if movement.ID == "" {
+		movement.ID = uuid.New().String()
+	}
+
+	h.logger.Info("recording movement", "id", movement.ID, "type", movement.Tipo)
 
 	// Forward to n8n
 	resp, err := h.n8nClient.RecordMovement(r.Context(), &movement)

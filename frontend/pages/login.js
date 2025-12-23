@@ -14,20 +14,23 @@ let currentForm = 'login'; // 'login' or 'register'
  * Render login/register page HTML
  */
 export function render() {
+  // Always start with login form
+  currentForm = 'login';
+
   return `
     <div class="auth-wrapper">
       <div class="auth-box">
         <!-- Login Form -->
         <form id="loginForm" class="${currentForm === 'login' ? '' : 'hidden'}">
           <h2>Iniciar Sesión</h2>
-          
+
           <div class="form-group">
             <label for="loginEmail">Email</label>
-            <input 
-              type="email" 
-              id="loginEmail" 
+            <input
+              type="email"
+              id="loginEmail"
               autocomplete="email"
-              required 
+              required
               placeholder="tu@email.com"
             />
           </div>
@@ -35,17 +38,17 @@ export function render() {
           <div class="form-group password-field">
             <label for="loginPassword">Contraseña</label>
             <div class="password-wrapper">
-              <input 
-                type="password" 
-                id="loginPassword" 
+              <input
+                type="password"
+                id="loginPassword"
                 autocomplete="current-password"
-                required 
+                required
                 minlength="8"
                 placeholder="Tu contraseña"
               />
-              <button 
-                type="button" 
-                class="toggle-password" 
+              <button
+                type="button"
+                class="toggle-password"
                 data-target="loginPassword"
                 aria-label="Mostrar contraseña"
               >
@@ -64,7 +67,7 @@ export function render() {
           </button>
 
           <p class="auth-switch">
-            ¿No tienes cuenta? 
+            ¿No tienes cuenta?
             <a href="#" id="showRegister">Regístrate</a>
           </p>
         </form>
@@ -75,22 +78,22 @@ export function render() {
 
           <div class="form-group">
             <label for="registerName">Nombre</label>
-            <input 
-              type="text" 
-              id="registerName" 
+            <input
+              type="text"
+              id="registerName"
               autocomplete="name"
-              required 
+              required
               placeholder="Tu nombre"
             />
           </div>
 
           <div class="form-group">
             <label for="registerEmail">Email</label>
-            <input 
-              type="email" 
-              id="registerEmail" 
+            <input
+              type="email"
+              id="registerEmail"
               autocomplete="email"
-              required 
+              required
               placeholder="tu@email.com"
             />
           </div>
@@ -98,17 +101,17 @@ export function render() {
           <div class="form-group password-field">
             <label for="registerPassword">Contraseña</label>
             <div class="password-wrapper">
-              <input 
-                type="password" 
-                id="registerPassword" 
+              <input
+                type="password"
+                id="registerPassword"
                 autocomplete="new-password"
-                required 
+                required
                 minlength="8"
                 placeholder="Mínimo 8 caracteres"
               />
-              <button 
-                type="button" 
-                class="toggle-password" 
+              <button
+                type="button"
+                class="toggle-password"
                 data-target="registerPassword"
                 aria-label="Mostrar contraseña"
               >
@@ -129,17 +132,17 @@ export function render() {
           <div class="form-group password-field">
             <label for="registerConfirm">Confirmar Contraseña</label>
             <div class="password-wrapper">
-              <input 
-                type="password" 
-                id="registerConfirm" 
+              <input
+                type="password"
+                id="registerConfirm"
                 autocomplete="new-password"
-                required 
+                required
                 minlength="8"
                 placeholder="Repite tu contraseña"
               />
-              <button 
-                type="button" 
-                class="toggle-password" 
+              <button
+                type="button"
+                class="toggle-password"
                 data-target="registerConfirm"
                 aria-label="Mostrar contraseña"
               >
@@ -159,7 +162,7 @@ export function render() {
           </button>
 
           <p class="auth-switch">
-            ¿Ya tienes cuenta? 
+            ¿Ya tienes cuenta?
             <a href="#" id="showLogin">Inicia sesión</a>
           </p>
         </form>
@@ -352,7 +355,7 @@ function updatePasswordMatch() {
   }
 
   matchHint.classList.remove('hidden');
-  
+
   if (password === confirm) {
     matchHint.textContent = '✓ Las contraseñas coinciden';
     matchHint.className = 'password-match match';

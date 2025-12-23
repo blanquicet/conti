@@ -42,6 +42,24 @@ let participants = []; // [{ name, pct }]
 let currentUser = null;
 
 /**
+ * Helper: Format number with commas (e.g., 71,033.90)
+ */
+function formatNumber(num) {
+  const value = Number(num);
+  if (!Number.isFinite(value)) return '0';
+  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Helper: Parse number from formatted string (remove commas)
+ */
+function parseNumber(str) {
+  const cleaned = String(str).replace(/,/g, '');
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? num : 0;
+}
+
+/**
  * Helper: get today's date as YYYY-MM-DD in local timezone
  */
 function getTodayLocal() {
@@ -57,7 +75,7 @@ function getTodayLocal() {
  */
 export function render(user) {
   currentUser = user;
-  
+
   return `
     <main class="card">
       <header class="header">
@@ -105,8 +123,11 @@ export function render(user) {
           </label>
 
           <label class="field col-span-2">
-            <span>Monto total (COP)</span>
-            <input name="valor" id="valor" type="number" min="0" step="1" inputmode="numeric" placeholder="0" required />
+            <span>Monto total</span>
+            <div class="input-wrapper" id="valorWrapper" style="display: flex; align-items: center; border: 1px solid #ccc; border-radius: 4px; padding: 0; background-color: white;">
+              <span style="color: #999; padding-left: 8px; padding-right: 2px; user-select: none; font-size: 14px; flex-shrink: 0;">COP</span>
+              <input name="valor" id="valor" type="text" inputmode="decimal" placeholder="0" required style="border: none; outline: none; flex: 1; padding: 8px 8px 8px 2px; background-color: transparent; text-align: right; min-width: 0;" />
+            </div>
             <small class="hint">Obligatorio</small>
           </label>
 
@@ -141,10 +162,16 @@ export function render(user) {
           <section class="section col-span-2 hidden" id="participantesWrap">
             <div class="sectionHeader">
               <h2>Participantes</h2>
-              <label class="checkbox">
-                <input type="checkbox" id="equitable" checked />
-                <span>Dividir equitativamente</span>
-              </label>
+              <div style="display: flex; gap: 16px;">
+                <label class="checkbox">
+                  <input type="checkbox" id="equitable" checked />
+                  <span>Dividir equitativamente</span>
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="showAsValue" />
+                  <span>Mostrar como valor</span>
+                </label>
+              </div>
             </div>
 
             <div id="participantsList" class="participantsList"></div>
@@ -177,7 +204,9 @@ export function setup() {
   const pagadorEl = document.getElementById('pagador');
   const pagadorCompartidoEl = document.getElementById('pagadorCompartido');
   const equitableEl = document.getElementById('equitable');
+  const showAsValueEl = document.getElementById('showAsValue');
   const addParticipantBtn = document.getElementById('addParticipantBtn');
+  const valorEl = document.getElementById('valor');
   const logoutBtn = document.getElementById('logoutBtn');
 
   // Initialize selects
@@ -194,6 +223,30 @@ export function setup() {
   pagadorEl.addEventListener('change', onPagadorChange);
   pagadorCompartidoEl.addEventListener('change', onPagadorChange);
   equitableEl.addEventListener('change', onEquitableChange);
+  showAsValueEl.addEventListener('change', () => renderParticipants());
+  
+  // Format valor field on input and blur
+  valorEl.addEventListener('input', (e) => {
+    const tipo = document.getElementById('tipo').value;
+    if (tipo === 'COMPARTIDO' && document.getElementById('showAsValue').checked) {
+      renderParticipants();
+    }
+  });
+  
+  valorEl.addEventListener('blur', (e) => {
+    const rawValue = parseNumber(e.target.value);
+    e.target.value = formatNumber(rawValue);
+  });
+  
+  valorEl.addEventListener('focus', (e) => {
+    const rawValue = parseNumber(e.target.value);
+    if (rawValue === 0) {
+      e.target.value = '';
+    } else {
+      e.target.value = String(rawValue);
+    }
+  });
+  
   addParticipantBtn.addEventListener('click', onAddParticipant);
   form.addEventListener('submit', onSubmit);
   logoutBtn.addEventListener('click', handleLogout);
@@ -280,17 +333,10 @@ function renderCategorySelect() {
  */
 function updateSubmitButton(isCompartido) {
   const submitBtn = document.getElementById('submitBtn');
-  if (isCompartido) {
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Dividir gasto próximamente...';
-    submitBtn.style.opacity = '0.5';
-    submitBtn.style.cursor = 'not-allowed';
-  } else {
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Registrar';
-    submitBtn.style.opacity = '1';
-    submitBtn.style.cursor = 'pointer';
-  }
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Registrar';
+  submitBtn.style.opacity = '1';
+  submitBtn.style.cursor = 'pointer';
 }
 
 /**
@@ -335,7 +381,7 @@ function onTipoChange() {
 function showPaymentMethods(required) {
   const metodoEl = document.getElementById('metodo');
   const metodoWrap = document.getElementById('metodoWrap');
-  
+
   metodoEl.innerHTML = '';
   const base = document.createElement('option');
   base.value = '';
@@ -461,10 +507,20 @@ function renderParticipants() {
   if (tipo !== 'COMPARTIDO') return;
 
   const editable = !document.getElementById('equitable').checked;
+  const showAsValue = document.getElementById('showAsValue').checked;
+  const totalValue = parseNumber(document.getElementById('valor').value) || 0;
+
+  // Adjust grid columns based on view mode
+  participantsListEl.style.display = 'grid';
+  participantsListEl.style.gap = '12px';
 
   participants.forEach((p, idx) => {
     const row = document.createElement('div');
     row.className = 'participantRow';
+    row.style.display = 'grid';
+    row.style.gridTemplateColumns = showAsValue ? 'minmax(80px, 1fr) 160px 40px' : 'minmax(120px, 1fr) 95px 40px';
+    row.style.gap = '10px';
+    row.style.alignItems = 'center';
 
     const nameSel = document.createElement('select');
     for (const u of users) {
@@ -483,22 +539,102 @@ function renderParticipants() {
 
     const pctWrap = document.createElement('div');
     pctWrap.className = 'pctWrap';
+    pctWrap.style.display = 'flex';
+    pctWrap.style.alignItems = 'center';
 
     const pctInput = document.createElement('input');
-    pctInput.type = 'number';
-    pctInput.min = '0';
-    pctInput.max = '100';
-    pctInput.step = '0.01';
-    pctInput.value = String(p.pct ?? 0);
     pctInput.disabled = !editable;
 
-    pctInput.addEventListener('input', () => {
-      const v = Number(pctInput.value);
-      participants[idx].pct = Number.isFinite(v) ? v : 0;
-      validatePctSum();
-    });
+    if (showAsValue) {
+      // Show as COP value
+      pctInput.type = 'text';
+      pctInput.inputMode = 'decimal';
+      const value = ((p.pct / 100) * totalValue);
+      pctInput.value = formatNumber(value);
 
-    pctWrap.appendChild(pctInput);
+      pctInput.addEventListener('input', () => {
+        const v = parseNumber(pctInput.value);
+        if (Number.isFinite(v) && totalValue > 0) {
+          participants[idx].pct = (v / totalValue) * 100;
+        } else {
+          participants[idx].pct = 0;
+        }
+        validatePctSum();
+      });
+      
+      pctInput.addEventListener('blur', () => {
+        const v = parseNumber(pctInput.value);
+        pctInput.value = formatNumber(v);
+      });
+      
+      pctInput.addEventListener('focus', () => {
+        const v = parseNumber(pctInput.value);
+        if (v === 0) {
+          pctInput.value = '';
+        } else {
+          pctInput.value = String(v);
+        }
+      });
+    } else {
+      // Show as percentage
+      pctInput.type = 'number';
+      pctInput.inputMode = 'decimal';
+      pctInput.min = '0';
+      pctInput.max = '100';
+      pctInput.step = '0.01';
+      pctInput.value = String(p.pct ?? 0);
+
+      pctInput.addEventListener('input', () => {
+        const v = Number(pctInput.value);
+        participants[idx].pct = Number.isFinite(v) ? v : 0;
+        validatePctSum();
+      });
+    }
+
+    // Create input wrapper with suffix
+    const inputWrapper = document.createElement('div');
+    inputWrapper.style.display = 'flex';
+    inputWrapper.style.alignItems = 'center';
+    inputWrapper.style.border = '1px solid #ccc';
+    inputWrapper.style.borderRadius = '4px';
+    inputWrapper.style.padding = '0';
+    inputWrapper.style.backgroundColor = pctInput.disabled ? '#f5f5f5' : 'white';
+    inputWrapper.style.maxWidth = '100%';
+    inputWrapper.style.boxSizing = 'border-box';
+
+    // Style the input to fit inside wrapper
+    pctInput.style.border = 'none';
+    pctInput.style.outline = 'none';
+    pctInput.style.flex = '1';
+    pctInput.style.backgroundColor = 'transparent';
+    pctInput.style.textAlign = 'right';
+    pctInput.style.minWidth = '0';
+    pctInput.style.fontSize = showAsValue ? '13px' : '14px';
+    pctInput.style.padding = showAsValue ? '8px 8px 8px 2px' : '8px 2px 8px 8px';
+
+    // Add prefix/suffix label inside
+    const label = document.createElement('span');
+    label.textContent = showAsValue ? 'COP' : '%';
+    label.style.color = '#999';
+    label.style.userSelect = 'none';
+    label.style.fontSize = '14px';
+    label.style.flexShrink = '0';
+    
+    if (showAsValue) {
+      // COP prefix (left side)
+      label.style.paddingLeft = '8px';
+      label.style.paddingRight = '2px';
+      inputWrapper.appendChild(label);
+      inputWrapper.appendChild(pctInput);
+    } else {
+      // % suffix (right side)
+      label.style.paddingLeft = '2px';
+      label.style.paddingRight = '8px';
+      inputWrapper.appendChild(pctInput);
+      inputWrapper.appendChild(label);
+    }
+    
+    pctWrap.appendChild(inputWrapper);
 
     const delBtn = document.createElement('button');
     delBtn.type = 'button';
@@ -534,7 +670,17 @@ function validatePctSum() {
   const ok = Math.abs(sum - 100) < 0.01;
 
   if (!ok) {
-    setStatus(`La suma de porcentajes debe ser 100%. Actualmente: ${sum.toFixed(2)}%.`, 'err');
+    const showAsValue = document.getElementById('showAsValue').checked;
+    const totalValue = parseNumber(document.getElementById('valor').value) || 0;
+    
+    if (showAsValue && totalValue > 0) {
+      // Calcular valores en COP basados en los porcentajes
+      const expectedCOP = formatNumber(totalValue);
+      const currentCOP = formatNumber((sum / 100) * totalValue);
+      setStatus(`La suma de porcentajes debe ser 100% (${expectedCOP}). Actualmente: ${sum.toFixed(2)}% (${currentCOP}).`, 'err');
+    } else {
+      setStatus(`La suma de porcentajes debe ser 100%. Actualmente: ${sum.toFixed(2)}%.`, 'err');
+    }
   } else {
     setStatus('', '');
   }
@@ -563,7 +709,7 @@ function readForm() {
   const tipo = document.getElementById('tipo').value;
   const fecha = (document.getElementById('fecha').value || '').slice(0, 10);
   const descripcion = (document.getElementById('descripcion').value || '').trim();
-  const valor = Number(document.getElementById('valor').value);
+  const valor = parseNumber(document.getElementById('valor').value);
   const pagador = getCurrentPayer();
   const metodo = document.getElementById('metodo').value || '';
   const tomador = document.getElementById('tomador').value || '';
@@ -575,15 +721,10 @@ function readForm() {
 
   if (tipo !== 'FAMILIAR' && !pagador) throw new Error('Pagador es obligatorio.');
 
-  const requiresCategory = tipo === 'FAMILIAR' || (tipo === 'PAGO_DEUDA' && PRIMARY_USERS.includes(pagador));
-  if (requiresCategory && !categoria) throw new Error('Categoría es obligatoria.');
+  if (!categoria) throw new Error('Categoría es obligatoria.');
 
   const requiresMethod = tipo === 'FAMILIAR' || PRIMARY_USERS.includes(pagador);
   if (requiresMethod && !metodo) throw new Error('Método de pago es obligatorio.');
-
-  if (tipo === 'COMPARTIDO') {
-    throw new Error('Dividir gasto aún no está implementado. Próximamente...');
-  }
 
   if (tipo === 'PAGO_DEUDA') {
     if (!tomador) throw new Error('Para PAGO_DEUDA debes seleccionar quién recibió (Tomador).');
@@ -599,10 +740,7 @@ function readForm() {
     if (new Set(lower).size !== lower.length) throw new Error('No puedes repetir participantes.');
   }
 
-  const contraparte =
-    tipo === 'PAGO_DEUDA' ? tomador :
-    tipo === 'COMPARTIDO' ? participants.map(p => p.name).filter(n => n !== pagador).join(', ') :
-    '';
+  const contraparte = tipo === 'PAGO_DEUDA' ? tomador : '';
 
   return {
     fecha,
@@ -613,8 +751,7 @@ function readForm() {
     pagador,
     contraparte,
     metodo_pago: metodo,
-    participantes: tipo === 'COMPARTIDO' ? participants.map(p => ({ nombre: p.name, porcentaje: Number(p.pct || 0) })) : [],
-    dividir_equitativamente: tipo === 'COMPARTIDO' ? Boolean(document.getElementById('equitable').checked) : false
+    participantes: tipo === 'COMPARTIDO' ? participants.map(p => ({ nombre: p.name, porcentaje: Number(p.pct || 0) / 100 })) : []
   };
 }
 
