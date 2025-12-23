@@ -1,6 +1,6 @@
 /**
  * Registrar Movimiento Page
- * 
+ *
  * Handles movement registration form with all business logic:
  * - FAMILIAR, COMPARTIDO, PAGO_DEUDA types
  * - Dynamic form fields based on type

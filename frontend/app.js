@@ -8,7 +8,7 @@
 import router from './router.js';
 import { checkAuth } from './auth-utils.js';
 import * as LoginPage from './pages/login.js';
-import * as RegistrarPage from './pages/registrar.js';
+import * as RegistrarMovimientoPage from './pages/registrar-movimiento.js';
 
 // Store current user globally
 let currentUser = null;
@@ -35,8 +35,8 @@ function initRouter() {
 
     currentUser = user;
     const appEl = document.getElementById('app');
-    appEl.innerHTML = RegistrarPage.render(user);
-    RegistrarPage.setup();
+    appEl.innerHTML = RegistrarMovimientoPage.render(user);
+    RegistrarMovimientoPage.setup();
   });
 
   // Auth guard - check before every route
