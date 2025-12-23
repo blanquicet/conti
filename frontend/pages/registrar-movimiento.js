@@ -639,7 +639,13 @@ async function onSubmit(e) {
     });
 
     const text = await res.text();
-    if (!res.ok) throw new Error(`HTTP ${res.status} - ${text}`);
+    if (!res.ok) {
+      // Check if it's a n8n connection issue (500 with "Failed to record movement")
+      if (res.status === 500 && text.includes('Failed to record movement')) {
+        throw new Error('No se pudo conectar con n8n para guardar el movimiento en Google Sheets');
+      }
+      throw new Error(`HTTP ${res.status} - ${text}`);
+    }
 
     setStatus('Movimiento registrado correctamente.', 'ok');
     document.getElementById('movForm').reset();
@@ -657,7 +663,12 @@ async function onSubmit(e) {
 
     onTipoChange();
   } catch (err) {
-    setStatus(`Error: ${err.message}`, 'err');
+    // Handle network/connection errors
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      setStatus('No se pudo conectar al backend', 'err');
+    } else {
+      setStatus(`Error: ${err.message}`, 'err');
+    }
   } finally {
     document.getElementById('submitBtn').disabled = false;
   }
