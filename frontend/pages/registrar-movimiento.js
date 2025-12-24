@@ -369,7 +369,7 @@ function onTipoChange() {
   }
 
   if (isCompartido) {
-    ensurePayerInParticipants();
+    participants = dedupeParticipants(participants);
     computeEquitablePcts();
     renderParticipants();
   }
@@ -435,18 +435,6 @@ function onEquitableChange() {
     computeEquitablePcts();
   }
   renderParticipants();
-}
-
-/**
- * Ensure payer is in participants list
- */
-function ensurePayerInParticipants() {
-  const payer = getCurrentPayer();
-  if (!payer) return;
-  if (!participants.some(p => p.name === payer)) {
-    participants.unshift({ name: payer, pct: 0 });
-  }
-  participants = dedupeParticipants(participants);
 }
 
 /**
@@ -653,7 +641,7 @@ function renderParticipants() {
     delBtn.title = 'Quitar';
     delBtn.addEventListener('click', () => {
       participants.splice(idx, 1);
-      ensurePayerInParticipants();
+      participants = dedupeParticipants(participants);
       if (document.getElementById('equitable').checked) computeEquitablePcts();
       renderParticipants();
     });
@@ -748,7 +736,6 @@ function readForm() {
 
   if (tipo === 'COMPARTIDO') {
     if (!participants.length) throw new Error('Debes tener al menos 1 participante.');
-    ensurePayerInParticipants();
     if (!validatePctSum()) throw new Error('Los porcentajes de participantes deben sumar 100%.');
 
     const lower = participants.map(p => p.name.toLowerCase());

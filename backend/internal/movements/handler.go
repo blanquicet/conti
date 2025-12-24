@@ -34,20 +34,23 @@ func (h *Handler) RecordMovement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate unique ID for this movement
+	// Always generate unique ID for this movement
 	if movement.ID == "" {
 		movement.ID = uuid.New().String()
+		h.logger.Info("generated new movement ID", "id", movement.ID)
 	}
 
-	h.logger.Info("recording movement", "id", movement.ID, "type", movement.Tipo)
+	h.logger.Info("recording movement", "id", movement.ID, "type", movement.Tipo, "valor", movement.Valor)
 
 	// Forward to n8n
 	resp, err := h.n8nClient.RecordMovement(r.Context(), &movement)
 	if err != nil {
-		h.logger.Error("failed to record movement in n8n", "error", err)
+		h.logger.Error("failed to record movement in n8n", "error", err, "movement_id", movement.ID)
 		http.Error(w, "Failed to record movement", http.StatusInternalServerError)
 		return
 	}
+
+	h.logger.Info("movement recorded successfully", "id", movement.ID, "n8n_response", resp)
 
 	// Return n8n's response
 	w.Header().Set("Content-Type", "application/json")
