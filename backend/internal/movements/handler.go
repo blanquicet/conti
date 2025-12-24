@@ -34,7 +34,7 @@ func (h *Handler) RecordMovement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Always generate unique ID for this movement
+	// Always generate unique ID for this movement (force rebuild)
 	if movement.ID == "" {
 		movement.ID = uuid.New().String()
 		h.logger.Info("generated new movement ID", "id", movement.ID)
