@@ -552,8 +552,18 @@ function renderParticipants() {
       const value = ((p.pct / 100) * totalValue);
       pctInput.value = formatNumber(value);
 
-      pctInput.addEventListener('input', () => {
-        const v = parseNumber(pctInput.value);
+      pctInput.addEventListener('input', (e) => {
+        // Filtrar caracteres no numéricos (permitir solo dígitos, punto y comas)
+        const cursorPos = e.target.selectionStart;
+        const oldValue = e.target.value;
+        const newValue = oldValue.replace(/[^0-9.,]/g, '');
+        
+        if (newValue !== oldValue) {
+          e.target.value = newValue;
+          e.target.setSelectionRange(cursorPos - 1, cursorPos - 1);
+        }
+        
+        const v = parseNumber(e.target.value);
         if (Number.isFinite(v) && totalValue > 0) {
           participants[idx].pct = (v / totalValue) * 100;
         } else {
@@ -674,12 +684,17 @@ function validatePctSum() {
     const totalValue = parseNumber(document.getElementById('valor').value) || 0;
     
     if (showAsValue && totalValue > 0) {
-      // Calcular valores en COP basados en los porcentajes
+      // Modo valor: mostrar solo valores en COP
       const expectedCOP = formatNumber(totalValue);
       const currentCOP = formatNumber((sum / 100) * totalValue);
-      setStatus(`La suma de porcentajes debe ser 100% (${expectedCOP}). Actualmente: ${sum.toFixed(2)}% (${currentCOP}).`, 'err');
+      const diffCOP = formatNumber(totalValue - (sum / 100) * totalValue);
+      const action = sum < 100 ? 'Faltan' : 'Sobran';
+      setStatus(`La suma debe ser ${expectedCOP}. Actualmente: ${currentCOP} (${action} ${diffCOP}).`, 'err');
     } else {
-      setStatus(`La suma de porcentajes debe ser 100%. Actualmente: ${sum.toFixed(2)}%.`, 'err');
+      // Modo porcentaje: mostrar solo porcentajes
+      const diff = Math.abs(100 - sum).toFixed(2);
+      const action = sum < 100 ? 'Faltan' : 'Sobran';
+      setStatus(`La suma de porcentajes debe ser 100%. Actualmente: ${sum.toFixed(2)}% (${action} ${diff}%).`, 'err');
     }
   } else {
     setStatus('', '');
