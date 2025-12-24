@@ -60,6 +60,15 @@ function parseNumber(str) {
 }
 
 /**
+ * Helper: Convert number to editable Spanish format (use comma for decimals, no thousands separator)
+ */
+function toEditableNumber(num) {
+  const value = Number(num);
+  if (!Number.isFinite(value)) return '';
+  return String(value).replace('.', ',');
+}
+
+/**
  * Helper: get today's date as YYYY-MM-DD in local timezone
  */
 function getTodayLocal() {
@@ -243,7 +252,7 @@ export function setup() {
     if (rawValue === 0) {
       e.target.value = '';
     } else {
-      e.target.value = String(rawValue);
+      e.target.value = toEditableNumber(rawValue);
     }
   });
   
@@ -570,7 +579,7 @@ function renderParticipants() {
         if (v === 0) {
           pctInput.value = '';
         } else {
-          pctInput.value = String(v);
+          pctInput.value = toEditableNumber(v);
         }
       });
     } else {
