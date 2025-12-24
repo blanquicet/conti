@@ -57,7 +57,7 @@ curl -I <URL_DEL_WEBHOOK_N8N>
 - El frontend mostrará: "No se pudo conectar con n8n para guardar el movimiento en Google Sheets"
 - **Solución**: Asegúrate que n8n está corriendo antes de continuar con los tests
 
-## Instalación de Playwright
+## Instalación de Playwright (Already installed)
 
 ```bash
 cd backend

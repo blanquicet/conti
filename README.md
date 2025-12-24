@@ -103,11 +103,15 @@ For local development setup, see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 ## License
 
-MIT License — See [LICENSE](LICENSE) for details.
+```
+├── frontend/          # Vanilla HTML/CSS/JavaScript (mobile-first, Azure Static Web Apps)
+├── backend/           # Go with PostgreSQL (pgx driver, Azure Container Apps)
+├── infra/             # Terraform for infrastructure as code
+└── docs/              # Documentation and design docs
+```
 
-## Contributing
-
-This is a personal project in active development. The codebase and architecture are evolving as new phases are implemented.
+- **Auth:** Session-based with HttpOnly cookies
+- **Deployment:** Azure (Static Web Apps + Container Apps + PostgreSQL)roject in active development. The codebase and architecture are evolving as new phases are implemented.
 
 If you're interested in the project or have suggestions, feel free to open an issue for discussion.
 

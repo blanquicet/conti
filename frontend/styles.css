@@ -234,6 +234,7 @@ button.ghost {
 .status { margin: 0; font-size: 13px; }
 .status.ok { color: #0a7a2f; }
 .status.err { color: #b4231a; }
+.status.loading { color: #0066cc; font-weight: 500; }
 
 
 /* Adaptaciones para pantallas grandes (desktop) */

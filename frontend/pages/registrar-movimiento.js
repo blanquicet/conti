@@ -773,10 +773,16 @@ async function onSubmit(e) {
   e.preventDefault();
   setStatus('', '');
 
+  const submitBtn = document.getElementById('submitBtn');
+  const originalText = submitBtn.textContent;
+
   try {
     const payload = readForm();
-    const submitBtn = document.getElementById('submitBtn');
+    
+    // Show loading state
     submitBtn.disabled = true;
+    submitBtn.textContent = 'Guardando...';
+    setStatus('Registrando movimiento...', 'loading');
 
     const res = await fetch(getMovementsApiUrl(), {
       method: 'POST',
@@ -818,7 +824,8 @@ async function onSubmit(e) {
       setStatus(`Error: ${err.message}`, 'err');
     }
   } finally {
-    document.getElementById('submitBtn').disabled = false;
+    submitBtn.disabled = false;
+    submitBtn.textContent = originalText;
   }
 }
 
