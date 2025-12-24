@@ -42,19 +42,19 @@ let participants = []; // [{ name, pct }]
 let currentUser = null;
 
 /**
- * Helper: Format number with commas (e.g., 71,033.90)
+ * Helper: Format number with Spanish/Colombian format (e.g., 71.033,90)
  */
 function formatNumber(num) {
   const value = Number(num);
   if (!Number.isFinite(value)) return '0';
-  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return value.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /**
- * Helper: Parse number from formatted string (remove commas)
+ * Helper: Parse number from Spanish formatted string (remove dots, replace comma with dot)
  */
 function parseNumber(str) {
-  const cleaned = String(str).replace(/,/g, '');
+  const cleaned = String(str).replace(/\./g, '').replace(/,/g, '.');
   const num = Number(cleaned);
   return Number.isFinite(num) ? num : 0;
 }
