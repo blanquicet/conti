@@ -12,8 +12,8 @@ import router from '../router.js';
 
 // Configuration from app.js
 const DEFAULT_USERS = [
-  "Caro", "Jose", "Maria Isabel", "Papá Caro", "Mamá Caro",
-  "Daniel", "Yury", "Prebby", "Kelly Carolina"
+  "Caro", "Jose", "Maria Isabel", "Daniel", "Yury",
+  "Papá Caro", "Mamá Caro", "Mamá Jose", "Papá Jose", "Prebby"
 ];
 
 const PRIMARY_USERS = ["Jose", "Caro"];
