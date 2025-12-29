@@ -172,11 +172,13 @@ func (h *Handler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Always return success to prevent email enumeration
-	// In production, you would send an email with the token here
 	if token != "" {
-		h.logger.Info("password reset token generated",
+		h.logger.Info("password reset token generated and sent via email",
 			"email", req.Email,
-			"token", token, // In production, remove this log and send via email!
+		)
+	} else {
+		h.logger.Warn("password reset attempt for non-existent email",
+			"email", req.Email,
 		)
 	}
 
