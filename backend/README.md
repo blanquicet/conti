@@ -118,6 +118,13 @@ Recommended for production deployments.
 
    **⚠️ NEVER commit API keys to `.env` or code!**
 
+   Using the GitHub CLI:
+
+   ```bash
+   gh secret set EMAIL_API_KEY --body "re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+   ```
+
+   Or manually via web UI:
    - Go to GitHub repository → Settings → Secrets and variables → Actions
    - Click "New repository secret"
    - Name: `EMAIL_API_KEY`
@@ -127,6 +134,7 @@ Recommended for production deployments.
 4. **Terraform Will Automatically Configure Azure**
 
    The `.github/workflows/terraform.yml` workflow automatically:
+
    - Reads `EMAIL_API_KEY` from GitHub Secrets
    - Passes it to Terraform via `TF_VAR_email_api_key`
    - Creates `email-api-key` secret in Azure Container Apps

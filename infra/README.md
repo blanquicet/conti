@@ -409,6 +409,16 @@ Este comando devuelve un JSON con los secrets. **Guárdalos, solo se muestran un
 
 ### Secrets necesarios en GitHub
 
+Using the GitHub CLI (recommended):
+
+```bash
+gh secret set ARM_CLIENT_ID --body "<appId del JSON>"
+gh secret set ARM_CLIENT_SECRET --body "<password del JSON>"
+gh secret set ARM_SUBSCRIPTION_ID --body "0f6b14e8-ade9-4dc5-9ef9-d0bcbaf5f0d8"
+gh secret set ARM_TENANT_ID --body "9de9ca20-a74e-40c6-9df8-61b9e313a5b3"
+```
+
+Or manually via web UI:
 Ir a: Repository → Settings → Secrets and variables → Actions → New repository secret
 
 | Secret Name | Valor | Descripción |

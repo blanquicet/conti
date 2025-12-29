@@ -931,7 +931,10 @@ EMAIL_PROVIDER=sendgrid # Production (SendGrid - alternative)
 
 3. **Add to GitHub Secrets**
    ```bash
-   # Repository → Settings → Secrets → Actions
+   # Using GitHub CLI (recommended)
+   gh secret set EMAIL_API_KEY --body "re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+   # Or manually: Repository → Settings → Secrets → Actions
    # Name: EMAIL_API_KEY
    # Value: re_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
    ```
