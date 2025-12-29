@@ -112,6 +112,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Apply middleware
 	var handler http.Handler = mux
+	handler = middleware.NoCache()(handler)
 	handler = middleware.Logging(logger)(handler)
 	handler = middleware.CORS(cfg.AllowedOrigins)(handler)
 	handler = middleware.Recovery(logger)(handler)
