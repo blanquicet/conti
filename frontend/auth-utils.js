@@ -120,7 +120,12 @@ export async function register(name, email, password, confirmPassword) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, name, password }),
+      body: JSON.stringify({
+        email,
+        name,
+        password,
+        password_confirm: confirmPassword
+      }),
     });
 
     const data = await response.json();
