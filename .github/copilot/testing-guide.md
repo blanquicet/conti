@@ -748,3 +748,323 @@ await page.getByRole('textbox', { name: 'Monto total COP Obligatorio' }).blur();
 const value = await page.getByRole('textbox', { name: 'Monto total COP Obligatorio' }).inputValue();
 // value === "50,000.00"
 ```
+
+## Test 11: Password Reset Flow (Forgot Password + Reset)
+
+**Objective**: Verify complete password reset functionality with email integration.
+
+### Prerequisites
+- ✅ Backend running on http://localhost:8080
+- ✅ PostgreSQL database running
+- ✅ Email provider configured (SMTP/Mailtrap for local, Resend for production)
+
+### 11.1 Forgot Password - Request Reset Email
+
+**Pasos:**
+1. Navigate to `http://localhost:8080`
+2. Should show login page
+3. Click link "¿Olvidaste tu contraseña?"
+4. Should navigate to `/forgot-password`
+5. Enter email: `testpw@example.com`
+6. Click "Enviar Enlace de Recuperación"
+
+**Resultado esperado:**
+- ✅ Success message: "¡Enlace enviado! Si existe una cuenta con ese email..."
+- ✅ Form clears
+- ✅ Auto-redirects to `/` (login) after 5 seconds
+- ✅ Email sent to Mailtrap (local) or user inbox (production)
+
+**Verificación en base de datos:**
+```sql
+-- Verify reset token was created
+SELECT * FROM password_resets 
+WHERE email = 'testpw@example.com' 
+AND used = false 
+AND expires_at > NOW()
+ORDER BY created_at DESC 
+LIMIT 1;
+
+-- Should return 1 row with:
+-- - hashed token
+-- - expires_at = now() + 1 hour
+-- - used = false
+```
+
+**Verificación en Mailtrap (local testing):**
+1. Go to https://mailtrap.io/inboxes
+2. Find latest email
+3. Subject: "Restablecer contraseña - Gastos"
+4. Body should include:
+   - Spanish HTML template
+   - Reset link: `http://localhost:8080/reset-password?token=...`
+   - Expiration notice: "Este enlace expirará en 1 hora"
+   - Button: "Restablecer Contraseña"
+
+### 11.2 Reset Password - Complete Reset
+
+**Pasos:**
+1. Copy reset token from email URL
+2. Navigate to: `http://localhost:8080/reset-password?token=<TOKEN>`
+3. Page should show reset password form
+4. Enter new password: `NewPassword123!`
+5. Confirm password: `NewPassword123!`
+6. Observe password strength indicator (should show "Buena" or "Fuerte")
+7. Click "Restablecer Contraseña"
+
+**Resultado esperado:**
+- ✅ Success message: "¡Contraseña restablecida! Tu contraseña ha sido actualizada exitosamente"
+- ✅ Form clears
+- ✅ Auto-redirects to `/` (login) after 3 seconds
+- ✅ Can login with new password
+
+**Verificación en base de datos:**
+```sql
+-- Token should be marked as used
+SELECT * FROM password_resets 
+WHERE email = 'testpw@example.com'
+ORDER BY created_at DESC
+LIMIT 1;
+-- used = true
+
+-- User password should be updated (hash changed)
+SELECT id, email, password_hash, updated_at 
+FROM users 
+WHERE email = 'testpw@example.com';
+-- updated_at should be recent
+```
+
+**Test login with new password:**
+1. Go to `/` (login page)
+2. Email: `testpw@example.com`
+3. Password: `NewPassword123!`
+4. Click "Iniciar Sesión"
+5. ✅ Should successfully login and redirect to `/registrar-movimiento`
+
+### 11.3 Error Cases - Forgot Password Validation
+
+#### 11.3.1 Invalid email format
+
+**Pasos:**
+1. Go to `/forgot-password`
+2. Enter invalid email: `notanemail`
+3. Click submit
+
+**Resultado esperado:**
+- ❌ Error: "Por favor ingresa un email válido"
+- ❌ Form not submitted
+
+#### 11.3.2 Email doesn't exist (security - same message)
+
+**Pasos:**
+1. Go to `/forgot-password`
+2. Enter email: `doesnotexist@example.com`
+3. Click submit
+
+**Resultado esperado:**
+- ✅ Success message (same as normal case for security)
+- ✅ NO email sent (backend doesn't send if email doesn't exist)
+- ✅ User doesn't know if email exists or not (security best practice)
+
+### 11.4 Error Cases - Reset Password Validation
+
+#### 11.4.1 Missing or invalid token
+
+**Pasos:**
+1. Navigate to `/reset-password` (no token parameter)
+2. Or navigate with invalid token: `/reset-password?token=invalid123`
+
+**Resultado esperado:**
+- ❌ Error message: "Token inválido o faltante. El enlace de restablecimiento no es válido."
+- ❌ Form fields hidden
+- ✅ Shows link to request new reset
+
+#### 11.4.2 Expired token
+
+**Pasos:**
+1. Use a token that's older than 1 hour
+2. Or manually expire in database:
+```sql
+UPDATE password_resets 
+SET expires_at = NOW() - INTERVAL '1 hour'
+WHERE email = 'testpw@example.com';
+```
+3. Try to use the token
+
+**Resultado esperado:**
+- ❌ Error: "El token ha expirado"
+- ❌ Shows link to request new reset
+
+#### 11.4.3 Token already used
+
+**Pasos:**
+1. Complete a successful password reset
+2. Try to use the same token again
+
+**Resultado esperado:**
+- ❌ Error: "El token ya fue utilizado"
+- ❌ Cannot reset password again with same token
+
+#### 11.4.4 Password mismatch
+
+**Pasos:**
+1. Go to reset password page with valid token
+2. New password: `Password123`
+3. Confirm password: `DifferentPass456`
+4. Click submit
+
+**Resultado esperado:**
+- ❌ Error: "Las contraseñas no coinciden"
+- ❌ Form not submitted
+- ✅ Can correct and retry
+
+#### 11.4.5 Weak password
+
+**Pasos:**
+1. Reset password page with valid token
+2. New password: `weak` (both fields)
+3. Click submit
+
+**Resultado esperado:**
+- ❌ Error: "La contraseña es demasiado débil. Usa al menos 8 caracteres con mayúsculas, minúsculas y números."
+- ❌ Form not submitted
+- ✅ Password strength indicator shows "Débil"
+
+### 11.5 UI/UX Features to Verify
+
+#### Password Strength Indicator
+- ✅ Shows as user types
+- ✅ Color-coded: red (Débil), yellow (Regular), blue (Buena), green (Fuerte)
+- ✅ Updates in real-time
+- ✅ Hidden when field is empty
+
+#### Password Visibility Toggle
+- ✅ Eye icon buttons on both password fields
+- ✅ Clicking toggles between password/text type
+- ✅ Icon changes to indicate state
+
+#### Real-time Password Confirmation
+- ✅ Shows error immediately when passwords don't match
+- ✅ Shows checkmark/success when they match
+- ✅ Updates as user types in confirm field
+
+#### Auto-focus
+- ✅ Email input auto-focused on forgot-password page
+- ✅ New password input auto-focused on reset-password page
+
+#### Loading States
+- ✅ Button shows "Enviando..." during forgot-password request
+- ✅ Button shows "Restableciendo..." during reset
+- ✅ Button disabled during API calls
+
+### 11.6 Playwright Test Example
+
+```javascript
+// Test password reset flow
+test('complete password reset flow', async ({ page }) => {
+  // Step 1: Register a test user first
+  await page.goto('http://localhost:8080');
+  await page.getByRole('link', { name: 'Regístrate' }).click();
+  await page.getByLabel('Nombre').fill('Test User PW');
+  await page.getByLabel('Email').fill('testpw@example.com');
+  await page.getByLabel('Contraseña', { exact: true }).fill('OldPassword123');
+  await page.getByLabel('Confirmar Contraseña').fill('OldPassword123');
+  await page.getByRole('button', { name: 'Crear Cuenta' }).click();
+  
+  // Logout
+  await page.getByRole('button', { name: 'Salir' }).click();
+  
+  // Step 2: Request password reset
+  await page.getByRole('link', { name: '¿Olvidaste tu contraseña?' }).click();
+  await expect(page).toHaveURL('/forgot-password');
+  
+  await page.getByLabel('Email').fill('testpw@example.com');
+  await page.getByRole('button', { name: 'Enviar Enlace de Recuperación' }).click();
+  
+  // Verify success message
+  await expect(page.locator('#forgotSuccess')).toContainText('¡Enlace enviado!');
+  
+  // Step 3: Get token from database (in real test, get from email)
+  // For this example, we'll simulate having the token
+  const token = 'simulated-token-from-email';
+  
+  // Step 4: Reset password
+  await page.goto(`http://localhost:8080/reset-password?token=${token}`);
+  
+  await page.getByLabel('Nueva Contraseña').fill('NewPassword123!');
+  await page.getByLabel('Confirmar Contraseña').fill('NewPassword123!');
+  
+  // Verify password strength shows
+  await expect(page.locator('#newPasswordStrength')).toContainText('Fuerte');
+  
+  await page.getByRole('button', { name: 'Restablecer Contraseña' }).click();
+  
+  // Verify success
+  await expect(page.locator('#resetSuccess')).toContainText('¡Contraseña restablecida!');
+  
+  // Step 5: Login with new password
+  await page.waitForURL('/');
+  await page.getByLabel('Email').fill('testpw@example.com');
+  await page.getByLabel('Contraseña').fill('NewPassword123!');
+  await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
+  
+  // Verify successful login
+  await expect(page).toHaveURL('/registrar-movimiento');
+});
+```
+
+### 11.7 Database Cleanup After Tests
+
+```sql
+-- Clean up test data
+DELETE FROM sessions WHERE user_id IN (
+  SELECT id FROM users WHERE email LIKE '%testpw%'
+);
+
+DELETE FROM password_resets WHERE email LIKE '%testpw%';
+
+DELETE FROM users WHERE email LIKE '%testpw%';
+```
+
+## Email Provider Configuration
+
+### Local Testing (Mailtrap)
+```bash
+# .env file
+EMAIL_PROVIDER=smtp
+SMTP_HOST=sandbox.smtp.mailtrap.io
+SMTP_PORT=587
+SMTP_USERNAME=your_username
+SMTP_PASSWORD=your_password
+EMAIL_FROM_ADDRESS=noreply@gastos.blanquicet.com.co
+EMAIL_FROM_NAME=Gastos
+EMAIL_BASE_URL=http://localhost:8080
+```
+
+### Production (Resend)
+```bash
+# Set via GitHub Secrets → Terraform → Azure Container Apps
+EMAIL_PROVIDER=resend
+EMAIL_API_KEY=re_xxxxx (from secret)
+EMAIL_FROM_ADDRESS=noreply@gastos.blanquicet.com.co
+EMAIL_FROM_NAME=Gastos
+EMAIL_BASE_URL=https://gastos.blanquicet.com.co
+```
+
+### Development (No Email - Logs Only)
+```bash
+EMAIL_PROVIDER=noop
+EMAIL_FROM_ADDRESS=noreply@gastos.blanquicet.com.co
+EMAIL_FROM_NAME=Gastos
+EMAIL_BASE_URL=http://localhost:8080
+```
+
+## Important Notes for Password Reset Testing
+
+1. **Tokens are single-use**: Once used, cannot be reused
+2. **Tokens expire in 1 hour**: Test expiration by manipulating database
+3. **Email security**: Same message whether email exists or not (prevents email enumeration)
+4. **Password validation**: Server-side validation matches client-side
+5. **Email templates**: Spanish HTML with responsive design
+6. **API URLs**: Auto-detect localhost vs production
+7. **CSRF protection**: Not implemented yet (consider for Phase 2)
+

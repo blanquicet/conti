@@ -4,12 +4,16 @@ on:
   push:
     paths:
       - 'backend/**'
+      - '!backend/README.md'
+      - '!backend/**/*.md'
       - '.github/workflows/deploy-api.yml'
     branches:
       - main
   pull_request:
     paths:
       - 'backend/**'
+      - '!backend/README.md'
+      - '!backend/**/*.md'
       - '.github/workflows/deploy-api.yml'
     types: [opened, synchronize, reopened]
     branches:

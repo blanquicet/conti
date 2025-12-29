@@ -4,10 +4,9 @@
  * Allows users to reset their password using a token from email.
  */
 
+import { API_URL } from '../config.js';
 import { checkPasswordStrength } from '../auth-utils.js';
 import router from '../router.js';
-
-const API_URL = 'https://api.gastos.blanquicet.com.co';
 
 /**
  * Render reset password page HTML

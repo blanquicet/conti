@@ -5,10 +5,7 @@
  * Maintains API_URL auto-detection for local vs production environments.
  */
 
-// API URL auto-detection
-const API_URL = window.location.hostname === "localhost"
-  ? ""
-  : "https://api.gastos.blanquicet.com.co";
+import { API_URL } from './config.js';
 
 // Email validation regex - requires format: text@text.text
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

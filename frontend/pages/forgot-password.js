@@ -4,10 +4,9 @@
  * Allows users to request a password reset email.
  */
 
+import { API_URL } from '../config.js';
 import { validateEmail } from '../auth-utils.js';
 import router from '../router.js';
-
-const API_URL = 'https://api.gastos.blanquicet.com.co';
 
 /**
  * Render forgot password page HTML
