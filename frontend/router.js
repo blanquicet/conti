@@ -20,27 +20,36 @@ class Router {
 
   // Navigate to a path
   async navigate(path, replaceState = false) {
-    if (this.currentRoute === path) return;
+    // Extract pathname and search from path if it contains query params
+    let pathname = path;
+    let search = '';
+    if (path.includes('?')) {
+      [pathname, search] = path.split('?');
+      search = '?' + search;
+    }
+    
+    if (this.currentRoute === pathname) return;
 
     // Run auth check if registered
     if (this.authCheckCallback) {
-      const shouldContinue = await this.authCheckCallback(path);
+      const shouldContinue = await this.authCheckCallback(pathname);
       if (!shouldContinue) return;
     }
 
-    const handler = this.routes[path];
+    const handler = this.routes[pathname];
     if (!handler) {
-      console.warn(`No route registered for: ${path}`);
+      console.warn(`No route registered for: ${pathname}`);
       return;
     }
 
-    this.currentRoute = path;
+    this.currentRoute = pathname;
 
-    // Update browser history
+    // Update browser history (preserve query params)
+    const fullPath = pathname + search;
     if (replaceState) {
-      window.history.replaceState({ path }, '', path);
+      window.history.replaceState({ path: pathname }, '', fullPath);
     } else {
-      window.history.pushState({ path }, '', path);
+      window.history.pushState({ path: pathname }, '', fullPath);
     }
 
     // Clear app container and render new page
@@ -55,7 +64,8 @@ class Router {
   init() {
     window.addEventListener('popstate', async (e) => {
       const path = e.state?.path || window.location.pathname;
-      await this.navigate(path, true);
+      const search = window.location.search;
+      await this.navigate(path + search, true);
     });
 
     // Handle initial page load

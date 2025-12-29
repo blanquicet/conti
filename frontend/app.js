@@ -97,6 +97,8 @@ async function init() {
 
   // Navigate to initial route
   const currentPath = window.location.pathname;
+  const search = window.location.search;
+  const fullPath = currentPath + search;
   
   if (currentPath === '/' || currentPath === '/registrar-movimiento' || currentPath === '/registrar-movimiento/') {
     // Default route - redirect based on auth
@@ -106,8 +108,8 @@ async function init() {
       router.navigate('/login');
     }
   } else {
-    // Let router handle current path
-    router.navigate(currentPath);
+    // Let router handle current path (with query params)
+    router.navigate(fullPath);
   }
 }
 
