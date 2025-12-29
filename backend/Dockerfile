@@ -13,8 +13,15 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /api ./cmd/api
+# Build arguments for version info
+ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_TIME=unknown
+
+# Build the binary with version info
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-w -s -X github.com/blanquicet/gastos/backend/internal/httpserver.Version=${VERSION} -X github.com/blanquicet/gastos/backend/internal/httpserver.Commit=${COMMIT} -X github.com/blanquicet/gastos/backend/internal/httpserver.BuildTime=${BUILD_TIME}" \
+    -o /api ./cmd/api
 
 # Runtime stage
 FROM scratch

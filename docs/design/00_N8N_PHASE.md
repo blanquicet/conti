@@ -241,10 +241,7 @@ El API key se gestiona mediante **GitHub Secrets** para no exponerlo en el códi
 - [x] ~~Mover X_API_KEY a GitHub Secrets~~
 - [x] ~~Ocultar pagador para tipo FAMILIAR~~
 - [x] ~~Pagador + Tomador lado a lado para PAGO_DEUDA~~
-- [ ] Evitar `undefined` en columnas: usar fallbacks como `categoria || ""`
-- [ ] Mantener endpoints estables:
-  - SWA: `/registrar-movimiento`
-  - n8n: `/webhook/movimientos/reportar`
+- [x] ~~Evitar `undefined` en columnas: usar fallbacks como `categoria || ""`~~
 
 ---
 
@@ -253,16 +250,19 @@ El API key se gestiona mediante **GitHub Secrets** para no exponerlo en el códi
 This document describes **Phase 0: n8n Movement Registration**.
 
 **Current implementation status:**
+
 - ✅ Authentication moved to PostgreSQL (Phase 1)
 - ✅ Movement registration still uses n8n → Google Sheets
 - ⏳ Movement migration to PostgreSQL pending (Phase 2)
 
 **Related documentation:**
+
 - `01_AUTH_PHASE.md` - Current auth implementation with Go backend + PostgreSQL
 - `FUTURE_VISION.md` - Long-term product vision and roadmap
 - Phase 2 (planned) - Migrate movements to PostgreSQL, implement families/contacts
 
 **Editing guidelines:**
+
 - Make **minimal and safe** edits
 - Maintain exact names, endpoints, and auth headers
 - Provide changes as patches or file-by-file edits

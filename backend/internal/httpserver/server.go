@@ -87,6 +87,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Health check endpoint
 	mux.HandleFunc("GET /health", handleHealth)
+	mux.HandleFunc("GET /version", handleVersion)
 
 	// Auth endpoints with rate limiting
 	mux.Handle("POST /auth/register", rateLimitAuth(http.HandlerFunc(authHandler.Register)))
@@ -147,11 +148,28 @@ func (s *Server) Addr() string {
 	return s.httpServer.Addr
 }
 
+// Build-time variables injected via ldflags
+var (
+	Version   = "dev"
+	Commit    = "unknown"
+	BuildTime = "unknown"
+)
+
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "healthy",
+	})
+}
+
+func handleVersion(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"version":   Version,
+		"commit":    Commit,
+		"buildTime": BuildTime,
 	})
 }
 
