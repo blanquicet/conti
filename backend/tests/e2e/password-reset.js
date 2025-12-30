@@ -105,19 +105,37 @@ async function testPasswordReset() {
       throw new Error('Success message not found');
     }
 
-    // Step 4: Get reset token from database
-    console.log('Step 4: Retrieving reset token from database...');
+    // Step 4: Get reset token from docker logs
+    console.log('Step 4: Retrieving reset token from docker logs...');
     
-    const tokenResult = await pool.query(
-      'SELECT token FROM password_resets WHERE user_id = (SELECT id FROM users WHERE email = $1) ORDER BY created_at DESC LIMIT 1',
-      [testEmail]
-    );
+    // Give the API a moment to log the token
+    await page.waitForTimeout(1000);
     
-    if (tokenResult.rows.length === 0) {
-      throw new Error('No reset token found in database');
+    // Get docker logs - in CI we need to use docker compose logs
+    const { execSync } = await import('child_process');
+    const logOutput = execSync('docker compose -f docker-compose.e2e.yml logs api', { 
+      encoding: 'utf8',
+      cwd: process.env.CI ? process.env.GITHUB_WORKSPACE : '.'
+    });
+    
+    // Find the token for this email in the logs
+    const logLines = logOutput.split('\n').reverse(); // Most recent first
+    let token = null;
+    
+    for (const line of logLines) {
+      if (line.includes(testEmail) && line.includes('password reset email (no-op)')) {
+        const match = line.match(/"token":"([^"]+)"/);
+        if (match) {
+          token = match[1];
+          break;
+        }
+      }
     }
     
-    const token = tokenResult.rows[0].token;
+    if (!token) {
+      throw new Error('No reset token found in docker logs');
+    }
+    
     console.log('✅ Token retrieved:', token.substring(0, 20) + '...');
 
     // Step 5: Reset password with token
