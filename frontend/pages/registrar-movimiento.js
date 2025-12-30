@@ -89,8 +89,10 @@ export function render(user) {
   return `
     <main class="card">
       <header class="header">
-        ${Navbar.render(user, '/registrar-movimiento')}
-        <h1>Registrar movimiento</h1>
+        <div class="header-row">
+          <h1>Registrar movimiento</h1>
+          ${Navbar.render(user, '/registrar-movimiento')}
+        </div>
         <p class="subtitle">Gasto del hogar, dividir gasto o pago de deuda.</p>
       </header>
 
@@ -212,8 +214,6 @@ export function setup() {
   const showAsValueEl = document.getElementById('showAsValue');
   const addParticipantBtn = document.getElementById('addParticipantBtn');
   const valorEl = document.getElementById('valor');
-  const form = document.getElementById('movForm');
-  const addParticipantBtn = document.getElementById('addParticipantBtn');
 
   // Initialize navbar
   Navbar.setup();

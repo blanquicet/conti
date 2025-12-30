@@ -11,6 +11,9 @@ import * as LoginPage from './pages/login.js';
 import * as ForgotPasswordPage from './pages/forgot-password.js';
 import * as ResetPasswordPage from './pages/reset-password.js';
 import * as RegistrarMovimientoPage from './pages/registrar-movimiento.js';
+import * as ProfilePage from './pages/profile.js';
+import * as HouseholdCreatePage from './pages/household-create.js';
+import * as HouseholdPage from './pages/household.js';
 
 // Store current user globally
 let currentUser = null;
@@ -53,6 +56,51 @@ function initRouter() {
     RegistrarMovimientoPage.setup();
   });
 
+  router.route('/perfil', async () => {
+    // Check if user is authenticated
+    const { authenticated, user } = await checkAuth();
+    
+    if (!authenticated) {
+      router.navigate('/login');
+      return;
+    }
+
+    currentUser = user;
+    const appEl = document.getElementById('app');
+    appEl.innerHTML = ProfilePage.render(user);
+    ProfilePage.setup();
+  });
+
+  router.route('/hogar/crear', async () => {
+    // Check if user is authenticated
+    const { authenticated, user } = await checkAuth();
+    
+    if (!authenticated) {
+      router.navigate('/login');
+      return;
+    }
+
+    currentUser = user;
+    const appEl = document.getElementById('app');
+    appEl.innerHTML = HouseholdCreatePage.render(user);
+    HouseholdCreatePage.setup();
+  });
+
+  router.route('/hogar', async () => {
+    // Check if user is authenticated
+    const { authenticated, user } = await checkAuth();
+    
+    if (!authenticated) {
+      router.navigate('/login');
+      return;
+    }
+
+    currentUser = user;
+    const appEl = document.getElementById('app');
+    appEl.innerHTML = HouseholdPage.render(user);
+    HouseholdPage.setup();
+  });
+
   // Auth guard - check before every route
   router.beforeEach(async (to) => {
     // Hide loading spinner
@@ -89,9 +137,6 @@ function initRouter() {
  * App initialization on DOM ready
  */
 async function init() {
-  // Check initial auth state
-  const { authenticated } = await checkAuth();
-  
   // Initialize router
   initRouter();
 
@@ -101,12 +146,8 @@ async function init() {
   const fullPath = currentPath + search;
   
   if (currentPath === '/' || currentPath === '/registrar-movimiento' || currentPath === '/registrar-movimiento/') {
-    // Default route - redirect based on auth
-    if (authenticated) {
-      router.navigate('/registrar-movimiento');
-    } else {
-      router.navigate('/login');
-    }
+    // Default route - let beforeEach guard handle auth check
+    router.navigate('/registrar-movimiento');
   } else {
     // Let router handle current path (with query params)
     router.navigate(fullPath);

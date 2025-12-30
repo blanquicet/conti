@@ -26,7 +26,7 @@ npx playwright install
 npm run test:e2e
 ```
 
-This executes `node e2e/password-reset-e2e.js` automatically.
+This executes `node e2e/password-reset.js` automatically.
 
 **Prerequisites before running:**
 
@@ -57,7 +57,7 @@ The test will:
 
 ## Test Files
 
-### `password-reset-e2e.js`
+### `password-reset.js`
 
 Complete end-to-end test for password reset flow using Playwright directly:
 
@@ -106,7 +106,7 @@ STATIC_DIR=../frontend
 
 ### Token Extraction Process
 
-The test (`password-reset-e2e.js`):
+The test (`password-reset.js`):
 
 1. Starts backend with logging to `/tmp/backend.log`
 2. Registers a new user via frontend
@@ -163,7 +163,7 @@ The test automatically saves screenshots to `/tmp/password-reset-failure.png` on
 
 ### Add more logging
 
-Edit `password-reset-e2e.js` and add more `console.log()` statements where needed.
+Edit `password-reset.js` and add more `console.log()` statements where needed.
 
 ## Common Issues
 
@@ -224,3 +224,88 @@ Future improvements:
 - Add tests for registration flow edge cases
 - Add tests for login flow
 - Integrate with CI/CD pipeline
+
+## Household Management E2E Test
+
+Tests the complete household management flow with two users.
+
+### Test Coverage
+
+**Test File:** `household-management.js`
+
+**Scenarios:**
+1. ✅ Register two users (owner and member)
+2. ✅ Create household
+3. ✅ Add contact with details
+4. ✅ Invite member (auto-accept for existing user)
+5. ✅ Verify member can see household
+6. ✅ Promote member to owner
+7. ✅ Demote owner to member
+8. ✅ Remove member from household
+9. ✅ Verify removed member no longer has access
+10. ✅ Delete household
+11. ✅ Cleanup test data
+
+### Running the Test
+
+```bash
+cd backend/tests
+npm run test:household
+```
+
+Or run all E2E tests:
+```bash
+npm run test:e2e
+```
+
+### Prerequisites
+
+- Backend server running on `http://localhost:8080`
+- Database accessible at `localhost:5432`
+- Playwright installed (`npm install`)
+
+### What the Test Does
+
+The test simulates a complete household lifecycle:
+- Two browser contexts (two different users)
+- Full CRUD operations on household, members, and contacts
+- Permission testing (owner vs member actions)
+- Auto-accept invitation flow
+- Cascade deletion verification
+
+### Expected Output
+
+```
+🚀 Starting Household Management Test
+👤 User 1 (Owner): owner-1234567890@example.com
+👤 User 2 (Member): member-1234567890@example.com
+🏠 Household: Test Household 1234567890
+
+📝 Step 1: Registering User 1 (Owner)...
+✅ User 1 registered and logged in
+📝 Step 2: Registering User 2 (Future Member)...
+✅ User 2 registered and logged in
+🏠 Step 3: User 1 creating household...
+✅ Household created: Test Household 1234567890
+📇 Step 4: User 1 adding contact...
+✅ Contact added: Maria External
+📧 Step 5: User 1 inviting User 2...
+✅ User 2 auto-added as member
+👀 Step 6: User 2 verifying membership...
+✅ User 2 sees household in profile
+✅ User 2 can access household page
+⬆️ Step 7: User 1 promoting User 2 to owner...
+✅ User 2 promoted to owner
+⬇️ Step 8: User 1 demoting User 2 to member...
+✅ User 2 demoted to member
+🗑️ Step 9: User 1 removing User 2...
+✅ User 2 removed from household
+🔍 Step 10: User 2 verifying removal...
+✅ User 2 no longer has household
+🗑️ Step 11: User 1 deleting household...
+✅ Household deleted successfully
+🧹 Cleaning up test data...
+✅ Test users deleted
+
+✅ ✅ ✅ ALL TESTS PASSED! ✅ ✅ ✅
+```

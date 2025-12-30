@@ -4,7 +4,9 @@
   "description": "E2E tests for Gastos backend",
   "type": "module",
   "scripts": {
-    "test:e2e": "node e2e/password-reset-e2e.js"
+    "test:e2e": "node e2e/password-reset.js && node e2e/household-management.js",
+    "test:password-reset": "node e2e/password-reset.js",
+    "test:household": "node e2e/household-management.js"
   },
   "dependencies": {
     "pg": "^8.16.3",

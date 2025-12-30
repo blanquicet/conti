@@ -18,21 +18,16 @@ export function render(user, activeRoute = '/registrar-movimiento') {
   currentRoute = activeRoute;
   
   return `
-    <div class="navbar">
-      <div class="navbar-user">
-        <span class="navbar-username">${user.name}</span>
-      </div>
-      <button id="hamburger-btn" class="hamburger-btn" aria-label="Menú">
-        ☰
-      </button>
-    </div>
+    <button id="hamburger-btn" class="hamburger-btn" aria-label="Menú">
+      ☰
+    </button>
 
     <div id="dropdown-menu" class="dropdown-menu">
       <a href="/perfil" class="dropdown-item ${activeRoute === '/perfil' ? 'active' : ''}" data-route="/perfil">
         Perfil
       </a>
       <a href="/registrar-movimiento" class="dropdown-item ${activeRoute === '/registrar-movimiento' ? 'active' : ''}" data-route="/registrar-movimiento">
-        Gastos
+        Registrar movimientos
       </a>
       <button id="dropdown-logout-btn" class="dropdown-item dropdown-logout">
         Salir

@@ -10,11 +10,22 @@ import { API_URL } from './config.js';
 // Email validation regex - requires format: text@text.text
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+// Cache for auth check (valid for 100ms to avoid multiple calls during page load)
+let authCache = null;
+let authCacheTime = 0;
+const CACHE_DURATION = 100; // milliseconds
+
 /**
  * Check if user is authenticated
  * @returns {Promise<{authenticated: boolean, user: Object|null}>}
  */
 export async function checkAuth() {
+  // Return cached result if recent
+  const now = Date.now();
+  if (authCache && (now - authCacheTime) < CACHE_DURATION) {
+    return authCache;
+  }
+
   try {
     const response = await fetch(`${API_URL}/me`, {
       credentials: "include",
@@ -22,14 +33,28 @@ export async function checkAuth() {
 
     if (response.ok) {
       const user = await response.json();
-      return { authenticated: true, user };
+      authCache = { authenticated: true, user };
+      authCacheTime = now;
+      return authCache;
     } else {
-      return { authenticated: false, user: null };
+      authCache = { authenticated: false, user: null };
+      authCacheTime = now;
+      return authCache;
     }
   } catch (error) {
     console.error("Auth check failed:", error);
-    return { authenticated: false, user: null };
+    authCache = { authenticated: false, user: null };
+    authCacheTime = now;
+    return authCache;
   }
+}
+
+/**
+ * Clear auth cache (call after login/logout)
+ */
+export function clearAuthCache() {
+  authCache = null;
+  authCacheTime = 0;
 }
 
 /**
@@ -62,6 +87,7 @@ export async function login(email, password) {
     const data = await response.json();
 
     if (response.ok) {
+      clearAuthCache(); // Clear cache so next checkAuth() fetches fresh user data
       return { success: true, user: data };
     } else {
       return { success: false, error: data.error || "Error al iniciar sesión" };
@@ -140,8 +166,10 @@ export async function logout() {
       method: "POST",
       credentials: "include",
     });
+    clearAuthCache();
   } catch (error) {
     console.error("Logout failed:", error);
+    clearAuthCache();
   }
 }
 

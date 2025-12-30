@@ -619,6 +619,32 @@ func (s *Service) CreateInvitation(ctx context.Context, input *CreateInvitationI
 		return nil, ErrNotAuthorized
 	}
 
+	// Phase 2: Auto-accept for existing users
+	// Check if user exists with this email
+	invitedUser, err := s.userRepo.GetByEmail(ctx, input.Email)
+	if err == nil && invitedUser != nil {
+		// User exists - add them directly as a member
+		addInput := &AddMemberInput{
+			HouseholdID: input.HouseholdID,
+			Email:       input.Email,
+			UserID:      input.UserID, // Requester
+		}
+		member, err := s.AddMember(ctx, addInput)
+		if err != nil {
+			// If they're already a member, return error
+			return nil, err
+		}
+		
+		// Successfully added - return a pseudo-invitation indicating auto-acceptance
+		return &HouseholdInvitation{
+			ID:          member.ID, // Use member ID so we know it was added
+			HouseholdID: input.HouseholdID,
+			Email:       input.Email,
+			InvitedBy:   input.UserID,
+		}, nil
+	}
+
+	// User doesn't exist - create invitation for Phase 3 email flow
 	// Generate token
 	token, err := GenerateInvitationToken()
 	if err != nil {
