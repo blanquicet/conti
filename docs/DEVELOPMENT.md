@@ -339,7 +339,7 @@ Antes de hacer push:
 
 ## 📧 Testear Envío de Emails (Opcional)
 
-### Opción 1: Sin envío real (Default)
+### Opción 1: Sin envío real (Default) - Recomendado para Testing Local
 
 Por defecto, los emails solo se loguean en la consola:
 
@@ -351,11 +351,47 @@ EMAIL_PROVIDER=noop
 Al solicitar recuperación de contraseña, verás en la consola:
 
 ```
+{"time":"2025-12-29T19:38:35.096972118-05:00","level":"INFO","msg":"password reset email (no-op)","to":"test@example.com","token":"GuA6RWcx-JMxbf3rEhHIEN-sOV2RQevdkaqobzJXrYQ="}
+
 === PASSWORD RESET EMAIL ===
-To: usuario@example.com
-Token: abc123...
+To: test@example.com
+Token: GuA6RWcx-JMxbf3rEhHIEN-sOV2RQevdkaqobzJXrYQ=
 ============================
 ```
+
+**Cómo probar reset password con noop provider:**
+
+1. **Solicitar reset desde la aplicación:**
+   - Ir a `http://localhost:8080`
+   - Click en "¿Olvidaste tu contraseña?"
+   - Ingresar email de usuario registrado
+   - Click en "Enviar Enlace de Recuperación"
+
+2. **Copiar el token de los logs del backend:**
+   ```bash
+   # Si iniciaste el backend con: go run cmd/api/main.go
+   # Busca en la consola la línea que dice "Token: ..."
+   
+   # O si redirigiste a archivo:
+   grep "Token:" /tmp/backend.log | tail -1
+   ```
+
+3. **Usar el token en el navegador:**
+   ```
+   http://localhost:8080/reset-password?token=PEGA_AQUI_EL_TOKEN_COPIADO
+   ```
+
+4. **Probar la página de reset password:**
+   - Ingresa nueva contraseña
+   - Verifica que:
+     - ✅ Indicador de fuerza funciona (Débil/Aceptable/Buena/Fuerte)
+     - ✅ Borde rojo para contraseñas débiles
+     - ✅ Borde verde para contraseñas aceptables/fuertes
+     - ✅ Borde verde cuando las contraseñas coinciden
+     - ✅ Borde rojo cuando no coinciden
+   - Click en "Restablecer Contraseña"
+   - Deberías ser redirigido al login
+   - Inicia sesión con la nueva contraseña
 
 ### Opción 2: Con Mailtrap (Recomendado para Testing Local)
 

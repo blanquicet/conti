@@ -47,7 +47,7 @@ export function render() {
             </div>
             <div id="newPasswordStrength" class="password-strength hidden">
               <div class="strength-bar">
-                <div class="strength-fill"></div>
+                <div class="strength-bar-fill"></div>
               </div>
               <span class="strength-text"></span>
             </div>
@@ -129,30 +129,32 @@ export function init() {
   const strengthIndicator = document.getElementById('newPasswordStrength');
   newPasswordInput.addEventListener('input', () => {
     const password = newPasswordInput.value;
+    const passwordField = newPasswordInput.closest('.password-field');
+    
     if (password.length === 0) {
       strengthIndicator.classList.add('hidden');
-      newPasswordInput.classList.remove('valid', 'invalid');
+      passwordField.classList.remove('valid', 'invalid');
       return;
     }
 
     const strength = checkPasswordStrength(password);
     strengthIndicator.classList.remove('hidden');
 
-    const strengthFill = strengthIndicator.querySelector('.strength-fill');
+    const strengthFill = strengthIndicator.querySelector('.strength-bar-fill');
     const strengthText = strengthIndicator.querySelector('.strength-text');
 
     // Update strength bar
-    strengthFill.className = 'strength-fill strength-' + strength.level;
-    strengthFill.style.width = strength.percentage + '%';
-    strengthText.textContent = strength.label;
+    strengthFill.className = 'strength-bar-fill ' + strength.className;
+    strengthFill.style.width = strength.width;
+    strengthText.textContent = strength.text;
 
     // Update input border color based on strength
-    if (strength.level === 'weak') {
-      newPasswordInput.classList.add('invalid');
-      newPasswordInput.classList.remove('valid');
+    if (strength.level === 0) {
+      passwordField.classList.add('invalid');
+      passwordField.classList.remove('valid');
     } else {
-      newPasswordInput.classList.add('valid');
-      newPasswordInput.classList.remove('invalid');
+      passwordField.classList.add('valid');
+      passwordField.classList.remove('invalid');
     }
 
     // Re-validate password confirmation when password changes
@@ -165,22 +167,23 @@ export function init() {
   confirmPasswordInput.addEventListener('input', () => {
     const password = newPasswordInput.value;
     const confirmPassword = confirmPasswordInput.value;
+    const confirmPasswordField = confirmPasswordInput.closest('.password-field');
 
     if (confirmPassword.length === 0) {
       confirmPasswordError.classList.add('hidden');
-      confirmPasswordInput.classList.remove('invalid', 'valid');
+      confirmPasswordField.classList.remove('invalid', 'valid');
       return;
     }
 
     if (password !== confirmPassword) {
       confirmPasswordError.textContent = 'Las contraseñas no coinciden';
       confirmPasswordError.classList.remove('hidden');
-      confirmPasswordInput.classList.add('invalid');
-      confirmPasswordInput.classList.remove('valid');
+      confirmPasswordField.classList.add('invalid');
+      confirmPasswordField.classList.remove('valid');
     } else {
       confirmPasswordError.classList.add('hidden');
-      confirmPasswordInput.classList.remove('invalid');
-      confirmPasswordInput.classList.add('valid');
+      confirmPasswordField.classList.remove('invalid');
+      confirmPasswordField.classList.add('valid');
     }
   });
 
@@ -221,7 +224,7 @@ export function init() {
 
     // Validate password strength
     const strength = checkPasswordStrength(newPassword);
-    if (strength.level === 'weak') {
+    if (strength.level === 0) {
       errorDiv.textContent = 'La contraseña es demasiado débil. Usa al menos 8 caracteres con mayúsculas, minúsculas y números.';
       errorDiv.classList.remove('hidden');
       newPasswordInput.focus();
@@ -257,8 +260,17 @@ export function init() {
         `;
         successDiv.classList.remove('hidden');
         
-        // Clear form
+        // Clear form and UI state
         form.reset();
+        
+        // Hide strength indicator
+        strengthIndicator.classList.add('hidden');
+        
+        // Remove validation classes
+        const newPasswordField = newPasswordInput.closest('.password-field');
+        const confirmPasswordField = confirmPasswordInput.closest('.password-field');
+        newPasswordField.classList.remove('valid', 'invalid');
+        confirmPasswordField.classList.remove('valid', 'invalid');
 
         // Redirect to login after 10 seconds
         setTimeout(() => {

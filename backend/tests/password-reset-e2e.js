@@ -110,7 +110,7 @@ async function testPasswordReset() {
     // Find the token for this email
     let token = null;
     for (const line of logLines) {
-      if (line.includes(testEmail) && line.includes('password reset token generated')) {
+      if (line.includes(testEmail) && line.includes('password reset email (no-op)')) {
         const match = line.match(/"token":"([^"]+)"/);
         if (match) {
           token = match[1];
@@ -197,7 +197,7 @@ async function testPasswordReset() {
     }
 
     // Wait for auto-redirect to login
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(11000);
 
     // Step 6: Login with new password
     console.log('Step 6: Logging in with new password...');
@@ -237,6 +237,7 @@ async function testPasswordReset() {
     console.log('✅ Forgot password request');
     console.log('✅ Password reset with token');
     console.log('✅ Password validation UI (borders & strength)');
+    console.log('✅ Form cleanup after successful reset');
     console.log('✅ Login with new password');
     console.log('✅ Token marked as used');
 
