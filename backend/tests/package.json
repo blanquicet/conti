@@ -4,8 +4,9 @@
   "description": "E2E tests for Gastos backend",
   "type": "module",
   "scripts": {
-    "test:e2e": "node e2e/password-reset.js && node e2e/household-management.js && node e2e/household-validation.js",
+    "test:e2e": "node e2e/password-reset.js && node e2e/auth-validation.js && node e2e/household-management.js && node e2e/household-validation.js",
     "test:password-reset": "node e2e/password-reset.js",
+    "test:auth-validation": "node e2e/auth-validation.js",
     "test:household": "node e2e/household-management.js",
     "test:validation": "node e2e/household-validation.js"
   },

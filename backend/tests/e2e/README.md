@@ -383,3 +383,90 @@ npm run test:validation
 
 ✅ ✅ ✅ ALL VALIDATION TESTS PASSED! ✅ ✅ ✅
 ```
+
+## Authentication Validation E2E Test
+
+Tests form validation in login and registration forms.
+
+### Test Coverage
+
+**Test File:** `auth-validation.js`
+
+**Scenarios:**
+1. ✅ Login email validation (invalid formats rejected)
+2. ✅ Login email validation (valid formats accepted)
+3. ✅ Login password visibility toggle (eye icon changes)
+4. ✅ Register email validation
+5. ✅ Password strength indicator (Débil)
+6. ✅ Password strength indicator (Aceptable)
+7. ✅ Password strength indicator (Buena)
+8. ✅ Password strength indicator (Fuerte)
+9. ✅ Password match validation (error for non-matching)
+10. ✅ Password match validation (success for matching)
+11. ✅ Register password visibility toggles
+12. ✅ Successful registration with valid data
+13. ✅ Cleanup test data
+
+### Running the Test
+
+```bash
+cd backend/tests
+npm run test:auth-validation
+```
+
+### Validation Rules Tested
+
+**Email Format (Login & Register):**
+- ✅ Requires: `text@text.text`
+- ❌ Rejects: `notanemail`, `missing@domain`, `@nodomain.com`
+- ✅ Visual feedback: green border for valid, red for invalid
+
+**Password Visibility Toggle:**
+- ✅ Initially type="password" with eye icon
+- ✅ Clicking toggles to type="text" with eye-off icon (slash)
+- ✅ Clicking again toggles back to type="password" with eye icon
+- ✅ Works for all password fields (login, register, confirm)
+
+**Password Strength Indicator:**
+- 🔴 **Débil:** Doesn't meet basic requirements
+- 🟡 **Aceptable:** 8+ chars, upper, lower, (number OR special)
+- 🟢 **Buena:** 12+ chars, meets basic requirements
+- 🔵 **Fuerte:** 12+ chars, number AND special char
+
+**Password Match Validation:**
+- ✅ Hidden when confirm field is empty
+- ❌ Shows "no coinciden" for non-matching passwords
+- ✅ Shows "coinciden" for matching passwords
+- ✅ Visual feedback with match/no-match classes
+
+### Expected Output
+
+```
+🚀 Starting Authentication Validation Test
+
+📧 Step 1: Testing login email validation...
+✅ Login invalid email formats correctly rejected
+✅ Login valid email format accepted
+👁️ Step 2: Testing login password visibility toggle...
+✅ Password initially hidden with eye icon
+✅ Password visible with eye-off icon after toggle
+✅ Password hidden again with eye icon after second toggle
+📧 Step 3: Testing register email validation...
+✅ Register invalid email formats correctly rejected
+✅ Register valid email format accepted
+💪 Step 4: Testing password strength indicator...
+✅ Weak password shows "Débil" with weak class
+✅ Acceptable password shows "Aceptable"
+✅ Good password shows "Buena"
+✅ Strong password shows "Fuerte"
+🔐 Step 5: Testing password match validation...
+✅ Shows error for non-matching passwords
+✅ Shows success message for matching passwords
+👁️ Step 6: Testing register password visibility toggles...
+✅ Register password toggle works
+✅ Confirm password toggle works
+✅ Step 7: Testing successful registration...
+✅ Registration successful with valid data
+
+✅ ✅ ✅ ALL AUTH VALIDATION TESTS PASSED! ✅ ✅ ✅
+```
