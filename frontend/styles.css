@@ -1028,6 +1028,9 @@ button.loading::after {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .member-item {
@@ -1097,6 +1100,9 @@ button.loading::after {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .contact-item {
@@ -1172,15 +1178,40 @@ button.loading::after {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 20px;
-  margin-top: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
 }
 
 .form-card h4 {
-  margin: 0 0 16px 0;
-  font-size: 16px;
+  margin: 0 0 12px 0;
+  font-size: 15px;
   font-weight: 600;
   color: #111827;
+}
+
+/* Make forms more compact */
+.form-card .grid {
+  gap: 10px;
+}
+
+.form-card .field {
+  gap: 4px;
+}
+
+.form-card input,
+.form-card textarea {
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.form-card .form-actions {
+  margin-top: 4px;
+  gap: 8px;
+}
+
+.form-card .form-actions button {
+  padding: 8px 12px;
+  font-size: 14px;
 }
 
 /* Button small */

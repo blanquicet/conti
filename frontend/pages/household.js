@@ -154,10 +154,10 @@ function renderHouseholdContent() {
         ${isOwner ? '<button id="invite-member-btn" class="btn-secondary btn-small">+ Invitar miembro</button>' : ''}
       </div>
       <p class="section-description">Personas que viven en este hogar con acceso a todos los movimientos.</p>
-      ${renderMembersList(isOwner)}
       <div id="invite-form-container" style="display: none;">
         ${renderInviteForm()}
       </div>
+      ${renderMembersList(isOwner)}
     </div>
 
     <div class="household-section">
@@ -166,10 +166,10 @@ function renderHouseholdContent() {
         <button id="add-contact-btn" class="btn-secondary btn-small">+ Agregar contacto</button>
       </div>
       <p class="section-description">Personas con las que tienes transacciones ocasionales (amigos, familia externa, etc.). Solo ven movimientos donde participan.</p>
-      ${renderContactsList()}
       <div id="contact-form-container" style="display: none;">
         ${renderContactForm()}
       </div>
+      ${renderContactsList()}
     </div>
   `;
 }
