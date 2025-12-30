@@ -1,6 +1,6 @@
 # Household & Contacts Management
 
-> **Current Status:** 📋 PLANNED
+> **Current Status:** 📋 COMPLETED
 >
 > This phase introduces the concepts of Household (Hogar) and Contacts to enable
 > shared expense tracking and multi-person financial management.
