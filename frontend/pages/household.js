@@ -11,6 +11,11 @@ import { API_URL } from '../config.js';
 import router from '../router.js';
 import * as Navbar from '../components/navbar.js';
 import { showConfirmation, showSuccess, showError } from '../utils.js';
+import { validateEmail } from '../auth-utils.js';
+
+// Phone validation regex
+// Allows: 3001234567 (10-14 digits) or +573001234567 (+ plus up to 13 digits)
+const PHONE_REGEX = /^(\+\d{1,13}|\d{10,14})$/;
 
 let currentUser = null;
 let household = null;
@@ -295,6 +300,7 @@ function renderInviteForm() {
           <label>
             <span>Email del miembro</span>
             <input type="email" id="invite-email" required placeholder="ejemplo@correo.com" />
+            <span class="field-hint" id="invite-email-hint" style="display: none; color: #dc2626;">Formato de email inválido</span>
           </label>
         </div>
         <div id="invite-error" class="error" style="display: none;"></div>
@@ -325,12 +331,14 @@ function renderContactForm(contact = null) {
           <label>
             <span>Email</span>
             <input type="email" id="contact-email" value="${contact?.email || ''}" placeholder="email@ejemplo.com (opcional)" />
+            <span class="field-hint" id="email-hint" style="display: none; color: #dc2626;">Formato de email inválido</span>
           </label>
         </div>
         <div class="field">
           <label>
             <span>Teléfono</span>
-            <input type="tel" id="contact-phone" value="${contact?.phone || ''}" placeholder="+57 300 123 4567 (opcional)" />
+            <input type="tel" id="contact-phone" value="${contact?.phone || ''}" placeholder="3001234567 o +573001234567 (opcional)" />
+            <span class="field-hint" id="phone-hint" style="display: none; color: #dc2626;">Formato: 10-14 dígitos o +[país][número]</span>
           </label>
         </div>
         <div class="field">
@@ -402,6 +410,18 @@ function setupEventHandlers() {
   // Invite form
   const inviteForm = document.getElementById('invite-form');
   inviteForm?.addEventListener('submit', handleInviteSubmit);
+  
+  // Setup invite email validation
+  const inviteEmailInput = document.getElementById('invite-email');
+  inviteEmailInput?.addEventListener('blur', validateInviteEmail);
+  inviteEmailInput?.addEventListener('input', () => {
+    const hint = document.getElementById('invite-email-hint');
+    if (hint && inviteEmailInput.value.trim() === '') {
+      hint.style.display = 'none';
+      inviteEmailInput.classList.remove('invalid', 'valid');
+    }
+  });
+  
   document.getElementById('cancel-invite-btn')?.addEventListener('click', () => {
     document.getElementById('invite-form-container').style.display = 'none';
   });
@@ -410,14 +430,129 @@ function setupEventHandlers() {
 }
 
 /**
+ * Validate invite email
+ */
+function validateInviteEmail() {
+  const emailInput = document.getElementById('invite-email');
+  const hint = document.getElementById('invite-email-hint');
+  const email = emailInput.value.trim();
+  
+  // Empty is not OK (required field)
+  if (email === '') {
+    hint.style.display = 'none';
+    emailInput.classList.remove('invalid', 'valid');
+    return false;
+  }
+  
+  const isValid = validateEmail(email);
+  
+  if (isValid) {
+    hint.style.display = 'none';
+    emailInput.classList.remove('invalid');
+    emailInput.classList.add('valid');
+  } else {
+    hint.style.display = 'block';
+    emailInput.classList.remove('valid');
+    emailInput.classList.add('invalid');
+  }
+  
+  return isValid;
+}
+
+/**
  * Setup contact form handlers
  */
 function setupContactFormHandlers() {
   const contactForm = document.getElementById('contact-form');
   contactForm?.addEventListener('submit', handleContactSubmit);
+  
+  // Setup real-time validation
+  const emailInput = document.getElementById('contact-email');
+  const phoneInput = document.getElementById('contact-phone');
+  
+  emailInput?.addEventListener('blur', validateContactEmail);
+  emailInput?.addEventListener('input', () => {
+    // Clear error on input
+    const hint = document.getElementById('email-hint');
+    if (hint && emailInput.value.trim() === '') {
+      hint.style.display = 'none';
+      emailInput.classList.remove('invalid', 'valid');
+    }
+  });
+  
+  phoneInput?.addEventListener('blur', validateContactPhone);
+  phoneInput?.addEventListener('input', () => {
+    // Clear error on input
+    const hint = document.getElementById('phone-hint');
+    if (hint && phoneInput.value.trim() === '') {
+      hint.style.display = 'none';
+      phoneInput.classList.remove('invalid', 'valid');
+    }
+  });
+  
   document.getElementById('cancel-contact-btn')?.addEventListener('click', () => {
     document.getElementById('contact-form-container').style.display = 'none';
   });
+}
+
+/**
+ * Validate contact email
+ */
+function validateContactEmail() {
+  const emailInput = document.getElementById('contact-email');
+  const hint = document.getElementById('email-hint');
+  const email = emailInput.value.trim();
+  
+  // Empty is OK (optional field)
+  if (email === '') {
+    hint.style.display = 'none';
+    emailInput.classList.remove('invalid', 'valid');
+    return true;
+  }
+  
+  const isValid = validateEmail(email);
+  
+  if (isValid) {
+    hint.style.display = 'none';
+    emailInput.classList.remove('invalid');
+    emailInput.classList.add('valid');
+  } else {
+    hint.style.display = 'block';
+    emailInput.classList.remove('valid');
+    emailInput.classList.add('invalid');
+  }
+  
+  return isValid;
+}
+
+/**
+ * Validate contact phone
+ */
+function validateContactPhone() {
+  const phoneInput = document.getElementById('contact-phone');
+  const hint = document.getElementById('phone-hint');
+  const phone = phoneInput.value.trim();
+  
+  // Empty is OK (optional field)
+  if (phone === '') {
+    hint.style.display = 'none';
+    phoneInput.classList.remove('invalid', 'valid');
+    return true;
+  }
+  
+  const isValid = PHONE_REGEX.test(phone);
+  
+  if (isValid) {
+    hint.style.display = 'none';
+    phoneInput.classList.remove('invalid');
+    phoneInput.classList.add('valid');
+  } else {
+    hint.style.display = 'block';
+    phoneInput.classList.remove('valid');
+    phoneInput.classList.add('invalid');
+  }
+  
+  return isValid;
 }
 
 /**
@@ -428,6 +563,14 @@ async function handleInviteSubmit(e) {
   const email = document.getElementById('invite-email').value.trim();
   const errorEl = document.getElementById('invite-error');
   const submitBtn = e.target.querySelector('button[type="submit"]');
+
+  // Validate email format
+  if (!validateEmail(email)) {
+    errorEl.textContent = 'El formato del email es inválido';
+    errorEl.style.display = 'block';
+    validateInviteEmail(); // Show visual feedback
+    return;
+  }
 
   submitBtn.disabled = true;
   submitBtn.classList.add('loading');
@@ -483,6 +626,22 @@ async function handleContactSubmit(e) {
   if (!name) {
     errorEl.textContent = 'El nombre es requerido';
     errorEl.style.display = 'block';
+    return;
+  }
+
+  // Validate email if provided
+  if (email && !validateEmail(email)) {
+    errorEl.textContent = 'El formato del email es inválido';
+    errorEl.style.display = 'block';
+    validateContactEmail(); // Show visual feedback
+    return;
+  }
+
+  // Validate phone if provided
+  if (phone && !PHONE_REGEX.test(phone)) {
+    errorEl.textContent = 'El formato del teléfono es inválido. Use solo números (10-14 dígitos) o +[código][número]';
+    errorEl.style.display = 'block';
+    validateContactPhone(); // Show visual feedback
     return;
   }
 
@@ -643,6 +802,9 @@ function handleEditContact(contactId) {
   container.innerHTML = renderContactForm(contact);
   container.style.display = 'block';
 
+  // Setup validation handlers
+  setupContactFormHandlers();
+
   const form = document.getElementById('contact-form');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -668,6 +830,22 @@ async function handleUpdateContact(contactId) {
   if (!name) {
     errorEl.textContent = 'El nombre es requerido';
     errorEl.style.display = 'block';
+    return;
+  }
+
+  // Validate email if provided
+  if (email && !validateEmail(email)) {
+    errorEl.textContent = 'El formato del email es inválido';
+    errorEl.style.display = 'block';
+    validateContactEmail(); // Show visual feedback
+    return;
+  }
+
+  // Validate phone if provided
+  if (phone && !PHONE_REGEX.test(phone)) {
+    errorEl.textContent = 'El formato del teléfono es inválido. Use solo números (10-14 dígitos) o +[código][número]';
+    errorEl.style.display = 'block';
+    validateContactPhone(); // Show visual feedback
     return;
   }
 

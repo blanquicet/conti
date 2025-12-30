@@ -309,3 +309,77 @@ The test simulates a complete household lifecycle:
 
 ✅ ✅ ✅ ALL TESTS PASSED! ✅ ✅ ✅
 ```
+
+## Household Validation E2E Test
+
+Tests form validation in household-related forms.
+
+### Test Coverage
+
+**Test File:** `household-validation.js`
+
+**Scenarios:**
+1. ✅ Contact email validation (invalid formats rejected)
+2. ✅ Contact email validation (valid formats accepted)
+3. ✅ Contact phone validation (invalid formats rejected)
+4. ✅ Contact phone validation (valid formats accepted)
+5. ✅ Form submission blocks invalid email
+6. ✅ Form submission blocks invalid phone
+7. ✅ Successful submission with valid data
+8. ✅ Invite member email validation
+9. ✅ Invite submission blocks invalid email
+10. ✅ Cleanup test data
+
+### Running the Test
+
+```bash
+cd backend/tests
+npm run test:validation
+```
+
+### Validation Rules Tested
+
+**Email Format:**
+- ✅ Requires: `text@text.text`
+- ❌ Rejects: `notanemail`, `missing@`, `missing@domain`, `@nodomain.com`
+- ✅ Visual feedback: green border for valid, red for invalid
+- ✅ Hint message shown for invalid format
+
+**Phone Format:**
+- ✅ Accepts: 10-14 digits (e.g., `3001234567`, `12345678901234`)
+- ✅ Accepts: + plus up to 13 digits (e.g., `+573001234567`)
+- ❌ Rejects: spaces, dashes, parentheses
+- ❌ Rejects: < 10 digits or > 14 digits
+- ❌ Rejects: + with > 13 digits
+- ✅ Visual feedback: green border for valid, red for invalid
+- ✅ Hint message shown for invalid format
+
+**Validation Behavior:**
+- ✅ Real-time validation on blur (when leaving field)
+- ✅ Error cleared on input
+- ✅ Submit blocked if validation fails
+- ✅ Clear error messages shown
+- ✅ Optional fields allow empty values
+
+### Expected Output
+
+```
+🚀 Starting Household Validation Test
+📧 Step 2: Testing contact email validation...
+✅ Invalid email formats correctly rejected
+✅ Valid email format accepted
+📱 Step 3: Testing contact phone validation...
+✅ Invalid phone formats correctly rejected
+✅ Valid phone formats accepted
+🚫 Step 4: Testing form submission blocks invalid data...
+✅ Form submission blocked for invalid email
+✅ Form submission blocked for invalid phone
+✅ Step 5: Testing successful submission with valid data...
+✅ Contact successfully added with valid data
+📧 Step 6: Testing invite member email validation...
+✅ Invite form shows invalid email correctly
+✅ Invite submission blocked for invalid email
+✅ Valid invite email accepted
+
+✅ ✅ ✅ ALL VALIDATION TESTS PASSED! ✅ ✅ ✅
+```
