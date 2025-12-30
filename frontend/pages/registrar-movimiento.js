@@ -4,41 +4,21 @@
  * Handles movement registration form with all business logic:
  * - FAMILIAR, COMPARTIDO, PAGO_DEUDA types
  * - Dynamic form fields based on type
- * - Payment methods, categories, participants
+ * - Payment methods, categories, participants loaded from API
  */
 
 import { logout, getMovementsApiUrl } from '../auth-utils.js';
+import { API_URL } from '../config.js';
 import router from '../router.js';
 import * as Navbar from '../components/navbar.js';
 
-// Configuration from app.js
-const DEFAULT_USERS = [
-  "Caro", "Jose", "Maria Isabel", "Daniel", "Yury",
-  "Papá Caro", "Mamá Caro", "Mamá Jose", "Papá Jose", "Prebby"
-];
+// Configuration loaded from API
+let users = [];
+let primaryUsers = [];
+let paymentMethods = [];
+let categories = [];
+let formConfigLoaded = false;
 
-const PRIMARY_USERS = ["Jose", "Caro"];
-
-const PAYMENT_METHODS = [
-  "Débito Jose", "AMEX Jose", "MasterCard Oro Jose",
-  "Débito Caro", "Nu Caro"
-];
-
-const CATEGORIES = [
-  "Pago de SOAT/impuestos/mantenimiento", "Carro - Seguro",
-  "Uber/Gasolina/Peajes/Parqueaderos", "Casa - Gastos fijos",
-  "Casa - Cositas para casa", "Casa - Provisionar mes entrante",
-  "Kellys", "Mercado", "Ahorros para SOAT/impuestos/mantenimiento",
-  "Ahorros para cosas de la casa", "Ahorros para vacaciones",
-  "Ahorros para regalos", "Salidas juntos", "Vacaciones",
-  "Inversiones Caro", "Inversiones Jose", "Inversiones Juntos",
-  "Regalos", "Caro - Gastos fijos", "Caro - Vida cotidiana",
-  "Jose - Gastos fijos", "Jose - Vida cotidiana", "Gastos médicos",
-  "Caro - Imprevistos", "Jose - Imprevistos", "Casa - Imprevistos",
-  "Carro - Imprevistos", "Préstamo"
-];
-
-let users = [...DEFAULT_USERS];
 let participants = []; // [{ name, pct }]
 let currentUser = null;
 
@@ -203,9 +183,61 @@ export function render(user) {
 }
 
 /**
+ * Load form configuration from API
+ */
+async function loadFormConfig() {
+  if (formConfigLoaded) return;
+  
+  try {
+    const response = await fetch(`${API_URL}/movement-form-config`, {
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error loading form configuration');
+    }
+    
+    const config = await response.json();
+    
+    // Process users: members first (marked as primary), then contacts
+    users = config.users.map(u => u.name);
+    primaryUsers = config.users.filter(u => u.type === 'member').map(u => u.name);
+    
+    // Process payment methods
+    paymentMethods = config.payment_methods.map(pm => pm.name);
+    
+    // Use categories from API
+    categories = config.categories || [];
+    
+    formConfigLoaded = true;
+    
+  } catch (error) {
+    console.error('Error loading form config:', error);
+    // Fallback to empty arrays if API fails
+    users = [];
+    primaryUsers = [];
+    paymentMethods = [];
+    categories = [];
+  }
+}
+
+/**
+ * Render payment method select
+ */
+function renderPaymentMethodSelect() {
+  const metodoEl = document.getElementById('metodo');
+  if (!metodoEl) return;
+  
+  metodoEl.innerHTML = `
+    <option value="">Selecciona...</option>
+    ${paymentMethods.map(pm => `<option value="${pm}">${pm}</option>`).join('')}
+  `;
+}
+
+/**
  * Setup event listeners and initialize form
  */
-export function setup() {
+export async function setup() {
   const form = document.getElementById('movForm');
   const tipoEl = document.getElementById('tipo');
   const pagadorEl = document.getElementById('pagador');
@@ -218,11 +250,15 @@ export function setup() {
   // Initialize navbar
   Navbar.setup();
 
+  // Load form configuration from API
+  await loadFormConfig();
+
   // Initialize selects
   renderUserSelect(pagadorEl, users, true);
   renderUserSelect(pagadorCompartidoEl, users, true);
   renderUserSelect(document.getElementById('tomador'), users, true);
   renderCategorySelect();
+  renderPaymentMethodSelect();
 
   // Reset participants for COMPARTIDO
   resetParticipants();
@@ -320,7 +356,7 @@ function renderCategorySelect() {
   base.selected = true;
   categoriaEl.appendChild(base);
 
-  for (const c of CATEGORIES) {
+  for (const c of categories) {
     const opt = document.createElement('option');
     opt.value = c;
     opt.textContent = c;
@@ -408,7 +444,7 @@ function onPagadorChange() {
   const payer = getCurrentPayer();
 
   if (tipo !== 'FAMILIAR') {
-    const requiresMethod = PRIMARY_USERS.includes(payer);
+    const requiresMethod = primaryUsers.includes(payer);
     const metodoWrap = document.getElementById('metodoWrap');
     const metodoEl = document.getElementById('metodo');
 
@@ -726,7 +762,7 @@ function readForm() {
 
   if (!categoria) throw new Error('Categoría es obligatoria.');
 
-  const requiresMethod = tipo === 'FAMILIAR' || PRIMARY_USERS.includes(pagador);
+  const requiresMethod = tipo === 'FAMILIAR' || primaryUsers.includes(pagador);
   if (requiresMethod && !metodo) throw new Error('Método de pago es obligatorio.');
 
   if (tipo === 'PAGO_DEUDA') {
