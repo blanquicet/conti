@@ -303,7 +303,6 @@ function renderInviteForm() {
             <span class="field-hint" id="invite-email-hint" style="display: none; color: #dc2626;">Formato de email inválido</span>
           </label>
         </div>
-        <div id="invite-error" class="error" style="display: none;"></div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">Enviar invitación</button>
           <button type="button" id="cancel-invite-btn" class="btn-secondary">Cancelar</button>
@@ -347,7 +346,6 @@ function renderContactForm(contact = null) {
             <textarea id="contact-notes" rows="2" placeholder="Notas adicionales (opcional)">${contact?.notes || ''}</textarea>
           </label>
         </div>
-        <div id="contact-error" class="error" style="display: none;"></div>
         <div class="form-actions">
           <button type="submit" class="btn-primary">${contact ? 'Guardar' : 'Agregar'}</button>
           <button type="button" id="cancel-contact-btn" class="btn-secondary">Cancelar</button>
@@ -561,20 +559,15 @@ function validateContactPhone() {
 async function handleInviteSubmit(e) {
   e.preventDefault();
   const email = document.getElementById('invite-email').value.trim();
-  const errorEl = document.getElementById('invite-error');
   const submitBtn = e.target.querySelector('button[type="submit"]');
 
   // Validate email format
-  if (!validateEmail(email)) {
-    errorEl.textContent = 'El formato del email es inválido';
-    errorEl.style.display = 'block';
-    validateInviteEmail(); // Show visual feedback
+  if (!validateInviteEmail()) {
     return;
   }
 
   submitBtn.disabled = true;
   submitBtn.classList.add('loading');
-  errorEl.style.display = 'none';
 
   try {
     const response = await fetch(`${API_URL}/households/${household.id}/invitations`, {
@@ -620,34 +613,25 @@ async function handleContactSubmit(e) {
   const email = document.getElementById('contact-email').value.trim();
   const phone = document.getElementById('contact-phone').value.trim();
   const notes = document.getElementById('contact-notes').value.trim();
-  const errorEl = document.getElementById('contact-error');
   const submitBtn = e.target.querySelector('button[type="submit"]');
 
   if (!name) {
-    errorEl.textContent = 'El nombre es requerido';
-    errorEl.style.display = 'block';
+    showModal('Error', 'El nombre es requerido');
     return;
   }
 
   // Validate email if provided
-  if (email && !validateEmail(email)) {
-    errorEl.textContent = 'El formato del email es inválido';
-    errorEl.style.display = 'block';
-    validateContactEmail(); // Show visual feedback
+  if (email && !validateContactEmail()) {
     return;
   }
 
   // Validate phone if provided
-  if (phone && !PHONE_REGEX.test(phone)) {
-    errorEl.textContent = 'El formato del teléfono es inválido. Use solo números (10-14 dígitos) o +[código][número]';
-    errorEl.style.display = 'block';
-    validateContactPhone(); // Show visual feedback
+  if (phone && !validateContactPhone()) {
     return;
   }
 
   submitBtn.disabled = true;
   submitBtn.classList.add('loading');
-  errorEl.style.display = 'none';
 
   try {
     const response = await fetch(`${API_URL}/households/${household.id}/contacts`, {
@@ -664,8 +648,7 @@ async function handleContactSubmit(e) {
 
     await loadHousehold();
   } catch (error) {
-    errorEl.textContent = error.message;
-    errorEl.style.display = 'block';
+    showModal('Error', error.message);
   } finally {
     submitBtn.disabled = false;
     submitBtn.classList.remove('loading');
@@ -824,34 +807,25 @@ async function handleUpdateContact(contactId) {
   const email = document.getElementById('contact-email').value.trim();
   const phone = document.getElementById('contact-phone').value.trim();
   const notes = document.getElementById('contact-notes').value.trim();
-  const errorEl = document.getElementById('contact-error');
   const submitBtn = document.querySelector('#contact-form button[type="submit"]');
 
   if (!name) {
-    errorEl.textContent = 'El nombre es requerido';
-    errorEl.style.display = 'block';
+    showModal('Error', 'El nombre es requerido');
     return;
   }
 
   // Validate email if provided
-  if (email && !validateEmail(email)) {
-    errorEl.textContent = 'El formato del email es inválido';
-    errorEl.style.display = 'block';
-    validateContactEmail(); // Show visual feedback
+  if (email && !validateContactEmail()) {
     return;
   }
 
   // Validate phone if provided
-  if (phone && !PHONE_REGEX.test(phone)) {
-    errorEl.textContent = 'El formato del teléfono es inválido. Use solo números (10-14 dígitos) o +[código][número]';
-    errorEl.style.display = 'block';
-    validateContactPhone(); // Show visual feedback
+  if (phone && !validateContactPhone()) {
     return;
   }
 
   submitBtn.disabled = true;
   submitBtn.classList.add('loading');
-  errorEl.style.display = 'none';
 
   try {
     const response = await fetch(`${API_URL}/households/${household.id}/contacts/${contactId}`, {
@@ -868,8 +842,7 @@ async function handleUpdateContact(contactId) {
 
     await loadHousehold();
   } catch (error) {
-    errorEl.textContent = error.message;
-    errorEl.style.display = 'block';
+    showModal('Error', error.message);
   } finally {
     submitBtn.disabled = false;
     submitBtn.classList.remove('loading');
