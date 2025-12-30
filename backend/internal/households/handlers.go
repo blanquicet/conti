@@ -425,6 +425,29 @@ func (h *Handler) LeaveHousehold(w http.ResponseWriter, r *http.Request) {
 
 // Contact endpoints
 
+// ListContacts handles GET /households/{id}/contacts
+func (h *Handler) ListContacts(w http.ResponseWriter, r *http.Request) {
+	user, err := h.getUserFromRequest(r)
+	if err != nil {
+		h.respondError(w, "no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	householdID := r.PathValue("household_id")
+	if householdID == "" {
+		h.respondError(w, "household_id requerido", http.StatusBadRequest)
+		return
+	}
+
+	contacts, err := h.service.ListContacts(r.Context(), householdID, user.ID)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	h.respondJSON(w, contacts, http.StatusOK)
+}
+
 // CreateContact handles POST /households/{id}/contacts
 func (h *Handler) CreateContact(w http.ResponseWriter, r *http.Request) {
 	user, err := h.getUserFromRequest(r)

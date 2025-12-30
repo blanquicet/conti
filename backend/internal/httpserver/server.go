@@ -152,6 +152,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	
 	// Contact management endpoints
 	mux.HandleFunc("POST /households/{id}/contacts", householdHandler.CreateContact)
+	mux.HandleFunc("GET /households/{household_id}/contacts", householdHandler.ListContacts)
 	mux.HandleFunc("PATCH /households/{household_id}/contacts/{contact_id}", householdHandler.UpdateContact)
 	mux.HandleFunc("DELETE /households/{household_id}/contacts/{contact_id}", householdHandler.DeleteContact)
 	mux.HandleFunc("POST /households/{household_id}/contacts/{contact_id}/promote", householdHandler.PromoteContact)

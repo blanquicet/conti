@@ -350,6 +350,20 @@ func (i *CreateContactInput) Validate() error {
 	return nil
 }
 
+// ListContacts lists all contacts for a household
+func (s *Service) ListContacts(ctx context.Context, householdID string, userID string) ([]*Contact, error) {
+	// Check user is a member
+	_, err := s.repo.GetMemberByUserID(ctx, householdID, userID)
+	if err != nil {
+		if errors.Is(err, ErrMemberNotFound) {
+			return nil, ErrNotAuthorized
+		}
+		return nil, err
+	}
+
+	return s.repo.ListContacts(ctx, householdID)
+}
+
 // CreateContact creates a new contact with auto-linking if email matches a user
 func (s *Service) CreateContact(ctx context.Context, input *CreateContactInput) (*Contact, error) {
 	if err := input.Validate(); err != nil {
@@ -497,20 +511,6 @@ func (s *Service) DeleteContact(ctx context.Context, contactID, householdID, use
 	}
 
 	return s.repo.DeleteContact(ctx, contactID)
-}
-
-// ListContacts retrieves all contacts for a household
-func (s *Service) ListContacts(ctx context.Context, householdID, userID string) ([]*Contact, error) {
-	// Check user is a member
-	_, err := s.repo.GetMemberByUserID(ctx, householdID, userID)
-	if err != nil {
-		if errors.Is(err, ErrMemberNotFound) {
-			return nil, ErrNotAuthorized
-		}
-		return nil, err
-	}
-
-	return s.repo.ListContacts(ctx, householdID)
 }
 
 // PromoteContactInput contains the data needed to promote a contact to member
