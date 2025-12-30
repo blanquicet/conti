@@ -20,40 +20,58 @@ npx playwright install
 
 ## Running Tests
 
-### Run the password reset E2E test
+### Quick Start (Recommended)
+
+Use the provided test runner script that handles all setup automatically:
 
 ```bash
-npm run test:e2e
+cd backend
+./run-e2e-tests.sh
 ```
 
-This executes `node e2e/password-reset.js` automatically.
+This script will:
+1. ✅ Check if PostgreSQL is running
+2. ✅ Build the backend binary
+3. ✅ Start the backend with proper environment variables
+4. ✅ Redirect logs to `/tmp/backend.log`
+5. ✅ Wait for backend to be healthy
+6. ✅ Run all e2e tests
+7. ✅ Clean up the backend process
+
+### Manual Setup (Alternative)
+
+If you prefer to run tests manually:
 
 **Prerequisites before running:**
 
 ```bash
-# 1. Ensure backend .env has EMAIL_PROVIDER=noop
+# 1. Ensure PostgreSQL is running
+pg_isready -h localhost -p 5432 -U gastos
+# Or start with docker:
+# cd backend && docker compose up -d
+
+# 2. Set environment variables and start backend
 cd backend
-cat .env | grep EMAIL_PROVIDER
-# Should show: EMAIL_PROVIDER=noop
+export DATABASE_URL="postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable"
+export STATIC_DIR="../frontend"
+export RATE_LIMIT_ENABLED="false"
+export SESSION_COOKIE_SECURE="false"
+export EMAIL_PROVIDER="noop"
 
-# 2. Ensure STATIC_DIR is set to serve frontend
-cat .env | grep STATIC_DIR
-# Should show: STATIC_DIR=../frontend
+# Start backend with logging
+go run cmd/api/main.go 2>&1 | tee /tmp/backend.log &
 
-# 3. Ensure PostgreSQL is running
-docker compose ps
-docker compose up -d  # if not running
-
-# 4. Start backend with logging (in a separate terminal)
-go run cmd/api/main.go 2>&1 | tee /tmp/backend.log
+# 3. Run the tests
+cd tests
+npm run test:e2e
 ```
 
 The test will:
 
-1. Open a browser (non-headless by default)
+1. Open a browser (non-headless by default, headless in CI)
 2. Run the complete password reset flow
 3. Show validation results in console
-4. Save screenshot on failure to `/tmp/password-reset-failure.png`
+4. Save screenshot on failure to `/tmp/password-reset-failure.png` (local) or `test-results/` (CI)
 
 ## Test Files
 
@@ -106,16 +124,24 @@ STATIC_DIR=../frontend
 
 ### Token Extraction Process
 
-The test (`password-reset.js`):
+The test (`password-reset.js`) adapts based on environment:
 
-1. Starts backend with logging to `/tmp/backend.log`
-2. Registers a new user via frontend
-3. Logs out
-4. Requests password reset via frontend
-5. Reads `/tmp/backend.log` to find the token
-6. Uses token to complete password reset
-7. Verifies password strength UI works correctly
-8. Logs in with new password
+**Local Development:**
+1. Backend runs with logs redirected to `/tmp/backend.log`
+2. Test reads token from file: `/tmp/backend.log`
+
+**CI (GitHub Actions):**
+1. Backend runs in Docker container
+2. Test reads token from docker logs: `docker compose logs api`
+
+**Test Flow:**
+1. Registers a new user via frontend
+2. Logs out
+3. Requests password reset via frontend
+4. Extracts token from logs (file or docker)
+5. Uses token to complete password reset
+6. Verifies password strength UI works correctly
+7. Logs in with new password
 
 **Token log format:**
 
@@ -214,6 +240,49 @@ Edit `password-reset.js` and add more `console.log()` statements where needed.
 - `playwright` - Browser automation library
 - `pg` - PostgreSQL client for database verification
 
+## Running in CI/CD
+
+The e2e tests are automatically run in GitHub Actions on every push/PR.
+
+**CI Workflow:** `.github/workflows/deploy-api.yml`
+
+**What happens in CI:**
+1. ✅ Builds Docker image once and uploads as artifact
+2. ✅ Runs unit tests
+3. ✅ Runs API integration tests
+4. ✅ Runs e2e tests (parallel with API tests)
+5. ✅ Pushes Docker image to registry (on main branch)
+6. ✅ Deploys to Azure (on main branch)
+
+**CI-specific features:**
+- Tests run in headless mode (`HEADLESS=true`)
+- Frontend served via Docker volume mount
+- Token extracted from docker compose logs
+- Screenshots uploaded as artifacts on failure
+- Test results stored for 7 days
+
+## Environment Detection
+
+Tests automatically detect the environment:
+
+```javascript
+// Headless mode
+const headless = process.env.CI === 'true' || process.env.HEADLESS === 'true';
+
+// API URL
+const apiUrl = process.env.API_URL || 'http://localhost:8080';
+
+// Database URL
+const dbUrl = process.env.DATABASE_URL || 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable';
+
+// Token source
+if (process.env.CI) {
+  // Read from docker compose logs
+} else {
+  // Read from /tmp/backend.log
+}
+```
+
 ## Next Steps
 
 Future improvements:
@@ -222,8 +291,8 @@ Future improvements:
 - Add tests for invalid tokens
 - Add tests for already-used tokens
 - Add tests for registration flow edge cases
-- Add tests for login flow
-- Integrate with CI/CD pipeline
+- Add more household scenarios
+- Add payment methods tests
 
 ## Household Management E2E Test
 
