@@ -18,11 +18,15 @@ const { Pool } = pg;
  */
 
 async function testHouseholdManagement() {
-  const browser = await chromium.launch({ headless: false });
+  const headless = process.env.CI === 'true' || process.env.HEADLESS === 'true';
+  const apiUrl = process.env.API_URL || 'http://localhost:8080';
+  const dbUrl = process.env.DATABASE_URL || 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable';
+  
+  const browser = await chromium.launch({ headless });
   
   // Database connection
   const pool = new Pool({
-    connectionString: 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable'
+    connectionString: dbUrl
   });
 
   const timestamp = Date.now();
@@ -45,7 +49,7 @@ async function testHouseholdManagement() {
     const context1 = await browser.newContext();
     const page1 = await context1.newPage();
     
-    await page1.goto('http://localhost:8080');
+    await page1.goto(apiUrl);
     await page1.waitForTimeout(1000);
     
     await page1.getByRole('link', { name: 'Regístrate' }).click();
@@ -70,7 +74,7 @@ async function testHouseholdManagement() {
     const context2 = await browser.newContext();
     const page2 = await context2.newPage();
     
-    await page2.goto('http://localhost:8080');
+    await page2.goto(apiUrl);
     await page2.waitForTimeout(1000);
     
     await page2.getByRole('link', { name: 'Regístrate' }).click();

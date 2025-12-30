@@ -12,13 +12,17 @@ const { Pool } = pg;
  */
 
 async function testHouseholdValidation() {
-  const browser = await chromium.launch({ headless: false });
+  const headless = process.env.CI === 'true' || process.env.HEADLESS === 'true';
+  const apiUrl = process.env.API_URL || 'http://localhost:8080';
+  const dbUrl = process.env.DATABASE_URL || 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable';
+  
+  const browser = await chromium.launch({ headless });
   const context = await browser.newContext();
   const page = await context.newPage();
   
   // Database connection
   const pool = new Pool({
-    connectionString: 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable'
+    connectionString: dbUrl
   });
 
   const timestamp = Date.now();
@@ -37,7 +41,7 @@ async function testHouseholdValidation() {
     // ==================================================================
     console.log('📝 Step 1: Setting up test environment...');
     
-    await page.goto('http://localhost:8080');
+    await page.goto(apiUrl);
     await page.waitForTimeout(1000);
     
     await page.getByRole('link', { name: 'Regístrate' }).click();

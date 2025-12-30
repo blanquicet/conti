@@ -1,13 +1,14 @@
 package paymentmethods
 
 import (
-"encoding/json"
-"errors"
-"log/slog"
-"net/http"
+	"context"
+	"encoding/json"
+	"errors"
+	"log/slog"
+	"net/http"
 
-"github.com/blanquicet/gastos/backend/internal/auth"
-"github.com/blanquicet/gastos/backend/internal/households"
+	"github.com/blanquicet/gastos/backend/internal/auth"
+	"github.com/blanquicet/gastos/backend/internal/households"
 )
 
 // Handler handles HTTP requests for payment method management

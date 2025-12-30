@@ -1,6 +1,5 @@
 import { chromium } from 'playwright';
 import pg from 'pg';
-import fs from 'fs';
 const { Pool } = pg;
 
 /**
@@ -16,13 +15,17 @@ const { Pool } = pg;
  */
 
 async function testPasswordReset() {
-  const browser = await chromium.launch({ headless: false });
+  const headless = process.env.CI === 'true' || process.env.HEADLESS === 'true';
+  const apiUrl = process.env.API_URL || 'http://localhost:8080';
+  const dbUrl = process.env.DATABASE_URL || 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable';
+  
+  const browser = await chromium.launch({ headless });
   const context = await browser.newContext();
   const page = await context.newPage();
   
   // Database connection
   const pool = new Pool({
-    connectionString: 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable'
+    connectionString: dbUrl
   });
 
   const testEmail = `testpw-${Date.now()}@example.com`;
@@ -36,7 +39,7 @@ async function testPasswordReset() {
 
     // Step 1: Register a new user
     console.log('Step 1: Registering new user...');
-    await page.goto('http://localhost:8080');
+    await page.goto(apiUrl);
     await page.waitForTimeout(1000); // Give it time to load
     
     // Click "Registrarse" link
@@ -69,7 +72,7 @@ async function testPasswordReset() {
     await page.waitForTimeout(1000);
     
     // Verify we're on login page
-    if (page.url().includes('/') || page.url() === 'http://localhost:8080/') {
+    if (page.url().includes('/') || page.url() === `${apiUrl}/`) {
       console.log('✅ Logged out successfully');
     }
 
@@ -102,29 +105,19 @@ async function testPasswordReset() {
       throw new Error('Success message not found');
     }
 
-    // Step 4: Get reset token from backend logs
-    console.log('Step 4: Retrieving reset token from backend logs...');
+    // Step 4: Get reset token from database
+    console.log('Step 4: Retrieving reset token from database...');
     
-    // Read backend log file
-    const logContent = fs.readFileSync('/tmp/backend.log', 'utf8');
-    const logLines = logContent.split('\n').reverse(); // Most recent first
+    const tokenResult = await pool.query(
+      'SELECT token FROM password_resets WHERE user_id = (SELECT id FROM users WHERE email = $1) ORDER BY created_at DESC LIMIT 1',
+      [testEmail]
+    );
     
-    // Find the token for this email
-    let token = null;
-    for (const line of logLines) {
-      if (line.includes(testEmail) && line.includes('password reset email (no-op)')) {
-        const match = line.match(/"token":"([^"]+)"/);
-        if (match) {
-          token = match[1];
-          break;
-        }
-      }
+    if (tokenResult.rows.length === 0) {
+      throw new Error('No reset token found in database');
     }
     
-    if (!token) {
-      throw new Error('No reset token found in backend logs');
-    }
-    
+    const token = tokenResult.rows[0].token;
     console.log('✅ Token retrieved:', token.substring(0, 20) + '...');
 
     // Step 5: Reset password with token
@@ -132,7 +125,7 @@ async function testPasswordReset() {
     
     // URL encode the token
     const encodedToken = encodeURIComponent(token);
-    const resetUrl = `http://localhost:8080/reset-password?token=${encodedToken}`;
+    const resetUrl = `${apiUrl}/reset-password?token=${encodedToken}`;
     console.log('  Visiting URL:', resetUrl);
     await page.goto(resetUrl);
     await page.waitForTimeout(2000);
@@ -249,8 +242,10 @@ async function testPasswordReset() {
     console.error('');
     
     // Take screenshot on failure
-    await page.screenshot({ path: '/tmp/password-reset-failure.png', fullPage: true });
-    console.error('Screenshot saved to /tmp/password-reset-failure.png');
+    const screenshotPath = process.env.CI ? 'test-results/password-reset-failure.png' : '/tmp/password-reset-failure.png';
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+    console.error('Screenshot saved to', screenshotPath);
+    process.exit(1);
   } finally {
     await pool.end();
     await browser.close();

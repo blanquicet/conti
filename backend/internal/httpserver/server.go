@@ -17,6 +17,7 @@ import (
 	"github.com/blanquicet/gastos/backend/internal/middleware"
 	"github.com/blanquicet/gastos/backend/internal/movements"
 	"github.com/blanquicet/gastos/backend/internal/n8nclient"
+	"github.com/blanquicet/gastos/backend/internal/paymentmethods"
 	"github.com/blanquicet/gastos/backend/internal/sessions"
 	"github.com/blanquicet/gastos/backend/internal/users"
 )
@@ -95,6 +96,17 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		logger,
 	)
 
+	// Create payment methods service and handler
+	paymentMethodsRepo := paymentmethods.NewRepository(pool)
+	paymentMethodsService := paymentmethods.NewService(paymentMethodsRepo)
+	paymentMethodsHandler := paymentmethods.NewHandler(
+		paymentMethodsService,
+		authService,
+		householdRepo,
+		cfg.SessionCookieName,
+		logger,
+	)
+
 	// Create n8n client and movements handler (for migration period)
 	var movementsHandler *movements.Handler
 	if cfg.N8NWebhookURL != "" && cfg.N8NAPIKey != "" {
@@ -160,6 +172,13 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	
 	// Invitation endpoints
 	mux.HandleFunc("POST /households/{id}/invitations", householdHandler.CreateInvitation)
+
+	// Payment methods endpoints
+	mux.HandleFunc("POST /payment-methods", paymentMethodsHandler.CreatePaymentMethod)
+	mux.HandleFunc("GET /payment-methods", paymentMethodsHandler.ListPaymentMethods)
+	mux.HandleFunc("GET /payment-methods/{id}", paymentMethodsHandler.GetPaymentMethod)
+	mux.HandleFunc("PATCH /payment-methods/{id}", paymentMethodsHandler.UpdatePaymentMethod)
+	mux.HandleFunc("DELETE /payment-methods/{id}", paymentMethodsHandler.DeletePaymentMethod)
 
 	// Movement endpoints (proxy to n8n during migration period)
 	if movementsHandler != nil {

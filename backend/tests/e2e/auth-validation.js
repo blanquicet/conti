@@ -15,13 +15,17 @@ const { Pool } = pg;
  */
 
 async function testAuthValidation() {
-  const browser = await chromium.launch({ headless: false });
+  const headless = process.env.CI === 'true' || process.env.HEADLESS === 'true';
+  const apiUrl = process.env.API_URL || 'http://localhost:8080';
+  const dbUrl = process.env.DATABASE_URL || 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable';
+  
+  const browser = await chromium.launch({ headless });
   const context = await browser.newContext();
   const page = await context.newPage();
   
   // Database connection
   const pool = new Pool({
-    connectionString: 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable'
+    connectionString: dbUrl
   });
 
   const timestamp = Date.now();
@@ -36,7 +40,7 @@ async function testAuthValidation() {
     // ==================================================================
     console.log('📧 Step 1: Testing login email validation...');
     
-    await page.goto('http://localhost:8080');
+    await page.goto(apiUrl);
     await page.waitForTimeout(1000);
     
     // Test invalid email formats
