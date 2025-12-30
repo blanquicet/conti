@@ -855,6 +855,10 @@ DROP TABLE IF EXISTS households;
 
 ## 🏗️ Backend Implementation Plan
 
+### Phase 2A: Backend Only (Implement & Validate First)
+
+**Goal:** Complete and test all backend functionality before touching frontend.
+
 ### Project Structure
 
 ```
@@ -866,6 +870,7 @@ backend/
 │   │   ├── households.go        # household CRUD
 │   │   ├── members.go           # member management
 │   │   ├── contacts.go          # contact management
+│   │   ├── invitations.go       # invitation flow
 │   │   ├── handlers.go          # HTTP handlers
 │   │   └── models.go            # data models
 │   ├── middleware/     # existing
@@ -876,41 +881,110 @@ backend/
     ├── 005_create_household_members.up.sql
     ├── 005_create_household_members.down.sql
     ├── 006_create_contacts.up.sql
-    └── 006_create_contacts.down.sql
+    ├── 006_create_contacts.down.sql
+    ├── 007_create_household_invitations.up.sql
+    └── 007_create_household_invitations.down.sql
 ```
 
-### Implementation Steps
+### Backend Implementation Steps (Sequential)
 
-**Step 1: Database Layer**
-- [ ] Create migration files
-- [ ] Run migrations on dev database
-- [ ] Verify schema with `psql`
+**Step 1: Database Schema**
+- [ ] Write all 4 migration files (up & down)
+- [ ] Review schema with team
+- [ ] Run migrations on local dev database
+- [ ] Verify schema with `\d` commands in psql
+- [ ] Test rollback migrations work correctly
 
-**Step 2: Backend Models**
+**Step 2: Data Models**
 - [ ] Create `internal/households/models.go`
-- [ ] Define structs: `Household`, `HouseholdMember`, `Contact`
-- [ ] Add validation methods
+- [ ] Define structs: `Household`, `HouseholdMember`, `Contact`, `Invitation`
+- [ ] Add JSON tags for API responses
+- [ ] Add validation methods (e.g., `Validate()`)
+- [ ] Document business rules in comments
 
-**Step 3: Backend Logic**
-- [ ] `households.go`: CRUD operations
-- [ ] `members.go`: Member management + authorization
-- [ ] `contacts.go`: Contact CRUD + auto-linking
-- [ ] Add tests for each module
+**Step 3: Repository Layer (Database Logic)**
+- [ ] `households.go`: 
+  - [ ] `CreateHousehold()`
+  - [ ] `GetHousehold()`
+  - [ ] `UpdateHousehold()`
+  - [ ] `DeleteHousehold()`
+  - [ ] `ListUserHouseholds()`
+- [ ] `members.go`:
+  - [ ] `AddMember()`
+  - [ ] `RemoveMember()`
+  - [ ] `UpdateMemberRole()`
+  - [ ] `GetHouseholdMembers()`
+  - [ ] `CheckMemberPermissions()`
+- [ ] `contacts.go`:
+  - [ ] `CreateContact()`
+  - [ ] `UpdateContact()`
+  - [ ] `DeleteContact()`
+  - [ ] `GetHouseholdContacts()`
+  - [ ] `AutoLinkContact()` (check email against users)
+  - [ ] `PromoteContactToMember()`
+- [ ] `invitations.go`:
+  - [ ] `CreateInvitation()`
+  - [ ] `GetInvitationByToken()`
+  - [ ] `AcceptInvitation()`
+  - [ ] `ListPendingInvitations()`
 
-**Step 4: API Handlers**
-- [ ] Register routes in `httpserver`
-- [ ] Implement handlers with auth middleware
-- [ ] Add request validation
-- [ ] Error handling
+**Step 4: Unit Tests (Critical)**
+- [ ] Test household CRUD operations
+- [ ] Test member management with different roles
+- [ ] Test permission checks (owner vs member)
+- [ ] Test contact auto-linking logic
+- [ ] Test contact promotion (registered vs unregistered)
+- [ ] Test invitation flow
+- [ ] Test edge cases:
+  - [ ] Cannot remove last owner
+  - [ ] Cannot promote unregistered contact
+  - [ ] Cannot demote yourself as last owner
+  - [ ] Duplicate member prevention
+  - [ ] Data isolation between households
 
-**Step 5: Integration**
-- [ ] Test API with curl/Postman
-- [ ] Verify permissions work correctly
-- [ ] Test edge cases (delete last owner, duplicate members, etc.)
+**Step 5: API Handlers**
+- [ ] Register all routes in `httpserver`
+- [ ] Implement handlers with proper error handling
+- [ ] Add authentication middleware to all routes
+- [ ] Add authorization checks (owner-only actions)
+- [ ] Add request validation (validate input JSON)
+- [ ] Return proper HTTP status codes
+
+**Step 6: API Integration Testing**
+- [ ] Test with `curl` or Postman
+- [ ] Create test collection with all endpoints
+- [ ] Test happy paths
+- [ ] Test error cases (401, 403, 404, 409, etc.)
+- [ ] Test concurrent operations
+- [ ] Verify database state after operations
+
+**Step 7: Backend Documentation**
+- [ ] Document all API endpoints (request/response)
+- [ ] Add examples for each endpoint
+- [ ] Document error responses
+- [ ] Update API documentation (e.g., Swagger/OpenAPI if used)
+
+**✅ Backend Validation Checkpoint**
+
+Before proceeding to frontend:
+- [ ] All unit tests passing
+- [ ] All API endpoints tested manually
+- [ ] No regressions in existing functionality
+- [ ] Code reviewed
+- [ ] Migrations tested (up and down)
+- [ ] Performance acceptable (query times, N+1 queries checked)
+- [ ] Security reviewed (no SQL injection, proper authorization)
 
 ---
 
 ## 🎨 Frontend Implementation Plan
+
+### Phase 2B: Frontend (Only After Backend Validated)
+
+**Prerequisites:**
+- ✅ All backend functionality working
+- ✅ API endpoints tested and validated
+- ✅ Backend deployed to dev environment
 
 ### Project Structure
 
@@ -970,80 +1044,157 @@ When clicked, shows dropdown menu:
 - Click outside to close menu
 - Responsive: Full width on mobile, dropdown on desktop
 
-### Implementation Steps
+### Frontend Implementation Steps (Sequential)
 
-**Step 0: Navigation Menu**
+**Step 1: Navigation Infrastructure**
+- [ ] Create `components/` directory
 - [ ] Create `components/navbar.js`
 - [ ] Hamburger icon (☰) in top-right
 - [ ] Dropdown menu with Profile, Gastos, Salir
-- [ ] Show current user name
+- [ ] Show current user name (from session)
 - [ ] Highlight active page
-- [ ] Click outside to close
-- [ ] Add to all authenticated pages
+- [ ] Click outside to close functionality
+- [ ] Responsive styling
+- [ ] Add to `registrar-movimiento.js` page (test)
 
-**Step 1: Post-Registration Flow**
-- [ ] Add optional household creation after registration
-- [ ] "Crear mi hogar" dialog
-- [ ] "Omitir por ahora" → show reminder banner
-
-**Step 2: User Profile Page**
+**Step 2: Profile Page (Read-Only First)**
 - [ ] Create `pages/profile.js`
-- [ ] Show user info + household status
-- [ ] Link to household management
-- [ ] Logout button (can be removed if in navbar)
+- [ ] Show user info (name, email)
+- [ ] Fetch and display household status
+- [ ] Show "No household" state
+- [ ] Show household name if exists
+- [ ] Link to household details
+- [ ] Add navbar to this page
+- [ ] Test with backend API
 
-**Step 3: Household Management**
+**Step 3: Household Creation Flow**
+- [ ] Post-registration household creation (optional)
+- [ ] Create `pages/household-create.js`
+- [ ] Household creation form
+- [ ] Handle "skip for now" option
+- [ ] Success/error handling
+- [ ] Navigate to appropriate page after creation
+
+**Step 4: Household Management (Read-Only First)**
 - [ ] Create `pages/household.js`
-- [ ] Show household details
-- [ ] Member list with roles
-- [ ] Contact list with linkage status
-- [ ] Edit/delete actions
+- [ ] Fetch and display household details
+- [ ] Create `components/member-list.js`
+- [ ] Display members with roles
+- [ ] Create `components/contact-list.js`
+- [ ] Display contacts with linkage status (🔗)
+- [ ] Test all read operations
 
-**Step 4: Member Management**
-- [ ] Invite member form (email input)
-- [ ] Remove member confirmation
-- [ ] Leave household confirmation
-- [ ] Change member role (owner only)
+**Step 5: Member Management (Write Operations)**
+- [ ] Add "Invite member" form
+- [ ] Handle invitation submission
+- [ ] Display pending invitations
+- [ ] Member removal (with confirmation)
+- [ ] Leave household (with confirmation)
+- [ ] Role change UI (owner only)
+- [ ] Test all member operations
 
-**Step 5: Contact Management**
+**Step 6: Contact Management**
 - [ ] Create `pages/contact-form.js`
 - [ ] Add contact form (name required, email/phone optional)
-- [ ] Edit contact (can add email/phone later)
-- [ ] Delete contact confirmation
-- [ ] Show linkage status (🔗 icon)
+- [ ] Edit contact functionality
+- [ ] Delete contact (with confirmation)
+- [ ] Show linkage status
 - [ ] Promote contact to member (owner only, if linked)
+- [ ] Test all contact operations
 
-**Step 6: Navigation**
-- [ ] Hamburger menu in all authenticated pages
-- [ ] Breadcrumbs for nested navigation (optional)
+**Step 7: Polish & Edge Cases**
+- [ ] Loading states for all async operations
+- [ ] Error messages user-friendly
+- [ ] Success confirmations
+- [ ] Disable buttons during operations
+- [ ] Handle network errors gracefully
+- [ ] Responsive design on mobile
+- [ ] Cross-browser testing
+
+**Step 8: Integration Testing**
+- [ ] Complete end-to-end flows
+- [ ] Test with different user roles
+- [ ] Test permission boundaries
+- [ ] Test with slow network
+- [ ] Test error scenarios
 
 ---
 
 ## ✅ Definition of Done
 
-This phase is complete when:
+### Phase 2A Complete (Backend) when:
 
-**Backend:**
-- [ ] All migrations created and tested
+**Database:**
+- [ ] All 4 migrations created (households, members, contacts, invitations)
+- [ ] Migrations tested (up and down)
+- [ ] Schema verified in dev database
+- [ ] Data integrity constraints working
+
+**Backend Code:**
+- [ ] All models defined with validation
 - [ ] Household CRUD API working
-- [ ] Member management API working
-- [ ] Contact management API working
-- [ ] Authorization checks implemented
-- [ ] Unit tests written and passing
-- [ ] API documentation updated
+- [ ] Member management API working (add, remove, change role)
+- [ ] Contact management API working (CRUD + auto-linking)
+- [ ] Contact promotion API working
+- [ ] Invitation flow API working
+- [ ] Authorization checks implemented (owner vs member)
+- [ ] Unit tests written and passing (>80% coverage)
+- [ ] Integration tests passing
 
-**Frontend:**
+**API Testing:**
+- [ ] All endpoints tested with curl/Postman
+- [ ] Happy paths validated
+- [ ] Error cases handled correctly (401, 403, 404, 409)
+- [ ] Edge cases tested:
+  - [ ] Cannot remove last owner
+  - [ ] Cannot promote unregistered contact
+  - [ ] Cannot demote yourself as last owner
+  - [ ] Duplicate member prevention
+  - [ ] Data isolation between households
+- [ ] Performance acceptable (<200ms for read, <500ms for write)
+- [ ] No N+1 query issues
+
+**Documentation:**
+- [ ] API endpoints documented
+- [ ] Request/response examples provided
+- [ ] Error codes documented
+- [ ] Business rules documented in code comments
+
+**Code Quality:**
+- [ ] Code reviewed by peer
+- [ ] No security vulnerabilities (SQL injection, unauthorized access)
+- [ ] Proper error handling
+- [ ] Logging in place for debugging
+
+---
+
+### Phase 2B Complete (Frontend) when:
+
+**Prerequisites:**
+- [ ] Phase 2A (Backend) fully complete
+- [ ] Backend deployed to dev environment
+- [ ] API tested and stable
+
+**UI Components:**
 - [ ] Navigation menu (hamburger) implemented
 - [ ] Menu shows on all authenticated pages
+- [ ] User profile page created
+- [ ] Household management page created
+- [ ] Member list component created
+- [ ] Contact list component created
+- [ ] All forms functional
+
+**Features:**
 - [ ] Post-registration household creation working
-- [ ] User profile page showing household status
-- [ ] Household management page functional
+- [ ] User can view their household
 - [ ] Member invite/remove working
 - [ ] Member role change working (owner only)
 - [ ] Contact add/edit/delete working
-- [ ] Contact auto-linking showing correctly
+- [ ] Contact auto-linking displaying correctly (🔗 icon)
 - [ ] Contact promotion to member working (owner only)
 - [ ] Responsive design on mobile
+- [ ] Loading states for all async operations
+- [ ] Error messages user-friendly
 
 **Integration:**
 - [ ] End-to-end flow tested
@@ -1052,12 +1203,17 @@ This phase is complete when:
 - [ ] User can change member roles
 - [ ] User can promote contacts to members
 - [ ] Data isolation verified (can't access other households)
-- [ ] Deployed to production
+- [ ] Cross-browser tested (Chrome, Firefox, Safari)
+
+**Deployment:**
+- [ ] Frontend deployed to production
+- [ ] Backend deployed to production
+- [ ] Smoke tests passing in production
 
 **Documentation:**
-- [ ] This design doc updated with learnings
-- [ ] API documentation complete
 - [ ] User guide created (basic)
+- [ ] Design doc updated with learnings
+- [ ] Known issues documented
 
 ---
 
