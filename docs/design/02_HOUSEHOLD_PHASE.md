@@ -1195,30 +1195,62 @@ When clicked, shows dropdown menu:
 
 ### E2E Test Details
 
-**Test File:** `backend/tests/e2e/household-management.js`
+**Test Suites:** 4 complete test files with 40+ scenarios
 
-**Coverage:**
-1. ✅ User registration (2 users)
-2. ✅ Household creation
-3. ✅ Contact management (add with details)
-4. ✅ Member invitation (auto-accept for existing users)
-5. ✅ Member verification (both users see membership)
-6. ✅ Role promotion (owner privileges granted)
-7. ✅ Role promotion verification (User 2 sees owner capabilities)
-8. ✅ Role demotion (owner privileges revoked)
-9. ✅ Role demotion verification (User 2 loses owner capabilities)
-10. ✅ Member removal
-11. ✅ Access revocation verification
-12. ✅ Household deletion
-13. ✅ Data cleanup
+#### 1. Password Reset (`password-reset.js`)
+- ✅ User registration and logout
+- ✅ Forgot password request
+- ✅ Password reset with token
+- ✅ Password validation UI (borders & strength)
+- ✅ Login with new password
+- ✅ Token marked as used
+
+#### 2. Authentication Validation (`auth-validation.js`)
+- ✅ Login email validation (invalid/valid formats)
+- ✅ Password visibility toggle (eye icon changes)
+- ✅ Register email validation
+- ✅ Password strength indicator (Débil, Aceptable, Buena, Fuerte)
+- ✅ Password match validation (error/success messages)
+- ✅ Register password toggles (password + confirm)
+- ✅ Successful registration with valid data
+
+#### 3. Household Management (`household-management.js`)
+- ✅ User registration (2 users)
+- ✅ Household creation
+- ✅ Contact management (add with details)
+- ✅ Member invitation (auto-accept for existing users)
+- ✅ Member verification (both users see membership)
+- ✅ Role promotion (owner privileges granted)
+- ✅ Role promotion verification (User 2 sees owner capabilities)
+- ✅ Role demotion (owner privileges revoked)
+- ✅ Role demotion verification (User 2 loses owner capabilities)
+- ✅ Member removal
+- ✅ Access revocation verification
+- ✅ Household deletion
+- ✅ Data cleanup
+
+#### 4. Household Validation (`household-validation.js`)
+- ✅ Contact email validation (5 invalid formats rejected)
+- ✅ Contact email validation (valid format accepted)
+- ✅ Contact phone validation (7 invalid formats rejected)
+- ✅ Contact phone validation (4 valid formats accepted)
+- ✅ Form submission blocks invalid email
+- ✅ Form submission blocks invalid phone
+- ✅ Successful submission with valid data
+- ✅ Invite member email validation
+- ✅ Invite submission blocks invalid email
 
 **Run Tests:**
 ```bash
 cd backend/tests
-npm run test:household     # Household tests only
-npm run test:password-reset # Password reset tests only
-npm run test:e2e           # All E2E tests
+npm run test:password-reset    # Password reset tests only
+npm run test:auth-validation   # Auth validation tests only
+npm run test:household         # Household management tests only
+npm run test:validation        # Household validation tests only
+npm run test:e2e               # All E2E tests (runs all 4 suites)
 ```
+
+**Test Results:** ✅ All 4 test suites passing (40+ scenarios)
 
 ---
 
@@ -1232,12 +1264,16 @@ npm run test:e2e           # All E2E tests
 5. **Member Management**: Invite (auto-add), remove, promote/demote, leave
 6. **Contact Management**: Add, edit, delete, promote to member
 7. **Polish & Edge Cases**: Loading states, modals, error handling, responsive design
-8. **E2E Testing**: Complete test suite with Playwright
+8. **E2E Testing**: Complete test suite with 4 test files (40+ scenarios, all passing ✅)
 
 ### 🚧 Improvements Added (Beyond Plan):
 - ✅ Modal confirmations instead of browser alerts/prompts
 - ✅ Auto-accept invitations for existing users
-- ✅ Section descriptions for clarity  
+- ✅ Section descriptions for clarity
+- ✅ Form validations (email, phone) with real-time feedback
+- ✅ Password strength indicator with 4 levels
+- ✅ Password visibility toggle with eye icons
+- ✅ Comprehensive validation test coverage
 - ✅ Back navigation link (← Volver al perfil)
 - ✅ Better error handling with try/catch everywhere
 - ✅ Loading spinners and disabled states
