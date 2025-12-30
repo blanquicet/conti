@@ -1,4 +1,4 @@
-# 02_HOUSEHOLD_PHASE.md — Household & Contacts Management
+# Household & Contacts Management
 
 > **Current Status:** 📋 PLANNED
 >
@@ -69,7 +69,7 @@ CREATE INDEX idx_households_created_by ON households(created_by);
 
 **Business rules:**
 - A user can create multiple households BUT can only be an active member of ONE at a time (enforced in Phase 3)
-- Name is free text (examples: "Casa de José y María", "Apartamento 305", "Mi Hogar")
+- Name is free text (examples: "Casa de Jose y Caro", "Apartamento 305", "Mi Hogar")
 - Creator becomes first household member automatically
 - Currency and timezone prepared for internationalization (future)
 
@@ -122,26 +122,25 @@ CREATE TABLE contacts (
   -- Metadata
   notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  -- Prevent duplicate contacts in same household
-  UNIQUE(household_id, email),
-  UNIQUE(household_id, phone)
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_contacts_household ON contacts(household_id);
 CREATE INDEX idx_contacts_linked_user ON contacts(linked_user_id);
 CREATE INDEX idx_contacts_email ON contacts(email) WHERE email IS NOT NULL;
+CREATE INDEX idx_contacts_phone ON contacts(phone) WHERE phone IS NOT NULL;
 ```
 
 **Business rules:**
 - Contacts belong to a household (created by household members)
 - Can be **unregistered** (`linked_user_id = NULL`) or **registered** (`linked_user_id` set)
-- Email or phone required (at least one for identification)
+- Email and phone are **optional** (useful for quick additions like "Papá", "Ana")
+- Email or phone **required only for linking** to registered users
 - `linked_user_id` populated when:
-  - User manually links contact to existing user
+  - User manually links contact to existing user via email/phone
   - Contact creates account and system auto-detects (Phase 3)
 - Notes field for personal reference ("papá", "amiga del colegio", etc.)
+- Can be edited later to add email/phone for linking purposes
 
 ---
 
@@ -152,9 +151,11 @@ CREATE INDEX idx_contacts_email ON contacts(email) WHERE email IS NOT NULL;
 | Action | Owner | Member | Non-member |
 |--------|-------|--------|------------|
 | View household info | ✅ | ✅ | ❌ |
-| Edit household name | ✅ | ❌ | ❌ |
-| Add members | ✅ | ❌ | ❌ |
-| Remove members | ✅ | ❌ | ❌ |
+| Edit household name | ✅ | ✅ | ❌ |
+| Add members | ✅ | ✅ | ❌ |
+| Remove members | ✅ | ✅ | ❌ |
+| Change member role | ✅ | ❌ | ❌ |
+| Promote contact to member | ✅ | ❌ | ❌ |
 | Delete household | ✅ | ❌ | ❌ |
 | Leave household | ✅* | ✅ | ❌ |
 | Add contacts | ✅ | ✅ | ❌ |
@@ -162,6 +163,20 @@ CREATE INDEX idx_contacts_email ON contacts(email) WHERE email IS NOT NULL;
 | Delete contacts | ✅ | ✅ | ❌ |
 
 *Owner can leave only if another owner exists, or household is deleted
+
+### Role Management
+
+**Changing member roles:**
+- Owners can promote members to owner
+- Owners can demote other owners to member
+- Cannot demote yourself if you're the last owner
+- Members cannot change roles
+
+**Promoting contacts to members:**
+- Only owners can promote contacts to household members
+- Contact must have a linked user account (registered)
+- Contact becomes a member with role='member'
+- Can be promoted to owner later
 
 ### Data Visibility
 
@@ -216,7 +231,7 @@ If user clicks "Crear mi hogar":
 │ └────────────────────────────────┘ │
 │                                    │
 │ Ejemplos:                          │
-│ • Casa de José y María             │
+│ • Casa de Jose y Caro             │
 │ • Apartamento 305                  │
 │ • Mi Hogar                         │
 │                                    │
@@ -242,7 +257,7 @@ User navigates to profile and sees:
 ┌────────────────────────────────────┐
 │ Mi Perfil                          │
 ├────────────────────────────────────┤
-│ 👤 José Blanquicet                │
+│ 👤 Jose Blanquicet                │
 │ 📧 jose@example.com                │
 │                                    │
 │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
@@ -265,12 +280,12 @@ User navigates to profile and sees:
 ┌────────────────────────────────────┐
 │ Mi Perfil                          │
 ├────────────────────────────────────┤
-│ 👤 José Blanquicet                │
+│ 👤 Jose Blanquicet                │
 │ 📧 jose@example.com                │
 │                                    │
 │ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ │
 │                                    │
-│ 🏠 Mi Hogar: Casa de José y María │
+│ 🏠 Mi Hogar: Casa de Jose y Caro │
 │                                    │
 │ [Ver detalles del hogar]           │
 │                                    │
@@ -286,13 +301,13 @@ When user clicks "Ver detalles del hogar":
 
 ```
 ┌────────────────────────────────────┐
-│ Mi Hogar: Casa de José y María    │
+│ Mi Hogar: Casa de Jose y Caro    │
 ├────────────────────────────────────┤
 │                                    │
 │ Miembros (2)                       │
 │ ┌────────────────────────────────┐ │
 │ │ 👤 José (tú) - Propietario    │ │
-│ │ 👤 María - Miembro            │ │
+│ │ 👤 Caro - Miembro            │ │
 │ └────────────────────────────────┘ │
 │                                    │
 │ [+ Invitar miembro]                │
@@ -303,7 +318,7 @@ When user clicks "Ver detalles del hogar":
 │ ┌────────────────────────────────┐ │
 │ │ 👤 Papá                       │ │
 │ │ 👤 Mamá                       │ │
-│ │ 👤 🔗 Ana - ana@mail.com      │ │
+│ │ 👤 🔗 Maria - maria@mail.com      │ │
 │ │    (tiene cuenta)             │ │
 │ └────────────────────────────────┘ │
 │                                    │
@@ -328,11 +343,12 @@ When user clicks "+ Invitar miembro":
 │                                    │
 │ Email del miembro                  │
 │ ┌────────────────────────────────┐ │
-│ │ maria@example.com              │ │
+│ │ caro@example.com               │ │
 │ └────────────────────────────────┘ │
 │                                    │
-│ ⚠️  El usuario debe tener una     │
-│    cuenta registrada.              │
+│ ℹ️  Si el usuario no tiene cuenta,│
+│    recibirá un link de invitación │
+│    para registrarse.               │
 │                                    │
 │ [Cancelar]  [Enviar invitación]   │
 │                                    │
@@ -340,21 +356,44 @@ When user clicks "+ Invitar miembro":
 ```
 
 **Backend flow:**
-1. Validate email exists in `users` table
+
+**Case 1: User already has account**
+1. Check if email exists in `users` table
 2. Check user not already in household
-3. Create invitation (Phase 2: auto-accept, Phase 3: require confirmation)
-4. Add to `household_members` with role='member'
-5. Send email notification (Phase 3)
+3. Create `household_members` entry with role='member'
+4. Send email notification with direct link to household
+5. User sees household immediately in their dashboard
 
-**Phase 2 simplification:**
-- Auto-accept invitations (no confirmation needed)
-- User appears in household immediately
-- Email notification optional
+**Case 2: User doesn't have account**
+1. Generate invitation token (store in new `household_invitations` table)
+2. Send email with registration link + invitation token
+3. Registration page detects token and shows invitation context
+4. After successful registration, user is automatically added to household
 
-**Phase 3 enhancement:**
-- Invitation system with accept/reject
-- User receives in-app notification
-- Invitation expires after 7 days
+**Phase 2 implementation:**
+- Auto-accept for existing users (no confirmation needed)
+- Email notification with link to login
+- New users register via invite link
+- No invitation expiration (Phase 3 will add 7-day expiry)
+
+**New table needed:**
+```sql
+CREATE TABLE household_invitations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  household_id UUID NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  email VARCHAR(255) NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  invited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ,  -- NULL for now, Phase 3 will set to 7 days
+  accepted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  
+  UNIQUE(household_id, email)
+);
+
+CREATE INDEX idx_household_invitations_token ON household_invitations(token);
+CREATE INDEX idx_household_invitations_email ON household_invitations(email);
+```
 
 ### 4. Adding Contacts
 
@@ -370,12 +409,12 @@ When user clicks "+ Agregar contacto":
 │ │ Papá                           │ │
 │ └────────────────────────────────┘ │
 │                                    │
-│ Email                              │
+│ Email (opcional)                   │
 │ ┌────────────────────────────────┐ │
 │ │ papa@example.com               │ │
 │ └────────────────────────────────┘ │
 │                                    │
-│ Teléfono                           │
+│ Teléfono (opcional)                │
 │ ┌────────────────────────────────┐ │
 │ │ +57 300 123 4567               │ │
 │ └────────────────────────────────┘ │
@@ -385,7 +424,9 @@ When user clicks "+ Agregar contacto":
 │ │ Familia - padre                │ │
 │ └────────────────────────────────┘ │
 │                                    │
-│ ℹ️  Email o teléfono requerido    │
+│ ℹ️  Email o teléfono solo son     │
+│    necesarios para vincular con   │
+│    una cuenta registrada.         │
 │                                    │
 │ [Cancelar]  [Agregar]             │
 │                                    │
@@ -393,15 +434,21 @@ When user clicks "+ Agregar contacto":
 ```
 
 **Backend flow:**
-1. Validate at least email OR phone provided
-2. Check if email matches existing user → auto-link `linked_user_id`
-3. Create contact in `contacts` table
-4. Return contact with linkage status
+1. Validate name is provided
+2. Email and phone are **optional** (can be NULL)
+3. If email provided, check if it matches existing user → auto-link `linked_user_id`
+4. Create contact in `contacts` table
+5. Return contact with linkage status
 
 **UI feedback:**
 - If linked to user: Show 🔗 icon + "(tiene cuenta)"
 - If unregistered: Show regular icon
 - Show success message: "Contacto agregado: Papá"
+
+**Later editing:**
+- User can add/update email or phone to enable linking
+- When email is added, system auto-checks for existing user account
+- Contact can be promoted to household member if they have a linked account
 
 ### 5. Contact Auto-Linking
 
@@ -439,7 +486,7 @@ Create a new household (authenticated)
 **Request:**
 ```json
 {
-  "name": "Casa de José y María"
+  "name": "Casa de Jose y Caro"
 }
 ```
 
@@ -447,7 +494,7 @@ Create a new household (authenticated)
 ```json
 {
   "id": "uuid",
-  "name": "Casa de José y María",
+  "name": "Casa de Jose y Caro",
   "created_by": "user-uuid",
   "created_at": "2025-01-01T00:00:00Z",
   "updated_at": "2025-01-01T00:00:00Z"
@@ -463,7 +510,7 @@ Get all households where user is a member
   "households": [
     {
       "id": "uuid",
-      "name": "Casa de José y María",
+      "name": "Casa de Jose y Caro",
       "role": "owner",
       "member_count": 2,
       "contact_count": 3
@@ -479,14 +526,14 @@ Get household details (if user is member)
 ```json
 {
   "id": "uuid",
-  "name": "Casa de José y María",
+  "name": "Casa de Jose y Caro",
   "created_by": "user-uuid",
   "created_at": "2025-01-01T00:00:00Z",
   "members": [
     {
       "id": "member-uuid",
       "user_id": "user-uuid",
-      "name": "José Blanquicet",
+      "name": "Jose Blanquicet",
       "email": "jose@example.com",
       "role": "owner",
       "joined_at": "2025-01-01T00:00:00Z"
@@ -494,8 +541,8 @@ Get household details (if user is member)
     {
       "id": "member-uuid-2",
       "user_id": "user-uuid-2",
-      "name": "María García",
-      "email": "maria@example.com",
+      "name": "Caro Salazar",
+      "email": "caro@example.com",
       "role": "member",
       "joined_at": "2025-01-02T00:00:00Z"
     }
@@ -512,8 +559,8 @@ Get household details (if user is member)
     },
     {
       "id": "contact-uuid-2",
-      "name": "Ana",
-      "email": "ana@example.com",
+      "name": "Maria",
+      "email": "maria@example.com",
       "phone": null,
       "is_registered": true,
       "linked_user_id": "user-uuid-3",
@@ -548,7 +595,7 @@ Add member to household (owner only)
 **Request:**
 ```json
 {
-  "email": "maria@example.com"
+  "email": "caro@example.com"
 }
 ```
 
@@ -577,6 +624,33 @@ Remove member from household (owner only, or self)
 - Owner can remove any member
 - Members can remove themselves
 - Cannot remove last owner
+
+#### `PATCH /households/:household_id/members/:member_id/role`
+Change member role (owner only)
+
+**Request:**
+```json
+{
+  "role": "owner"  // or "member"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "id": "member-uuid",
+  "household_id": "household-uuid",
+  "user_id": "user-uuid",
+  "role": "owner",
+  "joined_at": "2025-01-01T00:00:00Z"
+}
+```
+
+**Business rules:**
+- Only owners can change roles
+- Cannot demote yourself if you're the last owner
+- Can promote members to owner
+- Can demote owners to member
 
 #### `POST /households/:id/leave`
 Leave household (authenticated member)
@@ -652,6 +726,32 @@ Delete contact
 - Cannot delete if contact has associated movements (Phase 3)
 - Phase 2: Allow deletion freely
 
+#### `POST /households/:household_id/contacts/:contact_id/promote`
+Promote contact to household member (owner only)
+
+**Response:** `201 Created`
+```json
+{
+  "id": "member-uuid",
+  "household_id": "household-uuid",
+  "user_id": "user-uuid-from-contact",
+  "role": "member",
+  "joined_at": "2025-01-01T00:00:00Z"
+}
+```
+
+**Business rules:**
+- Only owners can promote contacts
+- Contact must have `linked_user_id` (must be registered)
+- Contact is removed from contacts table
+- User is added to household_members with role='member'
+- Cannot promote unregistered contacts
+
+**Error cases:**
+- `400`: Contact not linked to user account
+- `403`: Not authorized (not owner)
+- `409`: User already in household
+
 ---
 
 ## 🗄️ Migration Strategy
@@ -704,29 +804,42 @@ CREATE TABLE contacts (
   linked_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  -- At least email or phone required (enforced in app logic)
-  CONSTRAINT email_or_phone_required CHECK (
-    email IS NOT NULL OR phone IS NOT NULL
-  )
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_contacts_household ON contacts(household_id);
 CREATE INDEX idx_contacts_linked_user ON contacts(linked_user_id);
 CREATE INDEX idx_contacts_email ON contacts(email) WHERE email IS NOT NULL;
+CREATE INDEX idx_contacts_phone ON contacts(phone) WHERE phone IS NOT NULL;
+```
 
--- Add unique constraints separately for better control
-ALTER TABLE contacts ADD CONSTRAINT contacts_household_email_unique 
-  UNIQUE(household_id, email) WHERE email IS NOT NULL;
+**Migration 004: Create household_invitations table**
+```sql
+-- backend/migrations/007_create_household_invitations.up.sql
+CREATE TABLE household_invitations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  household_id UUID NOT NULL REFERENCES households(id) ON DELETE CASCADE,
+  email VARCHAR(255) NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  invited_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ,  -- NULL in Phase 2
+  accepted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   
-ALTER TABLE contacts ADD CONSTRAINT contacts_household_phone_unique 
-  UNIQUE(household_id, phone) WHERE phone IS NOT NULL;
+  UNIQUE(household_id, email)
+);
+
+CREATE INDEX idx_household_invitations_token ON household_invitations(token);
+CREATE INDEX idx_household_invitations_email ON household_invitations(email);
+CREATE INDEX idx_household_invitations_household ON household_invitations(household_id);
 ```
 
 ### Rollback Migrations
 
 ```sql
+-- backend/migrations/007_create_household_invitations.down.sql
+DROP TABLE IF EXISTS household_invitations;
+
 -- backend/migrations/006_create_contacts.down.sql
 DROP TABLE IF EXISTS contacts;
 
@@ -811,6 +924,7 @@ frontend/
 │   ├── household-create.js         # NEW - household creation
 │   └── contact-form.js             # NEW - add/edit contact
 ├── components/                      # NEW directory
+│   ├── navbar.js                   # NEW - hamburger menu navigation
 │   ├── household-card.js           # Display household summary
 │   ├── member-list.js              # List household members
 │   └── contact-list.js             # List contacts
@@ -819,7 +933,53 @@ frontend/
 └── styles.css                      # Add new styles
 ```
 
+### Navigation Menu (Hamburger)
+
+**Location:** Top-right corner of all authenticated pages
+
+**Appearance:**
+```
+┌─────────────────────────────────┐
+│  Gastos               ☰ Menu   │  ← Hamburger icon (☰)
+├─────────────────────────────────┤
+│                                 │
+│  Content here...                │
+```
+
+When clicked, shows dropdown menu:
+```
+┌─────────────────────────────────┐
+│  Gastos               ☰ Menu   │
+│                   ┌───────────┐ │
+│                   │ 🏠 Perfil │ │
+│                   │ 📝 Gastos │ │
+│                   │ 🚪 Salir  │ │
+│                   └───────────┘ │
+├─────────────────────────────────┤
+```
+
+**Menu items:**
+- **Perfil** → `/profile` (user profile + household management)
+- **Gastos** → `/registrar-movimiento` (expense tracking)
+- **Salir** → Logout action (clears session, redirects to `/`)
+
+**Implementation:**
+- Component: `components/navbar.js`
+- Visible only when authenticated
+- Current page highlighted in menu
+- Click outside to close menu
+- Responsive: Full width on mobile, dropdown on desktop
+
 ### Implementation Steps
+
+**Step 0: Navigation Menu**
+- [ ] Create `components/navbar.js`
+- [ ] Hamburger icon (☰) in top-right
+- [ ] Dropdown menu with Profile, Gastos, Salir
+- [ ] Show current user name
+- [ ] Highlight active page
+- [ ] Click outside to close
+- [ ] Add to all authenticated pages
 
 **Step 1: Post-Registration Flow**
 - [ ] Add optional household creation after registration
@@ -830,7 +990,7 @@ frontend/
 - [ ] Create `pages/profile.js`
 - [ ] Show user info + household status
 - [ ] Link to household management
-- [ ] Logout button
+- [ ] Logout button (can be removed if in navbar)
 
 **Step 3: Household Management**
 - [ ] Create `pages/household.js`
@@ -843,18 +1003,19 @@ frontend/
 - [ ] Invite member form (email input)
 - [ ] Remove member confirmation
 - [ ] Leave household confirmation
+- [ ] Change member role (owner only)
 
 **Step 5: Contact Management**
 - [ ] Create `pages/contact-form.js`
-- [ ] Add contact form (name, email, phone, notes)
-- [ ] Edit contact
+- [ ] Add contact form (name required, email/phone optional)
+- [ ] Edit contact (can add email/phone later)
 - [ ] Delete contact confirmation
 - [ ] Show linkage status (🔗 icon)
+- [ ] Promote contact to member (owner only, if linked)
 
 **Step 6: Navigation**
-- [ ] Add "Perfil" link to main menu
-- [ ] Add "Mi Hogar" link to main menu
-- [ ] Breadcrumbs for navigation
+- [ ] Hamburger menu in all authenticated pages
+- [ ] Breadcrumbs for nested navigation (optional)
 
 ---
 
@@ -872,18 +1033,24 @@ This phase is complete when:
 - [ ] API documentation updated
 
 **Frontend:**
+- [ ] Navigation menu (hamburger) implemented
+- [ ] Menu shows on all authenticated pages
 - [ ] Post-registration household creation working
 - [ ] User profile page showing household status
 - [ ] Household management page functional
 - [ ] Member invite/remove working
+- [ ] Member role change working (owner only)
 - [ ] Contact add/edit/delete working
 - [ ] Contact auto-linking showing correctly
+- [ ] Contact promotion to member working (owner only)
 - [ ] Responsive design on mobile
 
 **Integration:**
 - [ ] End-to-end flow tested
 - [ ] User can create household during/after registration
 - [ ] User can manage members and contacts
+- [ ] User can change member roles
+- [ ] User can promote contacts to members
 - [ ] Data isolation verified (can't access other households)
 - [ ] Deployed to production
 

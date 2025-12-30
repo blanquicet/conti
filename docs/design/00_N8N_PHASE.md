@@ -1,4 +1,4 @@
-# 00_N8N_PHASE.md — Movement Registration with n8n Backend
+# Movement Registration with n8n Backend
 
 > **Current Status:** ✅ ACTIVE for movements registration
 >

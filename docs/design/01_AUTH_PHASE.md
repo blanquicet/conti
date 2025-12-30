@@ -1,4 +1,4 @@
-# CLAUDE_AUTH_PHASE.md — Gastos App (Auth-only Phase)
+# Auth-only Phase
 
 This file is the single source of truth for AI assistants (Claude in VS Code) working on this repository.
 
