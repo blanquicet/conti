@@ -117,6 +117,15 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		logger.Info("n8n client not configured; movement endpoints will be disabled")
 	}
 
+	// Create form config handler for movements
+	formConfigHandler := movements.NewFormConfigHandler(
+		authService,
+		householdRepo,
+		paymentMethodsRepo,
+		cfg.SessionCookieName,
+		logger,
+	)
+
 	// Create rate limiters for auth endpoints (if enabled)
 	// Login/Register: 5 requests per minute per IP (strict to prevent brute force)
 	// Password reset: 3 requests per minute per IP (even stricter)
@@ -184,6 +193,9 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	if movementsHandler != nil {
 		mux.HandleFunc("POST /movements", movementsHandler.RecordMovement)
 	}
+	
+	// Movement form config endpoint
+	mux.HandleFunc("GET /movement-form-config", formConfigHandler.GetFormConfig)
 
 	// Serve static files in development mode with SPA fallback
 	if cfg.StaticDir != "" {
