@@ -5,7 +5,7 @@
  */
 
 import { API_URL } from '../config.js';
-import { checkPasswordStrength } from '../auth-utils.js';
+import { checkPasswordStrength, validatePasswordRequirements } from '../auth-utils.js';
 import router from '../router.js';
 
 /**
@@ -76,7 +76,7 @@ export function render() {
                 </svg>
               </button>
             </div>
-            <span id="confirmPasswordError" class="field-error hidden"></span>
+            <div id="passwordMatch" class="password-match hidden"></div>
           </div>
 
           <div id="resetError" class="error hidden"></div>
@@ -102,7 +102,7 @@ export function init() {
   const form = document.getElementById('resetPasswordForm');
   const newPasswordInput = document.getElementById('newPassword');
   const confirmPasswordInput = document.getElementById('confirmPassword');
-  const confirmPasswordError = document.getElementById('confirmPasswordError');
+  const passwordMatch = document.getElementById('passwordMatch');
   const errorDiv = document.getElementById('resetError');
   const successDiv = document.getElementById('resetSuccess');
   const submitBtn = document.getElementById('resetBtn');
@@ -170,18 +170,21 @@ export function init() {
     const confirmPasswordField = confirmPasswordInput.closest('.password-field');
 
     if (confirmPassword.length === 0) {
-      confirmPasswordError.classList.add('hidden');
+      passwordMatch.classList.add('hidden');
       confirmPasswordField.classList.remove('invalid', 'valid');
       return;
     }
 
+    passwordMatch.classList.remove('hidden');
+
     if (password !== confirmPassword) {
-      confirmPasswordError.textContent = 'Las contraseñas no coinciden';
-      confirmPasswordError.classList.remove('hidden');
+      passwordMatch.textContent = '✗ Las contraseñas no coinciden';
+      passwordMatch.className = 'password-match no-match';
       confirmPasswordField.classList.add('invalid');
       confirmPasswordField.classList.remove('valid');
     } else {
-      confirmPasswordError.classList.add('hidden');
+      passwordMatch.textContent = '✓ Las contraseñas coinciden';
+      passwordMatch.className = 'password-match match';
       confirmPasswordField.classList.remove('invalid');
       confirmPasswordField.classList.add('valid');
     }
@@ -192,13 +195,26 @@ export function init() {
     button.addEventListener('click', () => {
       const targetId = button.dataset.target;
       const input = document.getElementById(targetId);
+      const eyeIcon = button.querySelector('.eye-icon');
       
-      if (input.type === 'password') {
-        input.type = 'text';
-        button.classList.add('active');
+      if (!input || !eyeIcon) return;
+
+      const isPassword = input.type === 'password';
+      input.type = isPassword ? 'text' : 'password';
+      button.setAttribute('aria-label', isPassword ? 'Ocultar contraseña' : 'Mostrar contraseña');
+
+      if (isPassword) {
+        // Show eye-off (password is visible)
+        eyeIcon.innerHTML = `
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+        `;
       } else {
-        input.type = 'password';
-        button.classList.remove('active');
+        // Show eye (password is hidden)
+        eyeIcon.innerHTML = `
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        `;
       }
     });
   });
@@ -216,16 +232,17 @@ export function init() {
 
     // Validate passwords match
     if (newPassword !== confirmPassword) {
-      confirmPasswordError.textContent = 'Las contraseñas no coinciden';
-      confirmPasswordError.classList.remove('hidden');
+      passwordMatch.textContent = '✗ Las contraseñas no coinciden';
+      passwordMatch.className = 'password-match no-match';
+      passwordMatch.classList.remove('hidden');
       confirmPasswordInput.focus();
       return;
     }
 
     // Validate password strength
-    const strength = checkPasswordStrength(newPassword);
-    if (strength.level === 0) {
-      errorDiv.textContent = 'La contraseña es demasiado débil. Usa al menos 8 caracteres con mayúsculas, minúsculas y números.';
+    const validation = validatePasswordRequirements(newPassword);
+    if (!validation.valid) {
+      errorDiv.textContent = validation.error;
       errorDiv.classList.remove('hidden');
       newPasswordInput.focus();
       return;

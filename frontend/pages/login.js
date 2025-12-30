@@ -5,7 +5,7 @@
  * Imports auth utilities and uses router for navigation.
  */
 
-import { login, register, validateEmail, checkPasswordStrength } from '../auth-utils.js';
+import { login, register, validateEmail, checkPasswordStrength, validatePasswordRequirements } from '../auth-utils.js';
 import router from '../router.js';
 
 let currentForm = 'login'; // 'login' or 'register'

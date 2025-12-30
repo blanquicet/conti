@@ -96,18 +96,10 @@ export async function register(name, email, password, confirmPassword) {
     return { success: false, error: "Las contraseñas no coinciden" };
   }
 
-  if (password.length < 8) {
-    return { success: false, error: "La contraseña debe tener al menos 8 caracteres" };
-  }
-
-  // Password strength validation
-  const hasLower = /[a-z]/.test(password);
-  const hasUpper = /[A-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSymbol = /[^a-zA-Z0-9]/.test(password);
-
-  if (!hasLower || !hasUpper || (!hasNumber && !hasSymbol)) {
-    return { success: false, error: "La contraseña debe tener: mayúsculas, minúsculas y números o símbolos" };
+  // Validate password strength
+  const validation = validatePasswordRequirements(password);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
   }
 
   try {
@@ -200,6 +192,32 @@ export function checkPasswordStrength(password) {
   };
 
   return { level: strength, ...strengthMap[strength] };
+}
+
+/**
+ * Validate password meets minimum requirements
+ * @param {string} password
+ * @returns {{valid: boolean, error: string}}
+ */
+export function validatePasswordRequirements(password) {
+  if (!password || password.length === 0) {
+    return { valid: false, error: "La contraseña es requerida" };
+  }
+
+  if (password.length < 8) {
+    return { valid: false, error: "La contraseña debe tener al menos 8 caracteres" };
+  }
+
+  const hasLower = /[a-z]/.test(password);
+  const hasUpper = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSymbol = /[^a-zA-Z0-9]/.test(password);
+
+  if (!hasLower || !hasUpper || (!hasNumber && !hasSymbol)) {
+    return { valid: false, error: "La contraseña debe tener: mayúsculas, minúsculas y números o símbolos" };
+  }
+
+  return { valid: true, error: "" };
 }
 
 /**
