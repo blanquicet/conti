@@ -1,0 +1,13 @@
+{
+  "name": "gastos-backend-tests",
+  "version": "1.0.0",
+  "description": "E2E tests for Gastos backend",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "playwright test e2e/password-reset-e2e.js"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.57.0"
+  },
+  "devDependencies": {}
+}

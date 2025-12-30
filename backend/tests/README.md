@@ -56,14 +56,16 @@ Browser-based tests for user flows.
 
 **Setup:**
 ```bash
-cd backend/tests/e2e
+cd backend/tests
 npm install
 npx playwright install
 ```
 
 **Run:**
 ```bash
-npx playwright test password-reset-e2e.js
+npm run test:e2e
+# or
+npx playwright test e2e/password-reset-e2e.js
 ```
 
 **Tests:**
