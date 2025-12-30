@@ -30,6 +30,7 @@ cd backend/tests/e2e
 ```
 
 This script will:
+
 1. ✅ Check if PostgreSQL is running
 2. ✅ Build the backend binary
 3. ✅ Start the backend with proper environment variables

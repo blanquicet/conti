@@ -11,6 +11,9 @@ if ! pg_isready -h localhost -p 5432 -U gastos 2>/dev/null; then
     exit 1
 fi
 
+# Navigate to backend directory (from tests/e2e)
+cd ../../
+
 # Build the backend if needed
 if [ ! -f "./gastos-api" ]; then
     echo "📦 Building backend..."
