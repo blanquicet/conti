@@ -614,6 +614,13 @@ async function handleContactSubmit(e) {
   const phone = document.getElementById('contact-phone').value.trim();
   const notes = document.getElementById('contact-notes').value.trim();
   const submitBtn = e.target.querySelector('button[type="submit"]');
+  const errorEl = document.getElementById('contact-error');
+
+  // Hide previous errors
+  if (errorEl) {
+    errorEl.style.display = 'none';
+    errorEl.textContent = '';
+  }
 
   if (!name) {
     showModal('Error', 'El nombre es requerido');
@@ -622,11 +629,19 @@ async function handleContactSubmit(e) {
 
   // Validate email if provided
   if (email && !validateContactEmail()) {
+    if (errorEl) {
+      errorEl.textContent = 'Por favor corrija el formato del email';
+      errorEl.style.display = 'block';
+    }
     return;
   }
 
   // Validate phone if provided
   if (phone && !validateContactPhone()) {
+    if (errorEl) {
+      errorEl.textContent = 'Por favor corrija el formato del teléfono';
+      errorEl.style.display = 'block';
+    }
     return;
   }
 
