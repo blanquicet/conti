@@ -260,9 +260,14 @@ function renderContactsList() {
   const userMember = members.find(m => m.user_id === currentUser.id);
   const isOwner = userMember?.role === 'owner';
 
+  const sortedContacts = [...contacts].sort((a, b) => {
+    if (a.is_active === b.is_active) return 0;
+    return a.is_active ? -1 : 1;
+  });
+
   return `
     <div class="contacts-list">
-      ${contacts.map(contact => `
+      ${sortedContacts.map(contact => `
         <div class="contact-item">
           <div class="contact-avatar">${contact.name.charAt(0).toUpperCase()}</div>
           <div class="contact-info">
