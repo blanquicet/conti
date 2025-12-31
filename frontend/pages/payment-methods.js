@@ -78,7 +78,7 @@ async function loadPaymentMethods() {
   const contentEl = document.getElementById('payment-methods-content');
   
   try {
-    const response = await fetch(`${API_URL}/payment-methods`, {
+    const response = await fetch(`${API_URL}/payment-methods?own_only=true`, {
       credentials: 'include'
     });
 
