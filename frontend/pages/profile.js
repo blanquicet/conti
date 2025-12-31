@@ -121,9 +121,11 @@ function renderProfileContent() {
     <div class="profile-section">
       <h2 class="section-title">Mis métodos de pago</h2>
       <p class="section-description">Tus tarjetas, cuentas bancarias y otros métodos de pago</p>
-      <div style="margin-bottom: 16px;">
-        <button id="manage-payment-methods-btn" class="btn-secondary">Administrar mis métodos de pago</button>
-      </div>
+      ${paymentMethods.length > 0 ? `
+        <div style="margin-bottom: 16px;">
+          <button id="manage-payment-methods-btn" class="btn-secondary">Administrar mis métodos de pago</button>
+        </div>
+      ` : ''}
       ${renderPaymentMethodsList()}
     </div>
   `;
@@ -175,6 +177,7 @@ function renderPaymentMethodsList() {
     return `
       <div class="no-household">
         <p class="no-household-text">No tienes métodos de pago configurados</p>
+        <button id="manage-payment-methods-btn" class="btn-secondary" style="margin-top: 16px;">Agregar método de pago</button>
       </div>
     `;
   }
