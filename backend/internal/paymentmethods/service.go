@@ -208,6 +208,24 @@ filtered = append(filtered, pm)
 return filtered, nil
 }
 
+// ListByOwner lists only payment methods owned by the user (not shared ones from others)
+func (s *Service) ListByOwner(ctx context.Context, householdID, userID string) ([]*PaymentMethod, error) {
+all, err := s.repo.ListByHousehold(ctx, householdID)
+if err != nil {
+return nil, err
+}
+
+// Filter: only return methods owned by user
+var filtered []*PaymentMethod
+for _, pm := range all {
+if pm.OwnerID == userID {
+filtered = append(filtered, pm)
+}
+}
+
+return filtered, nil
+}
+
 // GetByID retrieves a payment method if the user has access to it
 func (s *Service) GetByID(ctx context.Context, id, userID string) (*PaymentMethod, error) {
 pm, err := s.repo.GetByID(ctx, id)

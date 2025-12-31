@@ -59,7 +59,7 @@ async function loadProfile() {
     // Fetch user's households and payment methods in parallel
     const [householdsResponse, paymentMethodsResponse] = await Promise.all([
       fetch(`${API_URL}/households`, { credentials: 'include' }),
-      fetch(`${API_URL}/payment-methods`, { credentials: 'include' })
+      fetch(`${API_URL}/payment-methods?own_only=true`, { credentials: 'include' })
     ]);
 
     if (!householdsResponse.ok) {

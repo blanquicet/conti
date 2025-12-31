@@ -151,6 +151,8 @@ h.respondJSON(w, pm, http.StatusCreated)
 }
 
 // ListPaymentMethods handles GET /api/payment-methods
+// Query params:
+//   - own_only=true: only return payment methods owned by the user (not shared ones from others)
 func (h *Handler) ListPaymentMethods(w http.ResponseWriter, r *http.Request) {
 	user, err := h.getUserFromRequest(r)
 	if err != nil {
@@ -165,7 +167,16 @@ func (h *Handler) ListPaymentMethods(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	methods, err := h.service.ListByHousehold(r.Context(), household.ID, user.ID)
+	// Check if we should only return user's own payment methods
+	ownOnly := r.URL.Query().Get("own_only") == "true"
+
+	var methods []*PaymentMethod
+	if ownOnly {
+		methods, err = h.service.ListByOwner(r.Context(), household.ID, user.ID)
+	} else {
+		methods, err = h.service.ListByHousehold(r.Context(), household.ID, user.ID)
+	}
+
 	if err != nil {
 		h.respondError(w, err, http.StatusInternalServerError)
 		return
