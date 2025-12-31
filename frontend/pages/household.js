@@ -984,7 +984,7 @@ async function handleToggleContactActive(contactId, currentIsActive) {
       throw new Error(data.error || `Error al ${actionText} contacto`);
     }
 
-    showSuccess(`Contacto ${newIsActive ? 'activado' : 'desactivado'} correctamente`);
+    showSuccess('Éxito', `Contacto ${newIsActive ? 'activado' : 'desactivado'} correctamente`);
     await loadHousehold();
   } catch (error) {
     await showError('Error', error.message);

@@ -105,6 +105,8 @@ type PaymentMethod struct {
 	Name      string `json:"name"`
 	Type      string `json:"type"`
 	OwnerName string `json:"owner_name"`
+	OwnerID   string `json:"owner_id"`
+	IsShared  bool   `json:"is_shared"`
 }
 
 // FormConfigResponse is the response for movement form configuration
@@ -196,6 +198,7 @@ func (h *FormConfigHandler) GetFormConfig(w http.ResponseWriter, r *http.Request
 
 	// Build users list: members first, then active contacts
 	var users []User
+	memberIDs := make(map[string]bool)
 	
 	// Add household members
 	for _, m := range members {
@@ -205,6 +208,7 @@ func (h *FormConfigHandler) GetFormConfig(w http.ResponseWriter, r *http.Request
 			Type:      "member",
 			IsPrimary: true,
 		})
+		memberIDs[m.UserID] = true
 	}
 
 	// Add active contacts only
@@ -229,15 +233,18 @@ func (h *FormConfigHandler) GetFormConfig(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Filter: only user's own or shared, and active only
+	// Filter: include all members' payment methods + shared ones, active only
 	var paymentMethods []PaymentMethod
 	for _, pm := range allPaymentMethods {
-		if pm.IsActive && (pm.OwnerID == user.ID || pm.IsSharedWithHousehold) {
+		// Include if: (1) owner is a member of household, OR (2) shared with household
+		if pm.IsActive && (memberIDs[pm.OwnerID] || pm.IsSharedWithHousehold) {
 			paymentMethods = append(paymentMethods, PaymentMethod{
 				ID:        pm.ID,
 				Name:      pm.Name,
 				Type:      string(pm.Type),
 				OwnerName: pm.OwnerName,
+				OwnerID:   pm.OwnerID,
+				IsShared:  pm.IsSharedWithHousehold,
 			})
 		}
 	}

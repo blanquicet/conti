@@ -14,8 +14,9 @@ import * as Navbar from '../components/navbar.js';
 
 // Configuration loaded from API
 let users = [];
+let usersMap = {}; // Map of name -> user object
 let primaryUsers = [];
-let paymentMethods = [];
+let paymentMethods = []; // Full payment method objects with owner_id and is_shared
 let categories = [];
 let formConfigLoaded = false;
 
@@ -199,12 +200,16 @@ async function loadFormConfig() {
     
     const config = await response.json();
     
-    // Process users: members first (marked as primary), then contacts
+    // Process users: create map and lists
     users = config.users.map(u => u.name);
+    usersMap = {};
+    config.users.forEach(u => {
+      usersMap[u.name] = u;
+    });
     primaryUsers = config.users.filter(u => u.type === 'member').map(u => u.name);
     
-    // Process payment methods
-    paymentMethods = config.payment_methods.map(pm => pm.name);
+    // Store full payment method objects
+    paymentMethods = config.payment_methods || [];
     
     // Use categories from API
     categories = config.categories || [];
@@ -215,6 +220,7 @@ async function loadFormConfig() {
     console.error('Error loading form config:', error);
     // Fallback to empty arrays if API fails
     users = [];
+    usersMap = {};
     primaryUsers = [];
     paymentMethods = [];
     categories = [];
@@ -230,7 +236,7 @@ function renderPaymentMethodSelect() {
   
   metodoEl.innerHTML = `
     <option value="">Selecciona...</option>
-    ${paymentMethods.map(pm => `<option value="${pm}">${pm}</option>`).join('')}
+    ${paymentMethods.map(pm => `<option value="${pm.name}">${pm.name}</option>`).join('')}
   `;
 }
 
@@ -391,7 +397,8 @@ function onTipoChange() {
   updateSubmitButton(isCompartido);
 
   if (isFamiliar) {
-    showPaymentMethods(true);
+    // For FAMILIAR type, show payment methods for current user
+    showPaymentMethods(currentUser ? currentUser.name : '', true);
   } else {
     onPagadorChange();
   }
@@ -412,9 +419,24 @@ function onTipoChange() {
 }
 
 /**
- * Show payment methods dropdown
+ * Get payment methods available for a specific payer
+ * Returns methods owned by the payer OR shared with household
  */
-function showPaymentMethods(required) {
+function getPaymentMethodsForPayer(payerName) {
+  if (!payerName || !usersMap[payerName]) return [];
+  
+  const payer = usersMap[payerName];
+  
+  return paymentMethods.filter(pm => {
+    // Include if: (1) owned by payer, OR (2) shared with household
+    return pm.owner_id === payer.id || pm.is_shared;
+  });
+}
+
+/**
+ * Show payment methods dropdown filtered by payer
+ */
+function showPaymentMethods(payerName, required) {
   const metodoEl = document.getElementById('metodo');
   const metodoWrap = document.getElementById('metodoWrap');
 
@@ -425,10 +447,11 @@ function showPaymentMethods(required) {
   base.selected = true;
   metodoEl.appendChild(base);
 
-  for (const m of paymentMethods) {
+  const availableMethods = getPaymentMethodsForPayer(payerName);
+  for (const pm of availableMethods) {
     const opt = document.createElement('option');
-    opt.value = m;
-    opt.textContent = m;
+    opt.value = pm.name;
+    opt.textContent = pm.name;
     metodoEl.appendChild(opt);
   }
 
@@ -444,12 +467,14 @@ function onPagadorChange() {
   const payer = getCurrentPayer();
 
   if (tipo !== 'FAMILIAR') {
-    const requiresMethod = primaryUsers.includes(payer);
+    const isMember = primaryUsers.includes(payer);
     const metodoWrap = document.getElementById('metodoWrap');
     const metodoEl = document.getElementById('metodo');
 
-    if (requiresMethod) {
-      showPaymentMethods(true);
+    // Only show payment methods for members (even if empty, so validation works)
+    // Don't show for contacts
+    if (isMember) {
+      showPaymentMethods(payer, true);
     } else {
       metodoWrap.classList.add('hidden');
       metodoEl.required = false;
@@ -764,6 +789,19 @@ function readForm() {
 
   const requiresMethod = tipo === 'FAMILIAR' || primaryUsers.includes(pagador);
   if (requiresMethod && !metodo) throw new Error('Método de pago es obligatorio.');
+
+  // Validate that the payment method is valid for the payer
+  if (metodo) {
+    const effectivePayer = tipo === 'FAMILIAR' ? (currentUser ? currentUser.name : '') : pagador;
+    const availableMethods = getPaymentMethodsForPayer(effectivePayer);
+    const isValidMethod = availableMethods.some(pm => pm.name === metodo);
+    
+    if (!isValidMethod) {
+      const paymentMethod = paymentMethods.find(pm => pm.name === metodo);
+      const ownerName = paymentMethod ? paymentMethod.owner_name : 'otro miembro';
+      throw new Error(`${effectivePayer} no puede usar el método "${metodo}" porque pertenece a ${ownerName} y no ha sido compartido con el hogar.`);
+    }
+  }
 
   if (tipo === 'PAGO_DEUDA') {
     if (!tomador) throw new Error('Para PAGO_DEUDA debes seleccionar quién recibió (Tomador).');
