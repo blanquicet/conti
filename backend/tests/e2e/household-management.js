@@ -348,7 +348,7 @@ async function testHouseholdManagement() {
     await page2.waitForTimeout(1000);
     
     // Should see no household
-    const noHouseholdText = await page2.locator('.no-household-text').textContent();
+    const noHouseholdText = await page2.locator('.no-household-text').first().textContent();
     if (!noHouseholdText.includes('no tienes un hogar')) {
       throw new Error('User 2 still has household access');
     }

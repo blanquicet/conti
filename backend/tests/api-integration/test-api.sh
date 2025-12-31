@@ -412,7 +412,7 @@ run_test "Create Personal (Non-Shared) Payment Method"
 PM4=$(curl -s -X POST $BASE_URL/payment-methods \
   -H "Content-Type: application/json" \
   -b $COOKIES_FILE \
-  -d '{"name":"Cuenta Personal","type":"bank_account","is_shared_with_household":false}')
+  -d '{"name":"Cuenta Personal","type":"other","is_shared_with_household":false}')
 PM4_ID=$(echo "$PM4" | jq -r '.id')
 [ "$PM4_ID" != "null" ]
 echo -e "${GREEN}✓ Created personal payment method${NC}\n"
