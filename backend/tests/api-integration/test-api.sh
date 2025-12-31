@@ -375,6 +375,55 @@ PM_DELETE=$(curl -s -w "%{http_code}" -o /dev/null -X DELETE $BASE_URL/payment-m
 echo -e "${GREEN}✓ Deleted payment method${NC}\n"
 
 # ═══════════════════════════════════════════════════════════
+# HOUSEHOLD SHARED PAYMENT METHODS TESTS
+# ═══════════════════════════════════════════════════════════
+
+run_test "Verify Household Includes Shared Payment Methods"
+HH_DETAILS=$(curl -s $BASE_URL/households/$HOUSEHOLD2_ID -b $COOKIES_FILE)
+SHARED_PM_COUNT=$(echo "$HH_DETAILS" | jq '.shared_payment_methods | length')
+[ "$SHARED_PM_COUNT" -ge "1" ]
+echo -e "${GREEN}✓ Household includes shared payment methods (found $SHARED_PM_COUNT)${NC}\n"
+
+run_test "Verify Shared Payment Method Details"
+FIRST_SHARED_PM=$(echo "$HH_DETAILS" | jq -r '.shared_payment_methods[0]')
+SHARED_PM_NAME=$(echo "$FIRST_SHARED_PM" | jq -r '.name')
+SHARED_PM_SHARED=$(echo "$FIRST_SHARED_PM" | jq -r '.is_shared_with_household')
+SHARED_PM_ACTIVE=$(echo "$FIRST_SHARED_PM" | jq -r '.is_active')
+[ "$SHARED_PM_SHARED" = "true" ]
+[ "$SHARED_PM_ACTIVE" = "true" ]
+echo -e "${GREEN}✓ Shared payment method has correct properties (name: $SHARED_PM_NAME)${NC}\n"
+
+run_test "Create Inactive Shared Payment Method"
+PM3=$(curl -s -X POST $BASE_URL/payment-methods \
+  -H "Content-Type: application/json" \
+  -b $COOKIES_FILE \
+  -d '{"name":"Tarjeta Bloqueada","type":"credit_card","is_shared_with_household":true,"is_active":false}')
+PM3_ID=$(echo "$PM3" | jq -r '.id')
+[ "$PM3_ID" != "null" ]
+echo -e "${GREEN}✓ Created inactive shared payment method${NC}\n"
+
+run_test "Verify Inactive Shared PM Not in Household List"
+HH_DETAILS2=$(curl -s $BASE_URL/households/$HOUSEHOLD2_ID -b $COOKIES_FILE)
+INACTIVE_PM_IN_LIST=$(echo "$HH_DETAILS2" | jq --arg id "$PM3_ID" '.shared_payment_methods[] | select(.id == $id)')
+[ -z "$INACTIVE_PM_IN_LIST" ]
+echo -e "${GREEN}✓ Inactive shared payment methods are filtered out${NC}\n"
+
+run_test "Create Personal (Non-Shared) Payment Method"
+PM4=$(curl -s -X POST $BASE_URL/payment-methods \
+  -H "Content-Type: application/json" \
+  -b $COOKIES_FILE \
+  -d '{"name":"Cuenta Personal","type":"bank_account","is_shared_with_household":false}')
+PM4_ID=$(echo "$PM4" | jq -r '.id')
+[ "$PM4_ID" != "null" ]
+echo -e "${GREEN}✓ Created personal payment method${NC}\n"
+
+run_test "Verify Personal PM Not in Household Shared List"
+HH_DETAILS3=$(curl -s $BASE_URL/households/$HOUSEHOLD2_ID -b $COOKIES_FILE)
+PERSONAL_PM_IN_LIST=$(echo "$HH_DETAILS3" | jq --arg id "$PM4_ID" '.shared_payment_methods[] | select(.id == $id)')
+[ -z "$PERSONAL_PM_IN_LIST" ]
+echo -e "${GREEN}✓ Personal payment methods are not in shared list${NC}\n"
+
+# ═══════════════════════════════════════════════════════════
 # CONTACT ACTIVATION TESTS
 # ═══════════════════════════════════════════════════════════
 

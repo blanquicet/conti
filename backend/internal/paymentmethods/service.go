@@ -23,6 +23,7 @@ OwnerID               string
 Name                  string
 Type                  PaymentMethodType
 IsSharedWithHousehold bool
+IsActive              *bool   // Optional, defaults to true if nil
 Last4                 *string
 Institution           *string
 Notes                 *string
@@ -63,23 +64,29 @@ return nil
 
 // Create creates a new payment method
 func (s *Service) Create(ctx context.Context, input *CreateInput) (*PaymentMethod, error) {
-if err := input.Validate(); err != nil {
-return nil, err
-}
+	if err := input.Validate(); err != nil {
+		return nil, err
+	}
 
-pm := &PaymentMethod{
-HouseholdID:           input.HouseholdID,
-OwnerID:               input.OwnerID,
-Name:                  input.Name,
-Type:                  input.Type,
-IsSharedWithHousehold: input.IsSharedWithHousehold,
-Last4:                 input.Last4,
-Institution:           input.Institution,
-Notes:                 input.Notes,
-IsActive:              true,
-}
+	// Default is_active to true if not specified
+	isActive := true
+	if input.IsActive != nil {
+		isActive = *input.IsActive
+	}
 
-return s.repo.Create(ctx, pm)
+	pm := &PaymentMethod{
+		HouseholdID:           input.HouseholdID,
+		OwnerID:               input.OwnerID,
+		Name:                  input.Name,
+		Type:                  input.Type,
+		IsSharedWithHousehold: input.IsSharedWithHousehold,
+		Last4:                 input.Last4,
+		Institution:           input.Institution,
+		Notes:                 input.Notes,
+		IsActive:              isActive,
+	}
+
+	return s.repo.Create(ctx, pm)
 }
 
 // UpdateInput contains the data needed to update a payment method

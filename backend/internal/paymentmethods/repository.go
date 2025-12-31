@@ -21,41 +21,43 @@ return &repository{pool: pool}
 
 // Create creates a new payment method
 func (r *repository) Create(ctx context.Context, pm *PaymentMethod) (*PaymentMethod, error) {
-var result PaymentMethod
-err := r.pool.QueryRow(ctx, `
-INSERT INTO payment_methods (
-household_id, owner_id, name, type, is_shared_with_household,
-last4, institution, notes, is_active
-)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-RETURNING id, household_id, owner_id, name, type, is_shared_with_household,
-          last4, institution, notes, is_active, created_at, updated_at
-`, pm.HouseholdID, pm.OwnerID, pm.Name, pm.Type, pm.IsSharedWithHousehold,
-   pm.Last4, pm.Institution, pm.Notes, pm.IsActive).Scan(
-&result.ID,
-&result.HouseholdID,
-&result.OwnerID,
-&result.Name,
-&result.Type,
-&result.IsSharedWithHousehold,
-&result.Last4,
-&result.Institution,
-&result.Notes,
-&result.IsActive,
-&result.CreatedAt,
-&result.UpdatedAt,
-)
+	var result PaymentMethod
+	var isActiveFromDB bool
+	err := r.pool.QueryRow(ctx, `
+		INSERT INTO payment_methods (
+			household_id, owner_id, name, type, is_shared_with_household,
+			last4, institution, notes, is_active
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING id, household_id, owner_id, name, type, is_shared_with_household,
+		          last4, institution, notes, is_active, created_at, updated_at
+	`, pm.HouseholdID, pm.OwnerID, pm.Name, pm.Type, pm.IsSharedWithHousehold,
+	   pm.Last4, pm.Institution, pm.Notes, pm.IsActive).Scan(
+		&result.ID,
+		&result.HouseholdID,
+		&result.OwnerID,
+		&result.Name,
+		&result.Type,
+		&result.IsSharedWithHousehold,
+		&result.Last4,
+		&result.Institution,
+		&result.Notes,
+		&isActiveFromDB,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
 
-if err != nil {
-// Check for unique constraint violation
-var pgErr *pgconn.PgError
-if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-return nil, ErrPaymentMethodNameExists
-}
-return nil, err
-}
+	if err != nil {
+		// Check for unique constraint violation
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, ErrPaymentMethodNameExists
+		}
+		return nil, err
+	}
 
-return &result, nil
+	result.IsActive = isActiveFromDB
+	return &result, nil
 }
 
 // GetByID retrieves a payment method by ID
@@ -96,42 +98,44 @@ return &pm, nil
 
 // Update updates a payment method
 func (r *repository) Update(ctx context.Context, pm *PaymentMethod) (*PaymentMethod, error) {
-var result PaymentMethod
-err := r.pool.QueryRow(ctx, `
-UPDATE payment_methods
-SET name = $1, is_shared_with_household = $2, last4 = $3,
-    institution = $4, notes = $5, is_active = $6, updated_at = NOW()
-WHERE id = $7
-RETURNING id, household_id, owner_id, name, type, is_shared_with_household,
-          last4, institution, notes, is_active, created_at, updated_at
-`, pm.Name, pm.IsSharedWithHousehold, pm.Last4, pm.Institution, pm.Notes, pm.IsActive, pm.ID).Scan(
-&result.ID,
-&result.HouseholdID,
-&result.OwnerID,
-&result.Name,
-&result.Type,
-&result.IsSharedWithHousehold,
-&result.Last4,
-&result.Institution,
-&result.Notes,
-&result.IsActive,
-&result.CreatedAt,
-&result.UpdatedAt,
-)
+	var result PaymentMethod
+	var isActiveFromDB bool
+	err := r.pool.QueryRow(ctx, `
+		UPDATE payment_methods
+		SET name = $1, is_shared_with_household = $2, last4 = $3,
+		    institution = $4, notes = $5, is_active = $6, updated_at = NOW()
+		WHERE id = $7
+		RETURNING id, household_id, owner_id, name, type, is_shared_with_household,
+		          last4, institution, notes, is_active, created_at, updated_at
+	`, pm.Name, pm.IsSharedWithHousehold, pm.Last4, pm.Institution, pm.Notes, pm.IsActive, pm.ID).Scan(
+		&result.ID,
+		&result.HouseholdID,
+		&result.OwnerID,
+		&result.Name,
+		&result.Type,
+		&result.IsSharedWithHousehold,
+		&result.Last4,
+		&result.Institution,
+		&result.Notes,
+		&isActiveFromDB,
+		&result.CreatedAt,
+		&result.UpdatedAt,
+	)
 
-if err != nil {
-if errors.Is(err, pgx.ErrNoRows) {
-return nil, ErrPaymentMethodNotFound
-}
-// Check for unique constraint violation
-var pgErr *pgconn.PgError
-if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-return nil, ErrPaymentMethodNameExists
-}
-return nil, err
-}
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrPaymentMethodNotFound
+		}
+		// Check for unique constraint violation
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return nil, ErrPaymentMethodNameExists
+		}
+		return nil, err
+	}
 
-return &result, nil
+	result.IsActive = isActiveFromDB
+	return &result, nil
 }
 
 // Delete deletes a payment method

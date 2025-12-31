@@ -40,12 +40,13 @@ cookieName:    cookieName,
 // Request/Response types
 
 type CreatePaymentMethodRequest struct {
-Name                  string            `json:"name"`
-Type                  PaymentMethodType `json:"type"`
-IsSharedWithHousehold bool              `json:"is_shared_with_household"`
-Last4                 *string           `json:"last4,omitempty"`
-Institution           *string           `json:"institution,omitempty"`
-Notes                 *string           `json:"notes,omitempty"`
+	Name                  string            `json:"name"`
+	Type                  PaymentMethodType `json:"type"`
+	IsSharedWithHousehold bool              `json:"is_shared_with_household"`
+	IsActive              *bool             `json:"is_active,omitempty"` // Optional, defaults to true
+	Last4                 *string           `json:"last4,omitempty"`
+	Institution           *string           `json:"institution,omitempty"`
+	Notes                 *string           `json:"notes,omitempty"`
 }
 
 type UpdatePaymentMethodRequest struct {
@@ -130,6 +131,7 @@ OwnerID:               user.ID,
 Name:                  req.Name,
 Type:                  req.Type,
 IsSharedWithHousehold: req.IsSharedWithHousehold,
+IsActive:              req.IsActive,
 Last4:                 req.Last4,
 Institution:           req.Institution,
 Notes:                 req.Notes,
