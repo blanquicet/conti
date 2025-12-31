@@ -84,6 +84,22 @@ async function loadPaymentMethods() {
       credentials: 'include'
     });
 
+    if (response.status === 404) {
+      // User has no household
+      contentEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">🏠</div>
+          <h3>Necesitas un hogar primero</h3>
+          <p>Para gestionar métodos de pago, primero debes crear o unirte a un hogar.</p>
+          <button id="go-to-profile-btn" class="btn-primary">Ir a mi perfil</button>
+        </div>
+      `;
+      document.getElementById('go-to-profile-btn')?.addEventListener('click', () => {
+        router.navigate('/perfil');
+      });
+      return;
+    }
+
     if (!response.ok) {
       throw new Error('Error al cargar métodos de pago');
     }
