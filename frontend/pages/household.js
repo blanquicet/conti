@@ -21,6 +21,7 @@ let currentUser = null;
 let household = null;
 let members = [];
 let contacts = [];
+let sharedPaymentMethods = [];
 
 /**
  * Render household page
@@ -107,6 +108,19 @@ async function loadHousehold() {
     members = details.members || [];
     contacts = details.contacts || [];
 
+    // Fetch shared payment methods
+    const paymentMethodsResponse = await fetch(`${API_URL}/payment-methods`, {
+      credentials: 'include'
+    });
+
+    if (paymentMethodsResponse.ok) {
+      const allPaymentMethods = await paymentMethodsResponse.json();
+      // Filter only shared payment methods
+      sharedPaymentMethods = allPaymentMethods.filter(pm => pm.is_shared_with_household);
+    } else {
+      sharedPaymentMethods = [];
+    }
+
     // Render content
     contentEl.innerHTML = renderHouseholdContent();
     setupEventHandlers();
@@ -170,6 +184,14 @@ function renderHouseholdContent() {
         ${renderContactForm()}
       </div>
       ${renderContactsList()}
+    </div>
+
+    <div class="household-section">
+      <div class="section-header">
+        <h3 class="section-title">Métodos de Pago Compartidos (${sharedPaymentMethods.length})</h3>
+      </div>
+      <p class="section-description">Métodos de pago que todos los miembros del hogar pueden usar para registrar movimientos. Gestiona tus métodos de pago desde tu perfil.</p>
+      ${renderSharedPaymentMethods()}
     </div>
   `;
 }
@@ -273,6 +295,63 @@ function renderContactsList() {
             ${isOwner && contact.is_registered ? `<button class="btn-link text-sm" data-action="promote-contact" data-contact-id="${contact.id}">Promover a miembro</button>` : ''}
             <button class="btn-link text-sm" data-action="edit-contact" data-contact-id="${contact.id}">Editar</button>
             <button class="btn-link text-sm text-danger" data-action="delete-contact" data-contact-id="${contact.id}">Eliminar</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/**
+ * Render shared payment methods list
+ */
+function renderSharedPaymentMethods() {
+  if (sharedPaymentMethods.length === 0) {
+    return `
+      <div class="empty-state">
+        <p>No hay métodos de pago compartidos todavía.</p>
+        <p class="hint">Los miembros pueden compartir sus métodos de pago desde su perfil.</p>
+      </div>
+    `;
+  }
+
+  const getPaymentMethodIcon = (type) => {
+    const icons = {
+      credit_card: '💳',
+      debit_card: '💳',
+      bank_account: '🏦',
+      cash: '💵',
+      digital_wallet: '📱',
+      other: '💰'
+    };
+    return icons[type] || '💰';
+  };
+
+  const PAYMENT_METHOD_TYPES = {
+    credit_card: 'Tarjeta de Crédito',
+    debit_card: 'Tarjeta de Débito',
+    bank_account: 'Cuenta Bancaria',
+    cash: 'Efectivo',
+    digital_wallet: 'Billetera Digital',
+    other: 'Otro'
+  };
+
+  return `
+    <div class="contacts-list">
+      ${sharedPaymentMethods.map(pm => `
+        <div class="contact-item">
+          <div class="contact-avatar">${getPaymentMethodIcon(pm.type)}</div>
+          <div class="contact-info">
+            <div class="contact-name">
+              ${pm.name}
+              ${!pm.is_active ? '<span class="inactive-badge">❌ Inactivo</span>' : ''}
+            </div>
+            <div class="contact-details">
+              ${PAYMENT_METHOD_TYPES[pm.type] || pm.type}
+              ${pm.institution ? ' · ' + pm.institution : ''}
+              ${pm.last4 ? ' · •••• ' + pm.last4 : ''}
+              · Propiedad de ${pm.owner_name}
+            </div>
           </div>
         </div>
       `).join('')}
