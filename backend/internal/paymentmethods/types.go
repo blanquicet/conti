@@ -18,18 +18,16 @@ ErrInvalidPaymentMethodType  = errors.New("invalid payment method type")
 type PaymentMethodType string
 
 const (
-TypeCreditCard     PaymentMethodType = "credit_card"
-TypeDebitCard      PaymentMethodType = "debit_card"
-TypeBankAccount    PaymentMethodType = "bank_account"
-TypeCash           PaymentMethodType = "cash"
-TypeDigitalWallet  PaymentMethodType = "digital_wallet"
-TypeOther          PaymentMethodType = "other"
+TypeCreditCard PaymentMethodType = "credit_card"
+TypeDebitCard  PaymentMethodType = "debit_card"
+TypeCash       PaymentMethodType = "cash"
+TypeOther      PaymentMethodType = "other"
 )
 
 // Validate checks if the payment method type is valid
 func (t PaymentMethodType) Validate() error {
 switch t {
-case TypeCreditCard, TypeDebitCard, TypeBankAccount, TypeCash, TypeDigitalWallet, TypeOther:
+case TypeCreditCard, TypeDebitCard, TypeCash, TypeOther:
 return nil
 default:
 return ErrInvalidPaymentMethodType

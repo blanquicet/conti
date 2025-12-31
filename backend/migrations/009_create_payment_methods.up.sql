@@ -1,10 +1,8 @@
 -- Create payment_method_type enum
 CREATE TYPE payment_method_type AS ENUM (
   'credit_card',
-  'debit_card', 
-  'bank_account',
+  'debit_card',
   'cash',
-  'digital_wallet',
   'other'
 );
 

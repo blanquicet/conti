@@ -22,9 +22,7 @@ let editingPaymentMethod = null;
 const PAYMENT_METHOD_TYPES = {
   credit_card: 'Tarjeta de Crédito',
   debit_card: 'Tarjeta de Débito',
-  bank_account: 'Cuenta Bancaria',
   cash: 'Efectivo',
-  digital_wallet: 'Billetera Digital',
   other: 'Otro'
 };
 
