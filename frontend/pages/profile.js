@@ -108,6 +108,14 @@ function renderProfileContent() {
       <h2 class="section-title">Mi hogar</h2>
       ${renderHouseholdSection()}
     </div>
+
+    <div class="profile-section">
+      <h2 class="section-title">Mis métodos de pago</h2>
+      <p class="section-description">Administra tus tarjetas, cuentas bancarias y otros métodos de pago</p>
+      <div class="action-buttons">
+        <button id="view-payment-methods-btn" class="btn-secondary">Ver métodos de pago →</button>
+      </div>
+    </div>
   `;
 }
 
@@ -148,6 +156,7 @@ function renderHouseholdSection() {
 function setupEventListeners() {
   const createBtn = document.getElementById('create-household-btn');
   const viewBtn = document.getElementById('view-household-btn');
+  const paymentMethodsBtn = document.getElementById('view-payment-methods-btn');
 
   if (createBtn) {
     createBtn.addEventListener('click', () => {
@@ -158,6 +167,12 @@ function setupEventListeners() {
   if (viewBtn) {
     viewBtn.addEventListener('click', () => {
       router.navigate('/hogar');
+    });
+  }
+
+  if (paymentMethodsBtn) {
+    paymentMethodsBtn.addEventListener('click', () => {
+      router.navigate('/metodos-pago');
     });
   }
 }

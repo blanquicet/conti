@@ -842,6 +842,12 @@ button.loading::after {
   border-bottom: 1px solid #e5e7eb;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
 .info-grid {
   display: flex;
   flex-direction: column;
