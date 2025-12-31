@@ -119,12 +119,10 @@ function renderProfileContent() {
     </div>
 
     <div class="profile-section">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px;">
-        <div>
-          <h2 class="section-title">Mis métodos de pago</h2>
-          <p class="section-description">Tus tarjetas, cuentas bancarias y otros métodos de pago</p>
-        </div>
-        <button id="manage-payment-methods-btn" class="btn-secondary">Administrar →</button>
+      <h2 class="section-title">Mis métodos de pago</h2>
+      <p class="section-description">Tus tarjetas, cuentas bancarias y otros métodos de pago</p>
+      <div style="margin-bottom: 16px;">
+        <button id="manage-payment-methods-btn" class="btn-secondary">Administrar mis métodos de pago →</button>
       </div>
       ${renderPaymentMethodsList()}
     </div>
