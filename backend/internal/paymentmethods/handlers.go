@@ -152,31 +152,36 @@ h.respondJSON(w, pm, http.StatusCreated)
 
 // ListPaymentMethods handles GET /api/payment-methods
 func (h *Handler) ListPaymentMethods(w http.ResponseWriter, r *http.Request) {
-user, err := h.getUserFromRequest(r)
-if err != nil {
-h.respondError(w, errors.New("unauthorized"), http.StatusUnauthorized)
-return
-}
+	user, err := h.getUserFromRequest(r)
+	if err != nil {
+		h.respondError(w, errors.New("unauthorized"), http.StatusUnauthorized)
+		return
+	}
 
-// Get user's household
-household, err := h.getUserHousehold(r.Context(), user.ID)
-if err != nil {
-h.respondError(w, errors.New("user has no household"), http.StatusNotFound)
-return
-}
+	// Get user's household
+	household, err := h.getUserHousehold(r.Context(), user.ID)
+	if err != nil {
+		h.respondError(w, errors.New("user has no household"), http.StatusNotFound)
+		return
+	}
 
-methods, err := h.service.ListByHousehold(r.Context(), household.ID, user.ID)
-if err != nil {
-h.respondError(w, err, http.StatusInternalServerError)
-return
-}
+	methods, err := h.service.ListByHousehold(r.Context(), household.ID, user.ID)
+	if err != nil {
+		h.respondError(w, err, http.StatusInternalServerError)
+		return
+	}
 
-h.respondJSON(w, methods, http.StatusOK)
+	// Ensure we return empty array instead of null
+	if methods == nil {
+		methods = []*PaymentMethod{}
+	}
+
+	h.respondJSON(w, methods, http.StatusOK)
 }
 
 // GetPaymentMethod handles GET /api/payment-methods/:id
 func (h *Handler) GetPaymentMethod(w http.ResponseWriter, r *http.Request) {
-user, err := h.getUserFromRequest(r)
+	user, err := h.getUserFromRequest(r)
 if err != nil {
 h.respondError(w, errors.New("unauthorized"), http.StatusUnauthorized)
 return
