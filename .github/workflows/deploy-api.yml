@@ -190,10 +190,29 @@ jobs:
         if: always()
         run: docker compose -f docker-compose.test.yml down -v
 
+  generate-e2e-matrix:
+    runs-on: ubuntu-latest
+    name: Generate E2E Test Matrix
+    needs: build-docker-image
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Generate test file matrix
+        id: set-matrix
+        run: |
+          files=$(ls backend/tests/e2e/*.js | xargs -n1 basename | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix={\"test-file\":$files}" >> $GITHUB_OUTPUT
+          echo "Generated matrix: {\"test-file\":$files}"
+
   e2e-test:
     runs-on: ubuntu-latest
-    name: E2E Tests
-    needs: build-docker-image
+    name: E2E Tests - ${{ matrix.test-file }}
+    needs: generate-e2e-matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-e2e-matrix.outputs.matrix) }}
     
     steps:
       - uses: actions/checkout@v4
@@ -284,13 +303,13 @@ jobs:
           HEADLESS: 'true'
           API_URL: 'http://localhost:8080'
           DATABASE_URL: 'postgres://gastos:gastos_test_password@localhost:5432/gastos_test?sslmode=disable'
-        run: npm run test:e2e
+        run: npx playwright test e2e/${{ matrix.test-file }}
 
       - name: Upload test artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-test-results
+          name: e2e-test-results-${{ matrix.test-file }}
           path: backend/tests/test-results/
           retention-days: 7
 
