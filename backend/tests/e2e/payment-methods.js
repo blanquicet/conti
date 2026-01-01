@@ -464,11 +464,11 @@ async function testPaymentMethods() {
     const efectivoItem = page1.locator('.contact-item:has-text("Efectivo")');
     
     // Click menu button to open dropdown
-    await efectivoItem.locator('.btn-menu').click();
+    await efectivoItem.locator('button.btn-menu').click();
     await page1.waitForTimeout(300);
     
     // Click Edit button in dropdown
-    await efectivoItem.locator('button[data-action="edit"]').click();
+    await efectivoItem.locator('.actions-dropdown button[data-action="edit"]').click();
     await page1.waitForTimeout(500);
     
     // Change name
@@ -497,11 +497,11 @@ async function testPaymentMethods() {
     const personalItem = page1.locator('.contact-item:has-text("Personal Visa")');
     
     // Click menu button to open dropdown
-    await personalItem.locator('.btn-menu').click();
+    await personalItem.locator('button.btn-menu').click();
     await page1.waitForTimeout(300);
     
     // Click Delete button in dropdown
-    await personalItem.locator('button[data-action="delete"]').click();
+    await personalItem.locator('.actions-dropdown button[data-action="delete"]').click();
     await page1.waitForTimeout(500);
     
     // Confirm deletion
@@ -528,11 +528,11 @@ async function testPaymentMethods() {
     const sharedItem = page1.locator('.contact-item:has-text("Shared Mastercard")');
     
     // Click menu button to open dropdown
-    await sharedItem.locator('.btn-menu').click();
+    await sharedItem.locator('button.btn-menu').click();
     await page1.waitForTimeout(300);
     
     // Click Delete button in dropdown
-    await sharedItem.locator('button[data-action="delete"]').click();
+    await sharedItem.locator('.actions-dropdown button[data-action="delete"]').click();
     await page1.waitForTimeout(500);
     
     await page1.locator('#modal-confirm').click();
@@ -622,11 +622,11 @@ async function testPaymentMethods() {
     const pmItem = page2.locator('.contact-item:has-text("To Deactivate")');
     
     // Click menu button to open dropdown
-    await pmItem.locator('.btn-menu').click();
+    await pmItem.locator('button.btn-menu').click();
     await page2.waitForTimeout(300);
     
     // Click Edit button in dropdown
-    await pmItem.locator('button[data-action="edit"]').click();
+    await pmItem.locator('.actions-dropdown button[data-action="edit"]').click();
     await page2.waitForTimeout(500);
     
     // Uncheck is_active
