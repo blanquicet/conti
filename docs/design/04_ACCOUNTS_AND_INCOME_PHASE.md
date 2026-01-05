@@ -1335,3 +1335,252 @@ This document is designed to be self-contained for implementation. Key points:
 - ❌ Don't allow account type changes (requires data migration)
 - ❌ Don't delete accounts with income (data loss)
 - ❌ Don't force account linking (optional feature)
+
+---
+
+## 🔄 Dual Write Strategy (Migration Period)
+
+### Current State
+- **Gastos:** n8n → Google Sheets ✅
+- **Ingresos:** ❌ Not implemented
+
+### Implementation Phase (This Phase)
+- **Gastos:** n8n → Google Sheets ✅ (no changes)
+- **Ingresos:** Backend → PostgreSQL + n8n → Google Sheets ✅ (dual write)
+
+### Future State (Phase 5+)
+- **Gastos:** Backend → PostgreSQL ✅
+- **Ingresos:** Backend → PostgreSQL ✅
+- **Google Sheets:** Deprecated ❌
+
+### Dual Write Implementation
+
+**Backend Flow:**
+```go
+func (h *Handler) CreateIncome(w, r) {
+  // 1. Save to PostgreSQL (source of truth)
+  income, err := h.service.Create(ctx, input)
+  if err != nil {
+    return error
+  }
+  
+  // 2. Send to n8n for Google Sheets
+  err = h.n8nClient.SendIncome(income)
+  if err != nil {
+    // CRITICAL: If Sheets fails, rollback DB transaction
+    // User sees error - dual write must succeed or fail together
+    return error
+  }
+  
+  return success
+}
+```
+
+**n8n Webhook:**
+```
+POST /webhook/movimientos/reportar
+Content-Type: application/json
+
+{
+  "tipo": "ingreso",  // NEW field
+  "fecha": "2026-01-15",
+  "miembro": "Jose Blanquicet",
+  "tipo_ingreso": "salary",
+  "monto": 5000000,
+  "descripcion": "Salario Enero"
+}
+```
+
+**Google Sheets Structure:**
+
+New sheet: **"Ingresos"**
+
+| Fecha | Miembro | Tipo | Monto | Descripción |
+|-------|---------|------|-------|-------------|
+| 15/01/2026 | Jose Blanquicet | Sueldo | 5000000 | Salario Enero |
+| 22/01/2026 | Jose Blanquicet | Freelance | 800000 | Proyecto X |
+
+**Error Handling:**
+- If PostgreSQL fails → Return error, don't call n8n
+- If n8n/Sheets fails → Return error, rollback PostgreSQL transaction
+- Both must succeed or both fail (atomic operation)
+
+---
+
+## 🏠 Dashboard as Home Page
+
+### Route Changes
+
+**Before:**
+- `/` → redirects to `/registrar-movimiento`
+- Home page: Registrar Movimiento
+
+**After:**
+- `/` → Dashboard (income summary)
+- Secondary: `/registrar-movimiento` (with income option)
+
+### Dashboard UI (Phase 4)
+
+```
+┌─────────────────────────────────────────┐
+│ Home                                    │
+├─────────────────────────────────────────┤
+│ ← Diciembre | Enero 2026 | Febrero →    │
+│                                         │
+│ 💰 INGRESOS DEL MES                     │
+│ [▼ Expandir]                            │
+│                                         │
+│ Total: $10,300,000                      │
+│ (3 registros)                           │
+│                                         │
+│ [+ Agregar ingreso]                     │
+│                                         │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  │
+│ 📊 Gastos                               │
+│ Próximamente: Los gastos se mostrarán  │
+│ aquí cuando los migremos a la base de  │
+│ datos.                                  │
+└─────────────────────────────────────────┘
+```
+
+**When expanded:**
+```
+┌─────────────────────────────────────────┐
+│ 💰 INGRESOS DEL MES                     │
+│ [▲ Colapsar]                            │
+│                                         │
+│ INGRESO REAL: $10,300,000               │
+│   Sueldo (2): $9,500,000                │
+│     • Jose - $5,000,000 (15 Ene)        │
+│     • Caro - $4,500,000 (30 Ene)        │
+│   Freelance (1): $800,000               │
+│     • Jose - $800,000 (22 Ene)          │
+│                                         │
+│ MOVIMIENTOS INTERNOS: $0                │
+│ (ninguno este mes)                      │
+│                                         │
+│ Total: $10,300,000                      │
+└─────────────────────────────────────────┘
+```
+
+**Features:**
+- Collapsed by default (shows only total)
+- Click "Expandir" to show breakdown by income type
+- Groups by category (Real Income vs Internal Movements)
+- Only shows non-empty types
+- Month navigation: ← →
+
+---
+
+## 📝 Registrar Movimiento Updates
+
+### Title & Subtitle
+```
+Registrar Movimiento
+Registra ingresos, gastos o préstamos
+```
+
+### Type Selector
+```
+┌─────────────────────────────────────────┐
+│ Registrar Movimiento                    │
+│ Registra ingresos, gastos o préstamos   │
+├─────────────────────────────────────────┤
+│ ¿Qué deseas registrar? *                │
+│ ┌─────────────────────────────────────┐ │
+│ │ ○ Gasto                             │ │
+│ │ ○ Préstamo                          │ │
+│ │ ● Ingreso                           │ │ ← NEW
+│ └─────────────────────────────────────┘ │
+└─────────────────────────────────────────┘
+```
+
+**When "Ingreso" selected:**
+- Show: Miembro, Tipo Ingreso, Monto, Descripción, Cuenta destino, Fecha
+- Hide: Categoría, Método de pago, Participantes, etc.
+- Style: Green accent color vs red for gastos
+
+---
+
+## 📊 Data Migration Plan
+
+### Step 1: Existing Income from Excel
+**LAST STEP** (after everything works)
+
+Jose has existing income data in Excel to migrate:
+- Format: Fecha | Valor | A quién le entraron | Origen | Concepto/Descripción | Mes
+- Script will parse and insert into PostgreSQL
+- Will also update Google Sheets "Ingresos" sheet
+
+**Migration Script:**
+```bash
+# backend/scripts/migrate-income-from-excel.sh
+# Parse Excel → Generate SQL inserts or API calls
+# Map columns:
+#   Fecha → income_date
+#   Valor → amount
+#   A quién → member_id (lookup by name)
+#   Origen → type (map to income_type enum)
+#   Concepto → description
+```
+
+### Step 2: Future - Gastos Migration
+(Phase 5+)
+- Migrate all movements from Google Sheets to PostgreSQL
+- Deprecate Sheets
+- Full dashboard with income + expenses
+
+---
+
+## ✅ Updated Implementation Checklist
+
+### Phase 4.1: Accounts Backend (DONE ✅)
+- [x] Database migrations (011-014)
+- [x] Accounts module (types, repository, service, handlers)
+- [x] API endpoints
+- [x] Integration tests
+
+### Phase 4.2: Income Backend (Day 1)
+- [ ] Update migration 012 with income_type enum (DONE ✅)
+- [ ] Create income module
+  - [ ] types.go (13 income types, IsRealIncome helper)
+  - [ ] repository.go (CRUD + GetTotals with type breakdown)
+  - [ ] service.go (business logic + authorization)
+  - [ ] handlers.go (POST, GET, PATCH, DELETE)
+- [ ] Dual write implementation
+  - [ ] n8n client method for income
+  - [ ] Atomic transaction (DB + Sheets or fail all)
+- [ ] Integration tests
+  - [ ] Create, list, update, delete income
+  - [ ] Test all income types
+  - [ ] Test totals calculation (real vs internal)
+
+### Phase 4.3: UI - Registrar Movimiento (Day 2)
+- [ ] Add "Ingreso" radio option
+- [ ] Dynamic fields for income
+- [ ] Income type selector with categories
+- [ ] Account selector (only savings/cash)
+- [ ] Submit to backend (dual write)
+- [ ] Error handling
+
+### Phase 4.4: UI - Dashboard Home (Day 3)
+- [ ] Create pages/home.js
+- [ ] Month navigation component
+- [ ] Income list (collapsed/expanded)
+- [ ] Totals by category
+- [ ] "Gastos próximamente" placeholder
+- [ ] Update router: / → Home
+- [ ] Update navbar: "Home" first
+
+### Phase 4.5: Testing & Migration (Day 4)
+- [ ] E2E test: Complete income flow
+- [ ] E2E test: Dashboard navigation
+- [ ] Excel migration script
+- [ ] Run migration for Jose's existing data
+- [ ] Documentation updates
+
+---
+
+**Last Updated:** 2026-01-05  
+**Status:** 🚀 Ready to implement - Starting with Income Backend  
+**Next Action:** Create income module (types, repository, service, handlers)
