@@ -93,9 +93,11 @@ async function testPaymentMethods() {
     // ==================================================================
     console.log('📝 Step 2: User 1 adding personal payment method...');
     
-    await page1.goto(`${appUrl}/metodos-pago`);
-    await page1.waitForTimeout(1000);
+    await page1.goto(`${appUrl}/perfil`);
+    await page1.waitForTimeout(2000); // Wait for payment methods to load
     
+    // Wait for the add button to be visible
+    await page1.locator('#add-payment-method-btn').waitFor({ state: 'visible', timeout: 10000 });
     await page1.locator('#add-payment-method-btn').click();
     await page1.waitForTimeout(500);
     
@@ -272,7 +274,7 @@ async function testPaymentMethods() {
     // ==================================================================
     console.log('📝 Step 9: User 2 adding own payment method...');
     
-    await page2.goto(`${appUrl}/metodos-pago`);
+    await page2.goto(`${appUrl}/perfil`);
     await page2.waitForTimeout(1000);
     
     await page2.locator('#add-payment-method-btn').click();
@@ -457,7 +459,7 @@ async function testPaymentMethods() {
     // ==================================================================
     console.log('📝 Step 11: User 1 editing payment method...');
     
-    await page1.goto(`${appUrl}/metodos-pago`);
+    await page1.goto(`${appUrl}/perfil`);
     await page1.waitForTimeout(1000);
     
     // Find "Efectivo" payment method item
@@ -589,7 +591,7 @@ async function testPaymentMethods() {
     console.log('📝 Step 16: Testing payment method deactivation...');
     
     // User 2 adds a new payment method, then deactivates it
-    await page2.goto(`${appUrl}/metodos-pago`);
+    await page2.goto(`${appUrl}/perfil`);
     await page2.waitForTimeout(1000);
     
     await page2.locator('#add-payment-method-btn').click();
@@ -615,7 +617,7 @@ async function testPaymentMethods() {
     }
     
     // Now deactivate it
-    await page2.goto(`${appUrl}/metodos-pago`);
+    await page2.goto(`${appUrl}/perfil`);
     await page2.waitForTimeout(1000);
     
     // Find the payment method
