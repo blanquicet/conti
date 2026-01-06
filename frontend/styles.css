@@ -2086,8 +2086,8 @@ button.loading::after {
 /* Floating actions container */
 .floating-actions {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: 40px;
+  right: 32px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -2387,8 +2387,8 @@ button.loading::after {
   }
   
   .floating-actions {
-    right: 16px;
-    bottom: 16px;
+    right: 24px;
+    bottom: 32px;
   }
   
   .btn-filter-floating,
