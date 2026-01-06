@@ -18,7 +18,9 @@ let currentMonth = null; // YYYY-MM format
 let incomeData = null;
 let activeTab = 'ingresos'; // 'gastos', 'ingresos', 'tarjetas'
 let householdMembers = []; // List of household members for filtering
-let selectedMemberId = null; // null = "Todos"
+let selectedMemberIds = []; // Array of selected member IDs (empty = all)
+let selectedIncomeTypes = []; // Array of selected income types (empty = all)
+let isFilterOpen = false; // Track if filter dropdown is open
 
 /**
  * Format number as COP currency
@@ -131,32 +133,139 @@ function renderMonthSelector() {
 }
 
 /**
- * Render member filter (same style as month selector)
+ * Get income type categories with labels
  */
-function renderMemberFilter() {
-  const members = [
-    { id: null, name: 'Todo el hogar' },
-    ...householdMembers.map(m => ({ id: m.user_id, name: m.name }))
-  ];
+function getIncomeTypeCategories() {
+  return {
+    'Ingresos': ['salary', 'bonus', 'other_income'],
+    'Movimientos': ['reimbursement', 'savings_withdrawal', 'previous_balance', 'adjustment']
+  };
+}
 
-  const currentIndex = members.findIndex(m => m.id === selectedMemberId);
-  const selectedMember = members[currentIndex] || members[0];
-  const hasPrev = currentIndex > 0;
-  const hasNext = currentIndex < members.length - 1;
+/**
+ * Get label for income type
+ */
+function getIncomeTypeLabel(type) {
+  const labels = {
+    'salary': 'Sueldo',
+    'bonus': 'Bono / Prima',
+    'reimbursement': 'Reembolsos',
+    'other_income': 'Otro Ingreso',
+    'savings_withdrawal': 'Retiro de Ahorros',
+    'previous_balance': 'Sobrante Mes Anterior',
+    'adjustment': 'Ajustes'
+  };
+  return labels[type] || type;
+}
+
+/**
+ * Render filter dropdown
+ */
+function renderFilterDropdown() {
+  const categories = getIncomeTypeCategories();
+  const allTypes = Object.values(categories).flat();
+  
+  // If no filters are set, all are shown (checked)
+  // If filters are set, only those in the array are shown (checked)
+  // null means "show none" (no checkboxes checked)
+  const showAllMembers = Array.isArray(selectedMemberIds) && selectedMemberIds.length === 0;
+  const showAllTypes = Array.isArray(selectedIncomeTypes) && selectedIncomeTypes.length === 0;
+  
+  const ingresosTypes = categories['Ingresos'];
+  const movimientosTypes = categories['Movimientos'];
+  
+  // Check if all items in a category are selected
+  const allIngresosSelected = showAllTypes || (selectedIncomeTypes && ingresosTypes.every(t => selectedIncomeTypes.includes(t)));
+  const allMovimientosSelected = showAllTypes || (selectedIncomeTypes && movimientosTypes.every(t => selectedIncomeTypes.includes(t)));
 
   return `
-    <div class="member-filter-nav">
-      <button id="prev-member-btn" class="month-nav-btn" ${!hasPrev ? 'disabled' : ''}>
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"/>
-        </svg>
-      </button>
-      <div class="month-display">${selectedMember.name}</div>
-      <button id="next-member-btn" class="month-nav-btn" ${!hasNext ? 'disabled' : ''}>
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"/>
-        </svg>
-      </button>
+    <div class="filter-dropdown" id="filter-dropdown" style="display: ${isFilterOpen ? 'block' : 'none'}">
+      <div class="filter-section">
+        <div class="filter-section-header">
+          <span class="filter-section-title">Miembros del hogar</span>
+          <div class="filter-section-actions">
+            <button class="filter-link-btn" id="select-all-members">Todos</button>
+            <button class="filter-link-btn" id="clear-all-members">Limpiar</button>
+          </div>
+        </div>
+        <div class="filter-options">
+          ${householdMembers.map(member => {
+            const isChecked = showAllMembers || (selectedMemberIds && selectedMemberIds.includes(member.id));
+            return `
+              <label class="filter-checkbox-label">
+                <input type="checkbox" class="filter-checkbox" 
+                       data-filter-type="member" 
+                       data-value="${member.id}" 
+                       ${isChecked ? 'checked' : ''}>
+                <span>${member.name}</span>
+              </label>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="filter-section">
+        <div class="filter-section-header">
+          <span class="filter-section-title">Tipo de ingreso</span>
+          <div class="filter-section-actions">
+            <button class="filter-link-btn" id="select-all-types">Todos</button>
+            <button class="filter-link-btn" id="clear-all-types">Limpiar</button>
+          </div>
+        </div>
+        
+        <div class="filter-category">
+          <label class="filter-checkbox-label filter-category-label">
+            <input type="checkbox" class="filter-checkbox filter-category-checkbox" 
+                   data-category="Ingresos"
+                   ${allIngresosSelected ? 'checked' : ''}>
+            <span><strong>Ingresos</strong></span>
+          </label>
+          <div class="filter-options filter-sub-options">
+            ${ingresosTypes.map(type => {
+              const isChecked = showAllTypes || (selectedIncomeTypes && selectedIncomeTypes.includes(type));
+              return `
+                <label class="filter-checkbox-label">
+                  <input type="checkbox" class="filter-checkbox" 
+                         data-filter-type="income-type" 
+                         data-category="Ingresos"
+                         data-value="${type}" 
+                         ${isChecked ? 'checked' : ''}>
+                  <span>${getIncomeTypeLabel(type)}</span>
+                </label>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <div class="filter-category">
+          <label class="filter-checkbox-label filter-category-label">
+            <input type="checkbox" class="filter-checkbox filter-category-checkbox" 
+                   data-category="Movimientos"
+                   ${allMovimientosSelected ? 'checked' : ''}>
+            <span><strong>Movimientos</strong></span>
+          </label>
+          <div class="filter-options filter-sub-options">
+            ${movimientosTypes.map(type => {
+              const isChecked = showAllTypes || (selectedIncomeTypes && selectedIncomeTypes.includes(type));
+              return `
+                <label class="filter-checkbox-label">
+                  <input type="checkbox" class="filter-checkbox" 
+                         data-filter-type="income-type" 
+                         data-category="Movimientos"
+                         data-value="${type}" 
+                         ${isChecked ? 'checked' : ''}>
+                  <span>${getIncomeTypeLabel(type)}</span>
+                </label>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-footer">
+        <button class="btn-secondary btn-small" id="clear-all-filters">Mostrar todo</button>
+        <button class="btn-primary btn-small" id="apply-filters">Aplicar</button>
+      </div>
     </div>
   `;
 }
@@ -165,12 +274,32 @@ function renderMemberFilter() {
  * Render income categories
  */
 function renderIncomeCategories() {
+  // Check if we have any active filters
+  // Empty array [] means "show all" (no filter)
+  // null or non-empty array means filter is active
+  const hasMemberFilter = selectedMemberIds === null || (Array.isArray(selectedMemberIds) && selectedMemberIds.length > 0);
+  const hasTypeFilter = selectedIncomeTypes === null || (Array.isArray(selectedIncomeTypes) && selectedIncomeTypes.length > 0);
+  const hasActiveFilters = hasMemberFilter || hasTypeFilter;
+  
   if (!incomeData || !incomeData.income_entries || incomeData.income_entries.length === 0) {
+    const message = hasActiveFilters 
+      ? 'No hay ingresos que coincidan con los filtros seleccionados'
+      : 'No hay ingresos registrados este mes';
+    
     return `
       <div class="empty-state">
         <div class="empty-icon">📊</div>
-        <p>No hay ingresos registrados este mes</p>
-        <button id="add-income-btn" class="btn-primary">+ Agregar ingreso</button>
+        <p>${message}</p>
+        ${!hasActiveFilters ? '<button id="add-income-btn-empty" class="btn-primary">+ Agregar ingreso</button>' : ''}
+      </div>
+      <div class="floating-actions">
+        <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
+          </svg>
+        </button>
+        ${renderFilterDropdown()}
+        <button id="add-income-btn" class="btn-add-floating">+</button>
       </div>
     `;
   }
@@ -244,7 +373,15 @@ function renderIncomeCategories() {
     <div class="categories-grid">
       ${categoriesHtml}
     </div>
-    <button id="add-income-btn" class="btn-add-floating">+</button>
+    <div class="floating-actions">
+      <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
+        </svg>
+      </button>
+      ${renderFilterDropdown()}
+      <button id="add-income-btn" class="btn-add-floating">+</button>
+    </div>
   `;
 }
 
@@ -271,7 +408,6 @@ export function render(user) {
       <div class="dashboard-content">
         ${activeTab === 'ingresos' ? `
           ${renderMonthSelector()}
-          ${renderMemberFilter()}
           
           <div class="total-display">
             <div class="total-label">Total</div>
@@ -310,6 +446,11 @@ async function loadHouseholdMembers() {
     const data = await response.json();
     // Filter only members (not contacts)
     householdMembers = data.users.filter(u => u.type === 'member');
+    console.log('Loaded household members:', householdMembers);
+    if (householdMembers.length > 0) {
+      console.log('First member structure:', householdMembers[0]);
+      console.log('First member keys:', Object.keys(householdMembers[0]));
+    }
   } catch (error) {
     console.error('Error loading household members:', error);
     householdMembers = [];
@@ -322,9 +463,15 @@ async function loadHouseholdMembers() {
 async function loadIncomeData() {
   try {
     let url = `${API_URL}/income?month=${currentMonth}`;
-    if (selectedMemberId) {
-      url += `&member_id=${selectedMemberId}`;
-    }
+    
+    console.log('Filter state:', {
+      selectedMemberIds,
+      selectedIncomeTypes,
+      householdMembers: householdMembers.length
+    });
+    
+    // Note: Backend only supports single member_id filter
+    // We'll do client-side filtering for multiple members and types
     
     const response = await fetch(url, {
       credentials: 'include'
@@ -332,11 +479,70 @@ async function loadIncomeData() {
 
     if (!response.ok) {
       console.error('Error loading income data:', response.status);
+      const errorText = await response.text();
+      console.error('Error details:', errorText);
       incomeData = null;
       return;
     }
 
-    incomeData = await response.json();
+    const data = await response.json();
+    
+    // Client-side filtering
+    if (data && data.income_entries) {
+      let filteredEntries = data.income_entries;
+      
+      console.log('Original entries:', filteredEntries.length);
+      console.log('Sample entry:', filteredEntries[0]);
+      
+      // Filter by members if specific members selected
+      console.log('selectedMemberIds value:', selectedMemberIds, 'type:', typeof selectedMemberIds);
+      if (selectedMemberIds === null) {
+        // null means show nothing
+        filteredEntries = [];
+        console.log('Members filter is null -> show nothing');
+      } else if (selectedMemberIds.length > 0) {
+        filteredEntries = filteredEntries.filter(entry => {
+          // member_id is a UUID string, compare directly
+          const isIncluded = selectedMemberIds.includes(entry.member_id);
+          console.log(`Entry member_id: ${entry.member_id}, looking for: ${selectedMemberIds}, included: ${isIncluded}`);
+          return isIncluded;
+        });
+        console.log('After member filter:', filteredEntries.length);
+      } else {
+        console.log('selectedMemberIds is empty array -> show all members');
+      }
+      // else: selectedMemberIds is empty array, show all (no filter)
+      
+      // Filter by income types if specific types selected
+      console.log('selectedIncomeTypes value:', selectedIncomeTypes, 'type:', typeof selectedIncomeTypes);
+      if (selectedIncomeTypes === null) {
+        // null means show nothing
+        filteredEntries = [];
+        console.log('Types filter is null -> show nothing');
+      } else if (selectedIncomeTypes.length > 0) {
+        filteredEntries = filteredEntries.filter(entry => 
+          selectedIncomeTypes.includes(entry.type)
+        );
+        console.log('After type filter:', filteredEntries.length);
+      } else {
+        console.log('selectedIncomeTypes is empty array -> show all types');
+      }
+      // else: selectedIncomeTypes is empty array, show all (no filter)
+      
+      // Recalculate totals
+      const totalAmount = filteredEntries.reduce((sum, entry) => sum + entry.amount, 0);
+      
+      incomeData = {
+        income_entries: filteredEntries,
+        totals: {
+          total_amount: totalAmount
+        }
+      };
+    } else {
+      incomeData = data;
+    }
+    
+    console.log('Filtered data:', incomeData);
   } catch (error) {
     console.error('Error loading income data:', error);
     incomeData = null;
@@ -351,6 +557,7 @@ function refreshDisplay() {
   if (container) {
     container.innerHTML = renderIncomeCategories();
     setupCategoryListeners();
+    setupFilterListeners(); // Re-setup filter listeners after re-render
   }
 
   const totalEl = document.querySelector('.total-amount');
@@ -362,13 +569,6 @@ function refreshDisplay() {
   const monthEl = document.querySelector('.month-display');
   if (monthEl) {
     monthEl.textContent = getMonthDateRange(currentMonth);
-  }
-
-  // Update member filter
-  const memberFilterNav = document.querySelector('.member-filter-nav');
-  if (memberFilterNav) {
-    memberFilterNav.outerHTML = renderMemberFilter();
-    setupMonthNavigation(); // Re-setup listeners
   }
 }
 
@@ -477,13 +677,350 @@ function setupCategoryListeners() {
     });
   });
 
-  // Add income button
+  // Add income button (in category list)
   const addBtn = document.getElementById('add-income-btn');
   if (addBtn) {
     addBtn.addEventListener('click', () => {
       router.navigate('/registrar-movimiento?tipo=INGRESO');
     });
   }
+
+  // Add income button (in empty state)
+  const addBtnEmpty = document.getElementById('add-income-btn-empty');
+  if (addBtnEmpty) {
+    addBtnEmpty.addEventListener('click', () => {
+      router.navigate('/registrar-movimiento?tipo=INGRESO');
+    });
+  }
+
+  // Filter button toggle
+  const filterBtn = document.getElementById('filter-btn');
+  if (filterBtn) {
+    filterBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isFilterOpen = !isFilterOpen;
+      const dropdown = document.getElementById('filter-dropdown');
+      if (dropdown) {
+        dropdown.style.display = isFilterOpen ? 'block' : 'none';
+      }
+    });
+  }
+
+  // Setup filter event listeners
+  setupFilterListeners();
+}
+
+/**
+ * Setup filter dropdown event listeners
+ */
+function setupFilterListeners() {
+  // Close filter dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('filter-dropdown');
+    const filterBtn = document.getElementById('filter-btn');
+    if (dropdown && filterBtn && !dropdown.contains(e.target) && !filterBtn.contains(e.target)) {
+      isFilterOpen = false;
+      dropdown.style.display = 'none';
+    }
+  });
+
+  // Select all members
+  const selectAllMembers = document.getElementById('select-all-members');
+  if (selectAllMembers) {
+    selectAllMembers.addEventListener('click', () => {
+      console.log('SELECT ALL MEMBERS clicked');
+      selectedMemberIds = [];
+      document.querySelectorAll('[data-filter-type="member"]').forEach(cb => {
+        cb.checked = true;
+      });
+      console.log('After select all members:', selectedMemberIds);
+    });
+  }
+
+  // Clear all members (deselect all = show none)
+  const clearAllMembers = document.getElementById('clear-all-members');
+  if (clearAllMembers) {
+    clearAllMembers.addEventListener('click', () => {
+      console.log('CLEAR ALL MEMBERS clicked');
+      selectedMemberIds = []; // Will be set correctly on Apply based on checkboxes
+      const checkboxes = document.querySelectorAll('[data-filter-type="member"]');
+      console.log('Found', checkboxes.length, 'member checkboxes to uncheck');
+      checkboxes.forEach(cb => {
+        console.log('Unchecking checkbox:', cb.dataset.value);
+        cb.checked = false;
+      });
+      console.log('After clear all members:', selectedMemberIds);
+    });
+  }
+
+  // Select all types
+  const selectAllTypes = document.getElementById('select-all-types');
+  if (selectAllTypes) {
+    selectAllTypes.addEventListener('click', () => {
+      console.log('SELECT ALL TYPES clicked');
+      selectedIncomeTypes = [];
+      document.querySelectorAll('[data-filter-type="income-type"]').forEach(cb => {
+        cb.checked = true;
+      });
+      document.querySelectorAll('.filter-category-checkbox').forEach(cb => {
+        cb.checked = true;
+      });
+      console.log('After select all types:', selectedIncomeTypes);
+    });
+  }
+
+  // Clear all types (deselect all = show none)
+  const clearAllTypes = document.getElementById('clear-all-types');
+  if (clearAllTypes) {
+    clearAllTypes.addEventListener('click', () => {
+      console.log('CLEAR ALL TYPES clicked');
+      selectedIncomeTypes = []; // Will be set correctly on Apply based on checkboxes
+      document.querySelectorAll('[data-filter-type="income-type"]').forEach(cb => {
+        cb.checked = false;
+      });
+      document.querySelectorAll('.filter-category-checkbox').forEach(cb => {
+        cb.checked = false;
+      });
+      console.log('After clear all types:', selectedIncomeTypes);
+    });
+  }
+
+  // Clear all filters (reset to show all)
+  const clearAllFilters = document.getElementById('clear-all-filters');
+  if (clearAllFilters) {
+    clearAllFilters.addEventListener('click', () => {
+      console.log('CLEAR ALL FILTERS clicked (reset to show all)');
+      selectedMemberIds = []; // Will be set correctly on Apply (empty = show all)
+      selectedIncomeTypes = []; // Will be set correctly on Apply (empty = show all)
+      
+      // Mark all member checkboxes
+      document.querySelectorAll('[data-filter-type="member"]').forEach(cb => {
+        cb.checked = true;
+      });
+      
+      // Mark all type checkboxes
+      document.querySelectorAll('[data-filter-type="income-type"]').forEach(cb => {
+        cb.checked = true;
+      });
+      
+      // Mark all category checkboxes
+      document.querySelectorAll('.filter-category-checkbox').forEach(cb => {
+        cb.checked = true;
+      });
+      
+      console.log('After clear all filters (all checked) - members:', selectedMemberIds, 'types:', selectedIncomeTypes);
+    });
+  }
+
+  // Apply filters
+  const applyFilters = document.getElementById('apply-filters');
+  if (applyFilters) {
+    applyFilters.addEventListener('click', async () => {
+      console.log('APPLY FILTERS clicked');
+      console.log('Before normalization - members:', selectedMemberIds, 'types:', selectedIncomeTypes);
+      
+      // Normalize members based on actual checkbox state, not array content
+      const memberCheckboxes = document.querySelectorAll('[data-filter-type="member"]');
+      const checkedMembers = Array.from(memberCheckboxes).filter(cb => cb.checked);
+      
+      console.log('Total member checkboxes:', memberCheckboxes.length);
+      console.log('Checked member checkboxes:', checkedMembers.length);
+      memberCheckboxes.forEach(cb => {
+        console.log(`  Checkbox ${cb.dataset.value}: ${cb.checked}`);
+      });
+      
+      if (checkedMembers.length === 0) {
+        // No members checked = show none
+        console.log('No members checked -> show none (null)');
+        selectedMemberIds = null; // Special value: show nothing
+      } else if (checkedMembers.length === householdMembers.length) {
+        // All members checked = show all
+        console.log('All members checked -> show all (empty array)');
+        selectedMemberIds = [];
+      } else {
+        // Some members checked = show only those
+        console.log('Some members checked -> show only those');
+        selectedMemberIds = checkedMembers.map(cb => cb.dataset.value);
+      }
+      
+      // Normalize types based on actual checkbox state
+      const typeCheckboxes = document.querySelectorAll('[data-filter-type="income-type"]');
+      const checkedTypes = Array.from(typeCheckboxes).filter(cb => cb.checked);
+      const categories = getIncomeTypeCategories();
+      const allTypes = Object.values(categories).flat();
+      
+      console.log('Total type checkboxes:', typeCheckboxes.length);
+      console.log('Checked type checkboxes:', checkedTypes.length);
+      
+      if (checkedTypes.length === 0) {
+        // No types checked = show none
+        console.log('No types checked -> show none (null)');
+        selectedIncomeTypes = null; // Special value: show nothing
+      } else if (checkedTypes.length === allTypes.length) {
+        // All types checked = show all
+        console.log('All types checked -> show all (empty array)');
+        selectedIncomeTypes = [];
+      } else {
+        // Some types checked = show only those
+        console.log('Some types checked -> show only those');
+        selectedIncomeTypes = checkedTypes.map(cb => cb.dataset.value);
+      }
+      
+      console.log('After normalization - members:', selectedMemberIds, 'types:', selectedIncomeTypes);
+      
+      isFilterOpen = false;
+      const dropdown = document.getElementById('filter-dropdown');
+      if (dropdown) {
+        dropdown.style.display = 'none';
+      }
+      await loadIncomeData();
+      refreshDisplay();
+    });
+  }
+
+  // Member checkboxes
+  document.querySelectorAll('[data-filter-type="member"]').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const memberId = e.target.dataset.value;
+      console.log('Member checkbox changed:', memberId, 'checked:', e.target.checked);
+      console.log('Current selectedMemberIds:', selectedMemberIds);
+      
+      // Check if we're in "show none" state (all IDs are in the array)
+      const allIds = householdMembers.map(m => m.id);
+      const isShowingNone = selectedMemberIds.length === allIds.length &&
+                           allIds.every(id => selectedMemberIds.includes(id));
+      
+      if (e.target.checked) {
+        // Checkbox is checked - include this member
+        if (selectedMemberIds.length === 0) {
+          // Was showing all, now only show this one
+          selectedMemberIds = [memberId];
+        } else if (isShowingNone) {
+          // Was showing none, now only show this one
+          selectedMemberIds = [memberId];
+        } else {
+          // Add to the filter list
+          if (!selectedMemberIds.includes(memberId)) {
+            selectedMemberIds.push(memberId);
+          }
+          // Note: Don't auto-convert to empty array here
+          // We'll normalize when applying filters
+        }
+      } else {
+        // Checkbox is unchecked - exclude this member
+        if (selectedMemberIds.length === 0) {
+          // Was showing all, now show all EXCEPT this one
+          selectedMemberIds = allIds.filter(id => id !== memberId);
+        } else {
+          // Remove from the filter list
+          selectedMemberIds = selectedMemberIds.filter(id => id !== memberId);
+        }
+      }
+      
+      console.log('Updated selectedMemberIds:', selectedMemberIds);
+    });
+  });
+
+  // Income type checkboxes
+  document.querySelectorAll('[data-filter-type="income-type"]').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const type = e.target.dataset.value;
+      const category = e.target.dataset.category;
+      const categories = getIncomeTypeCategories();
+      const allTypes = Object.values(categories).flat();
+      
+      // Check if we're in "show none" state (all types are in the array)
+      const isShowingNone = selectedIncomeTypes.length === allTypes.length &&
+                           allTypes.every(t => selectedIncomeTypes.includes(t));
+      
+      if (e.target.checked) {
+        // Checkbox is checked - include this type
+        if (selectedIncomeTypes.length === 0) {
+          // Was showing all, now only show this one
+          selectedIncomeTypes = [type];
+        } else if (isShowingNone) {
+          // Was showing none, now only show this one
+          selectedIncomeTypes = [type];
+        } else {
+          // Add to the filter list
+          if (!selectedIncomeTypes.includes(type)) {
+            selectedIncomeTypes.push(type);
+          }
+          // Note: Don't auto-convert to empty array here
+          // We'll normalize when applying filters
+        }
+      } else {
+        // Checkbox is unchecked - exclude this type
+        if (selectedIncomeTypes.length === 0) {
+          // Was showing all, now show all EXCEPT this one
+          selectedIncomeTypes = allTypes.filter(t => t !== type);
+        } else {
+          // Remove from the filter list
+          selectedIncomeTypes = selectedIncomeTypes.filter(t => t !== type);
+        }
+      }
+
+      // Update category checkbox
+      const categoryTypes = categories[category];
+      const allCategoryChecked = categoryTypes.every(t => 
+        selectedIncomeTypes.length === 0 || selectedIncomeTypes.includes(t)
+      );
+      const categoryCheckbox = document.querySelector(`[data-category="${category}"].filter-category-checkbox`);
+      if (categoryCheckbox) {
+        categoryCheckbox.checked = allCategoryChecked;
+      }
+    });
+  });
+
+  // Category checkboxes
+  document.querySelectorAll('.filter-category-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', (e) => {
+      const category = e.target.dataset.category;
+      const categories = getIncomeTypeCategories();
+      const categoryTypes = categories[category];
+      const allTypes = Object.values(categories).flat();
+      const isChecked = e.target.checked;
+
+      // Check if we're in "show none" state
+      const isShowingNone = selectedIncomeTypes.length === allTypes.length &&
+                           allTypes.every(t => selectedIncomeTypes.includes(t));
+
+      categoryTypes.forEach(type => {
+        const typeCheckbox = document.querySelector(`[data-filter-type="income-type"][data-value="${type}"]`);
+        if (typeCheckbox) {
+          typeCheckbox.checked = isChecked;
+        }
+      });
+      
+      if (isChecked) {
+        // Category is checked - include these types
+        if (selectedIncomeTypes.length === 0) {
+          // Was showing all, start with just these types
+          selectedIncomeTypes = [...categoryTypes];
+        } else if (isShowingNone) {
+          // Was showing none, now only show these types
+          selectedIncomeTypes = [...categoryTypes];
+        } else {
+          // Add these types to the filter list
+          categoryTypes.forEach(type => {
+            if (!selectedIncomeTypes.includes(type)) {
+              selectedIncomeTypes.push(type);
+            }
+          });
+          // Note: Don't auto-convert to empty array here
+        }
+      } else {
+        // Category is unchecked - exclude these types
+        if (selectedIncomeTypes.length === 0) {
+          // Was showing all, now show all EXCEPT these
+          selectedIncomeTypes = allTypes.filter(t => !categoryTypes.includes(t));
+        } else {
+          // Remove these types from the filter list
+          selectedIncomeTypes = selectedIncomeTypes.filter(t => !categoryTypes.includes(t));
+        }
+      }
+    });
+  });
 }
 
 /**
@@ -508,7 +1045,6 @@ export async function setup() {
   if (contentContainer && activeTab === 'ingresos') {
     contentContainer.innerHTML = `
       ${renderMonthSelector()}
-      ${renderMemberFilter()}
       
       <div class="total-display">
         <div class="total-label">Total</div>
@@ -539,7 +1075,6 @@ export async function setup() {
       if (contentContainer) {
         contentContainer.innerHTML = activeTab === 'ingresos' ? `
           ${renderMonthSelector()}
-          ${renderMemberFilter()}
           
           <div class="total-display">
             <div class="total-label">Total</div>
@@ -577,8 +1112,6 @@ export async function setup() {
 function setupMonthNavigation() {
   const prevBtn = document.getElementById('prev-month-btn');
   const nextBtn = document.getElementById('next-month-btn');
-  const prevMemberBtn = document.getElementById('prev-member-btn');
-  const nextMemberBtn = document.getElementById('next-member-btn');
 
   if (prevBtn) {
     prevBtn.onclick = async () => {
@@ -593,45 +1126,6 @@ function setupMonthNavigation() {
       currentMonth = nextMonth(currentMonth);
       await loadIncomeData();
       refreshDisplay();
-    };
-  }
-
-  // Member navigation
-  if (prevMemberBtn) {
-    prevMemberBtn.onclick = async () => {
-      console.log('Prev member clicked');
-      const members = [
-        { id: null, name: 'Todo el hogar' },
-        ...householdMembers.map(m => ({ id: m.user_id, name: m.name }))
-      ];
-      console.log('Members:', members);
-      const currentIndex = members.findIndex(m => m.id === selectedMemberId);
-      console.log('Current index:', currentIndex, 'selected:', selectedMemberId);
-      if (currentIndex > 0) {
-        selectedMemberId = members[currentIndex - 1].id;
-        console.log('New selected:', selectedMemberId);
-        await loadIncomeData();
-        refreshDisplay();
-      }
-    };
-  }
-
-  if (nextMemberBtn) {
-    nextMemberBtn.onclick = async () => {
-      console.log('Next member clicked');
-      const members = [
-        { id: null, name: 'Todo el hogar' },
-        ...householdMembers.map(m => ({ id: m.user_id, name: m.name }))
-      ];
-      console.log('Members:', members);
-      const currentIndex = members.findIndex(m => m.id === selectedMemberId);
-      console.log('Current index:', currentIndex, 'selected:', selectedMemberId);
-      if (currentIndex < members.length - 1) {
-        selectedMemberId = members[currentIndex + 1].id;
-        console.log('New selected:', selectedMemberId);
-        await loadIncomeData();
-        refreshDisplay();
-      }
     };
   }
 }
