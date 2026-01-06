@@ -423,7 +423,7 @@ export function render(user) {
   return `
     <main class="dashboard">
       <header class="dashboard-header">
-        <h1 class="dashboard-title">Resumen</h1>
+        <h1 class="dashboard-title">Resumen mensual</h1>
         ${Navbar.render(user, '/')}
       </header>
 
@@ -442,7 +442,10 @@ export function render(user) {
             ${renderIncomeCategories()}
           </div>
         ` : activeTab === 'ingresos' ? `
-          <!-- Content will be loaded after data fetch in setup() -->
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Cargando...</p>
+          </div>
         ` : `
           <div class="coming-soon">
             <div class="coming-soon-icon">${activeTab === 'gastos' ? '🛒' : '💳'}</div>
