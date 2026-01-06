@@ -54,6 +54,24 @@ function formatDateTime(dateString) {
 }
 
 /**
+ * Format date only (e.g., "18 Dic 2024")
+ */
+function formatDate(dateString) {
+  if (!dateString) return '';
+  
+  const date = new Date(dateString + 'T00:00:00'); // Treat as local date
+  const day = date.getDate();
+  
+  // Get month abbreviation and capitalize properly (Ene, Feb, Mar, etc.)
+  const monthLong = date.toLocaleDateString('es-CO', { month: 'short' });
+  const month = monthLong.replace('.', '').charAt(0).toUpperCase() + monthLong.replace('.', '').slice(1);
+  
+  const year = date.getFullYear();
+  
+  return `${day} ${month} ${year}`;
+}
+
+/**
  * Get current month as YYYY-MM
  */
 function getCurrentMonth() {
@@ -383,7 +401,7 @@ function renderIncomeCategories() {
                 <div class="entry-info">
                   <span class="entry-description">${entry.description || entry.member_name}</span>
                   <span class="entry-amount">${formatCurrency(entry.amount)}</span>
-                  <div class="entry-date">${formatDateTime(entry.created_at)}</div>
+                  <div class="entry-date">${formatDate(entry.income_date)}</div>
                 </div>
                 <div class="entry-actions">
                   <span class="entry-member-badge">${entry.member_name}</span>
