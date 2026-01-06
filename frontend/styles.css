@@ -1360,15 +1360,19 @@ button.loading::after {
 @media (max-width: 600px) {
   .member-item,
   .contact-item {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
   
-  .member-actions,
-  .contact-actions {
+  .member-actions {
     width: 100%;
     flex-direction: row;
     justify-content: flex-start;
     margin-top: 8px;
+  }
+  
+  .contact-actions {
+    flex-shrink: 0;
+    margin-left: auto;
   }
 }
 
