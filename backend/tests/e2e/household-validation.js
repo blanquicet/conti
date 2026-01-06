@@ -261,8 +261,18 @@ async function testHouseholdValidation() {
     // ==================================================================
     console.log('✅ Step 5: Testing successful submission with valid data...');
     
+    // Clear and fill with valid data - clear error state from previous step
+    await page.locator('#contact-email').fill('');
+    await page.waitForTimeout(100);
     await page.locator('#contact-email').fill('maria@example.com');
+    await page.locator('#contact-email').blur();
+    await page.waitForTimeout(300);
+    
+    await page.locator('#contact-phone').fill('');
+    await page.waitForTimeout(100);
     await page.locator('#contact-phone').fill('+573001234567');
+    await page.locator('#contact-phone').blur();
+    await page.waitForTimeout(300);
     
     await page.getByRole('button', { name: 'Agregar', exact: true }).click();
     await page.waitForTimeout(3000);
