@@ -581,57 +581,57 @@ function setupMonthNavigation() {
   const nextMemberBtn = document.getElementById('next-member-btn');
 
   if (prevBtn) {
-    // Remove old listener if exists
-    const newPrevBtn = prevBtn.cloneNode(true);
-    prevBtn.parentNode.replaceChild(newPrevBtn, prevBtn);
-    
-    newPrevBtn.addEventListener('click', async () => {
+    prevBtn.onclick = async () => {
       currentMonth = previousMonth(currentMonth);
       await loadIncomeData();
       refreshDisplay();
-    });
+    };
   }
 
   if (nextBtn) {
-    // Remove old listener if exists
-    const newNextBtn = nextBtn.cloneNode(true);
-    nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
-    
-    newNextBtn.addEventListener('click', async () => {
+    nextBtn.onclick = async () => {
       currentMonth = nextMonth(currentMonth);
       await loadIncomeData();
       refreshDisplay();
-    });
+    };
   }
 
   // Member navigation
   if (prevMemberBtn) {
-    prevMemberBtn.addEventListener('click', async () => {
+    prevMemberBtn.onclick = async () => {
+      console.log('Prev member clicked');
       const members = [
         { id: null, name: 'Todo el hogar' },
         ...householdMembers.map(m => ({ id: m.user_id, name: m.name }))
       ];
+      console.log('Members:', members);
       const currentIndex = members.findIndex(m => m.id === selectedMemberId);
+      console.log('Current index:', currentIndex, 'selected:', selectedMemberId);
       if (currentIndex > 0) {
         selectedMemberId = members[currentIndex - 1].id;
+        console.log('New selected:', selectedMemberId);
         await loadIncomeData();
         refreshDisplay();
       }
-    });
+    };
   }
 
   if (nextMemberBtn) {
-    nextMemberBtn.addEventListener('click', async () => {
+    nextMemberBtn.onclick = async () => {
+      console.log('Next member clicked');
       const members = [
         { id: null, name: 'Todo el hogar' },
         ...householdMembers.map(m => ({ id: m.user_id, name: m.name }))
       ];
+      console.log('Members:', members);
       const currentIndex = members.findIndex(m => m.id === selectedMemberId);
+      console.log('Current index:', currentIndex, 'selected:', selectedMemberId);
       if (currentIndex < members.length - 1) {
         selectedMemberId = members[currentIndex + 1].id;
+        console.log('New selected:', selectedMemberId);
         await loadIncomeData();
         refreshDisplay();
       }
-    });
+    };
   }
 }
