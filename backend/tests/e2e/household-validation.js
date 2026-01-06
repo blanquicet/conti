@@ -215,7 +215,11 @@ async function testHouseholdValidation() {
     console.log('✅ Form submission blocked for invalid email');
     
     // Try to submit with invalid phone
+    // Clear and refill email to ensure it's valid
+    await page.locator('#contact-email').clear();
     await page.locator('#contact-email').fill('valid@email.com'); // fix email
+    await page.locator('#contact-email').blur(); // Ensure value is set and validated
+    await page.waitForTimeout(500); // Give time for validation
     await page.locator('#contact-phone').fill('123'); // invalid phone
     
     await page.getByRole('button', { name: 'Agregar', exact: true }).click();
@@ -227,8 +231,9 @@ async function testHouseholdValidation() {
     }
     
     const phoneErrorText = await page.locator('#contact-error').textContent();
+    console.log('📋 Phone error text:', JSON.stringify(phoneErrorText));
     if (!phoneErrorText.includes('teléfono')) {
-      throw new Error('Error message should mention phone');
+      throw new Error(`Error message should mention phone. Got: "${phoneErrorText}"`);
     }
     
     console.log('✅ Form submission blocked for invalid phone');
