@@ -59,7 +59,12 @@ function formatDateTime(dateString) {
 function formatDate(dateString) {
   if (!dateString) return '';
   
-  const date = new Date(dateString + 'T00:00:00'); // Treat as local date
+  // Handle both "YYYY-MM-DD" format and ISO timestamp
+  const date = new Date(dateString);
+  
+  // Check if date is valid
+  if (isNaN(date.getTime())) return '';
+  
   const day = date.getDate();
   
   // Get month abbreviation and capitalize properly (Ene, Feb, Mar, etc.)
