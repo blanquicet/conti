@@ -464,6 +464,11 @@ func (r *repository) Update(ctx context.Context, id string, input *UpdateMovemen
 		args = append(args, *input.MovementDate)
 		argNum++
 	}
+	if input.PaymentMethodID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("payment_method_id = $%d", argNum))
+		args = append(args, *input.PaymentMethodID)
+		argNum++
+	}
 
 	if len(setClauses) == 0 {
 		// No updates, just return current

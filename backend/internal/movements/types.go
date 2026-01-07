@@ -224,11 +224,12 @@ func (i *CreateMovementInput) Validate() error {
 
 // UpdateMovementInput represents input for updating a movement
 type UpdateMovementInput struct {
-	Description  *string    `json:"description,omitempty"`
-	Amount       *float64   `json:"amount,omitempty"`
-	Category     *string    `json:"category,omitempty"`
-	MovementDate *time.Time `json:"movement_date,omitempty"`
-	// Note: Cannot update type, payer, counterparty, or payment method after creation
+	Description     *string    `json:"description,omitempty"`
+	Amount          *float64   `json:"amount,omitempty"`
+	Category        *string    `json:"category,omitempty"`
+	MovementDate    *time.Time `json:"movement_date,omitempty"`
+	PaymentMethodID *string    `json:"payment_method_id,omitempty"`
+	// Note: Cannot update type, payer, or counterparty after creation
 	// Participants can be updated separately
 }
 

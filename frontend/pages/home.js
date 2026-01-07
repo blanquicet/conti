@@ -576,11 +576,6 @@ async function loadHouseholdMembers() {
     const data = await response.json();
     // Filter only members (not contacts)
     householdMembers = data.users.filter(u => u.type === 'member');
-    console.log('Loaded household members:', householdMembers);
-    if (householdMembers.length > 0) {
-      console.log('First member structure:', householdMembers[0]);
-      console.log('First member keys:', Object.keys(householdMembers[0]));
-    }
   } catch (error) {
     console.error('Error loading household members:', error);
     householdMembers = [];
@@ -593,12 +588,6 @@ async function loadHouseholdMembers() {
 async function loadIncomeData() {
   try {
     let url = `${API_URL}/income?month=${currentMonth}`;
-    
-    console.log('Filter state:', {
-      selectedMemberIds,
-      selectedIncomeTypes,
-      householdMembers: householdMembers.length
-    });
     
     // Note: Backend only supports single member_id filter
     // We'll do client-side filtering for multiple members and types
@@ -621,41 +610,30 @@ async function loadIncomeData() {
     if (data && data.income_entries) {
       let filteredEntries = data.income_entries;
       
-      console.log('Original entries:', filteredEntries.length);
-      console.log('Sample entry:', filteredEntries[0]);
       
       // Filter by members if specific members selected
-      console.log('selectedMemberIds value:', selectedMemberIds, 'type:', typeof selectedMemberIds);
       if (selectedMemberIds === null) {
         // null means show nothing
         filteredEntries = [];
-        console.log('Members filter is null -> show nothing');
       } else if (selectedMemberIds.length > 0) {
         filteredEntries = filteredEntries.filter(entry => {
           // member_id is a UUID string, compare directly
           const isIncluded = selectedMemberIds.includes(entry.member_id);
-          console.log(`Entry member_id: ${entry.member_id}, looking for: ${selectedMemberIds}, included: ${isIncluded}`);
           return isIncluded;
         });
-        console.log('After member filter:', filteredEntries.length);
       } else {
-        console.log('selectedMemberIds is empty array -> show all members');
       }
       // else: selectedMemberIds is empty array, show all (no filter)
       
       // Filter by income types if specific types selected
-      console.log('selectedIncomeTypes value:', selectedIncomeTypes, 'type:', typeof selectedIncomeTypes);
       if (selectedIncomeTypes === null) {
         // null means show nothing
         filteredEntries = [];
-        console.log('Types filter is null -> show nothing');
       } else if (selectedIncomeTypes.length > 0) {
         filteredEntries = filteredEntries.filter(entry => 
           selectedIncomeTypes.includes(entry.type)
         );
-        console.log('After type filter:', filteredEntries.length);
       } else {
-        console.log('selectedIncomeTypes is empty array -> show all types');
       }
       // else: selectedIncomeTypes is empty array, show all (no filter)
       
@@ -672,7 +650,6 @@ async function loadIncomeData() {
       incomeData = data;
     }
     
-    console.log('Filtered data:', incomeData);
   } catch (error) {
     console.error('Error loading income data:', error);
     incomeData = null;
@@ -685,12 +662,6 @@ async function loadIncomeData() {
 async function loadMovementsData() {
   try {
     let url = `${API_URL}/movements?type=HOUSEHOLD&month=${currentMonth}`;
-    
-    console.log('Loading movements data for month:', currentMonth);
-    console.log('Filter state:', {
-      selectedCategories,
-      selectedPaymentMethods
-    });
     
     const response = await fetch(url, {
       credentials: 'include'
@@ -710,31 +681,26 @@ async function loadMovementsData() {
     if (data && data.movements) {
       let filteredMovements = data.movements;
       
-      console.log('Original movements:', filteredMovements.length);
       
       // Filter by categories if specific categories selected
       if (selectedCategories === null) {
         // null means show nothing
         filteredMovements = [];
-        console.log('Categories filter is null -> show nothing');
       } else if (selectedCategories.length > 0) {
         filteredMovements = filteredMovements.filter(movement => {
           const isIncluded = selectedCategories.includes(movement.category);
           return isIncluded;
         });
-        console.log('After category filter:', filteredMovements.length);
       }
       
       // Filter by payment methods if specific payment methods selected
       if (selectedPaymentMethods === null) {
         // null means show nothing
         filteredMovements = [];
-        console.log('Payment methods filter is null -> show nothing');
       } else if (selectedPaymentMethods.length > 0) {
         filteredMovements = filteredMovements.filter(movement => 
           selectedPaymentMethods.includes(movement.payment_method_id)
         );
-        console.log('After payment method filter:', filteredMovements.length);
       }
       
       // Recalculate totals
@@ -760,7 +726,6 @@ async function loadMovementsData() {
       movementsData = data;
     }
     
-    console.log('Filtered movements data:', movementsData);
   } catch (error) {
     console.error('Error loading movements data:', error);
     movementsData = null;
@@ -1495,7 +1460,6 @@ function setupMovementsFilterListeners() {
   const applyFilters = document.getElementById('apply-filters');
   if (applyFilters) {
     applyFilters.addEventListener('click', async () => {
-      console.log('APPLY FILTERS clicked (gastos)');
       
       // Close filter dropdown immediately
       isFilterOpen = false;
@@ -1530,7 +1494,6 @@ function setupMovementsFilterListeners() {
         selectedPaymentMethods = checkedPMs.map(cb => cb.dataset.value);
       }
       
-      console.log('After normalization - categories:', selectedCategories, 'payment methods:', selectedPaymentMethods);
       
       await loadMovementsData();
       refreshDisplay();
@@ -1600,12 +1563,10 @@ function setupIncomeFilterListeners() {
   const selectAllMembers = document.getElementById('select-all-members');
   if (selectAllMembers) {
     selectAllMembers.addEventListener('click', () => {
-      console.log('SELECT ALL MEMBERS clicked');
       selectedMemberIds = [];
       document.querySelectorAll('[data-filter-type="member"]').forEach(cb => {
         cb.checked = true;
       });
-      console.log('After select all members:', selectedMemberIds);
     });
   }
 
@@ -1613,15 +1574,11 @@ function setupIncomeFilterListeners() {
   const clearAllMembers = document.getElementById('clear-all-members');
   if (clearAllMembers) {
     clearAllMembers.addEventListener('click', () => {
-      console.log('CLEAR ALL MEMBERS clicked');
       selectedMemberIds = []; // Will be set correctly on Apply based on checkboxes
       const checkboxes = document.querySelectorAll('[data-filter-type="member"]');
-      console.log('Found', checkboxes.length, 'member checkboxes to uncheck');
       checkboxes.forEach(cb => {
-        console.log('Unchecking checkbox:', cb.dataset.value);
         cb.checked = false;
       });
-      console.log('After clear all members:', selectedMemberIds);
     });
   }
 
@@ -1629,7 +1586,6 @@ function setupIncomeFilterListeners() {
   const selectAllTypes = document.getElementById('select-all-types');
   if (selectAllTypes) {
     selectAllTypes.addEventListener('click', () => {
-      console.log('SELECT ALL TYPES clicked');
       selectedIncomeTypes = [];
       document.querySelectorAll('[data-filter-type="income-type"]').forEach(cb => {
         cb.checked = true;
@@ -1637,7 +1593,6 @@ function setupIncomeFilterListeners() {
       document.querySelectorAll('.filter-category-checkbox').forEach(cb => {
         cb.checked = true;
       });
-      console.log('After select all types:', selectedIncomeTypes);
     });
   }
 
@@ -1645,7 +1600,6 @@ function setupIncomeFilterListeners() {
   const clearAllTypes = document.getElementById('clear-all-types');
   if (clearAllTypes) {
     clearAllTypes.addEventListener('click', () => {
-      console.log('CLEAR ALL TYPES clicked');
       selectedIncomeTypes = []; // Will be set correctly on Apply based on checkboxes
       document.querySelectorAll('[data-filter-type="income-type"]').forEach(cb => {
         cb.checked = false;
@@ -1653,7 +1607,6 @@ function setupIncomeFilterListeners() {
       document.querySelectorAll('.filter-category-checkbox').forEach(cb => {
         cb.checked = false;
       });
-      console.log('After clear all types:', selectedIncomeTypes);
     });
   }
 
@@ -1661,7 +1614,6 @@ function setupIncomeFilterListeners() {
   const clearAllFilters = document.getElementById('clear-all-filters');
   if (clearAllFilters) {
     clearAllFilters.addEventListener('click', () => {
-      console.log('CLEAR ALL FILTERS clicked (reset to show all)');
       selectedMemberIds = []; // Will be set correctly on Apply (empty = show all)
       selectedIncomeTypes = []; // Will be set correctly on Apply (empty = show all)
       
@@ -1680,7 +1632,6 @@ function setupIncomeFilterListeners() {
         cb.checked = true;
       });
       
-      console.log('After clear all filters (all checked) - members:', selectedMemberIds, 'types:', selectedIncomeTypes);
     });
   }
 
@@ -1688,8 +1639,6 @@ function setupIncomeFilterListeners() {
   const applyFilters = document.getElementById('apply-filters');
   if (applyFilters) {
     applyFilters.addEventListener('click', async () => {
-      console.log('APPLY FILTERS clicked');
-      console.log('Before normalization - members:', selectedMemberIds, 'types:', selectedIncomeTypes);
       
       // Close filter dropdown immediately
       isFilterOpen = false;
@@ -1706,23 +1655,17 @@ function setupIncomeFilterListeners() {
       const memberCheckboxes = document.querySelectorAll('[data-filter-type="member"]');
       const checkedMembers = Array.from(memberCheckboxes).filter(cb => cb.checked);
       
-      console.log('Total member checkboxes:', memberCheckboxes.length);
-      console.log('Checked member checkboxes:', checkedMembers.length);
       memberCheckboxes.forEach(cb => {
-        console.log(`  Checkbox ${cb.dataset.value}: ${cb.checked}`);
       });
       
       if (checkedMembers.length === 0) {
         // No members checked = show none
-        console.log('No members checked -> show none (null)');
         selectedMemberIds = null; // Special value: show nothing
       } else if (checkedMembers.length === householdMembers.length) {
         // All members checked = show all
-        console.log('All members checked -> show all (empty array)');
         selectedMemberIds = [];
       } else {
         // Some members checked = show only those
-        console.log('Some members checked -> show only those');
         selectedMemberIds = checkedMembers.map(cb => cb.dataset.value);
       }
       
@@ -1732,24 +1675,18 @@ function setupIncomeFilterListeners() {
       const categories = getIncomeTypeCategories();
       const allTypes = Object.values(categories).flat();
       
-      console.log('Total type checkboxes:', typeCheckboxes.length);
-      console.log('Checked type checkboxes:', checkedTypes.length);
       
       if (checkedTypes.length === 0) {
         // No types checked = show none
-        console.log('No types checked -> show none (null)');
         selectedIncomeTypes = null; // Special value: show nothing
       } else if (checkedTypes.length === allTypes.length) {
         // All types checked = show all
-        console.log('All types checked -> show all (empty array)');
         selectedIncomeTypes = [];
       } else {
         // Some types checked = show only those
-        console.log('Some types checked -> show only those');
         selectedIncomeTypes = checkedTypes.map(cb => cb.dataset.value);
       }
       
-      console.log('After normalization - members:', selectedMemberIds, 'types:', selectedIncomeTypes);
       
       await loadIncomeData();
       refreshDisplay();
@@ -1764,8 +1701,6 @@ function setupIncomeFilterListeners() {
   document.querySelectorAll('[data-filter-type="member"]').forEach(checkbox => {
     checkbox.addEventListener('change', (e) => {
       const memberId = e.target.dataset.value;
-      console.log('Member checkbox changed:', memberId, 'checked:', e.target.checked);
-      console.log('Current selectedMemberIds:', selectedMemberIds);
       
       // Check if we're in "show none" state (all IDs are in the array)
       const allIds = householdMembers.map(m => m.id);
@@ -1799,7 +1734,6 @@ function setupIncomeFilterListeners() {
         }
       }
       
-      console.log('Updated selectedMemberIds:', selectedMemberIds);
     });
   });
 

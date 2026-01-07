@@ -227,7 +227,10 @@ export function render(user) {
         </div>
 
         <div class="footer">
-          <button type="submit" id="submitBtn">Registrar</button>
+          <div class="footer-buttons">
+            <button type="button" id="cancelBtn" class="secondary hidden">Cancelar</button>
+            <button type="submit" id="submitBtn">Registrar</button>
+          </div>
           <p id="status" class="status" role="status" aria-live="polite"></p>
         </div>
       </form>
@@ -435,6 +438,14 @@ export async function setup() {
   
   addParticipantBtn.addEventListener('click', onAddParticipant);
   form.addEventListener('submit', onSubmit);
+  
+  // Cancel button event listener
+  const cancelBtn = document.getElementById('cancelBtn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      router.navigate('/');
+    });
+  }
 
   // Initial UI
   onTipoChange();
@@ -1168,8 +1179,16 @@ function readForm() {
  * Load movement data for editing
  */
 async function loadMovementForEdit(movementId) {
+  const formEl = document.getElementById('registrarMovimientoForm');
+  
   try {
     setStatus('Cargando movimiento...', 'loading');
+    
+    // Disable entire form while loading
+    if (formEl) {
+      const inputs = formEl.querySelectorAll('input, select, button, textarea');
+      inputs.forEach(el => el.disabled = true);
+    }
     
     const response = await fetch(`${API_URL}/movements/${movementId}`, {
       credentials: 'include'
@@ -1201,10 +1220,14 @@ async function loadMovementForEdit(movementId) {
       fechaEl.value = `${yyyy}-${mm}-${dd}`;
     }
     
-    // Update button text
+    // Update buttons and title for edit mode
     const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
     if (submitBtn) {
       submitBtn.textContent = 'Actualizar';
+    }
+    if (cancelBtn) {
+      cancelBtn.classList.remove('hidden');
     }
     
     // Update page title
@@ -1235,21 +1258,65 @@ async function loadMovementForEdit(movementId) {
       currentTipoBtn.style.opacity = '1';
     }
     
-    // Disable fields that cannot be edited
-    const metodoEl = document.getElementById('metodo');
-    if (metodoEl) {
-      metodoEl.disabled = true;
-      metodoEl.title = 'No se puede cambiar el método de pago';
-      // Pre-select current payment method (read-only)
-      if (movement.payment_method_id) {
-        metodoEl.value = movement.payment_method_id;
+    // For HOUSEHOLD movements, we need to show payment methods for the actual payer
+    // (not currentUser, which is who's logged in)
+    if (movement.type === 'HOUSEHOLD' && movement.payer_user_id) {
+      const payerUser = Object.values(usersMap).find(u => u.id === movement.payer_user_id);
+      if (payerUser) {
+        showPaymentMethods(payerUser.name, true);
       }
     }
+    
+    // Pre-select current payment method (now editable!)
+    // Note: showPaymentMethods() above repopulated the select options for the correct payer
+    // We need to find the payment method by ID and set its name
+    const metodoEl = document.getElementById('metodo');
+    let selectedPaymentMethodName = null;
+    
+    if (metodoEl && movement.payment_method_id) {
+      const paymentMethod = paymentMethods.find(pm => pm.id === movement.payment_method_id);
+      if (paymentMethod) {
+        selectedPaymentMethodName = paymentMethod.name;
+      }
+    }
+    
+    // Re-enable editable fields
+    if (formEl) {
+      const inputs = formEl.querySelectorAll('input, select, button, textarea');
+      inputs.forEach(el => {
+        // Only enable if not explicitly disabled above (tipo buttons)
+        if (!el.hasAttribute('data-keep-disabled')) {
+          el.disabled = false;
+        }
+      });
+    }
+    
+    // Set the payment method value (now editable!)
+    // Use setTimeout to ensure the select is properly rendered before setting value
+    if (metodoEl && selectedPaymentMethodName) {
+      setTimeout(() => {
+        const optionIndex = Array.from(metodoEl.options).findIndex(opt => opt.value === selectedPaymentMethodName);
+        
+        if (optionIndex >= 0) {
+          metodoEl.selectedIndex = optionIndex;
+        } else {
+          console.warn('Payment method option not found:', selectedPaymentMethodName);
+        }
+      }, 0);
+    }
+    
     
     setStatus('', '');
   } catch (error) {
     console.error('Error loading movement:', error);
     setStatus('Error al cargar el movimiento para editar', 'err');
+    
+    // Re-enable form on error so user can navigate away
+    if (formEl) {
+      const inputs = formEl.querySelectorAll('input, select, button');
+      inputs.forEach(el => el.disabled = false);
+    }
+    
     setTimeout(() => {
       router.navigate('/');
     }, 2000);
@@ -1264,14 +1331,18 @@ async function onSubmit(e) {
   setStatus('', '');
 
   const submitBtn = document.getElementById('submitBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
   const originalText = submitBtn.textContent;
 
   try {
     const payload = readForm();
     
-    // Show loading state
+    // Show loading state - disable both buttons
     submitBtn.disabled = true;
     submitBtn.textContent = 'Guardando...';
+    if (cancelBtn) {
+      cancelBtn.disabled = true;
+    }
     
     // Handle INGRESO separately - submit to income API
     if (payload.tipo === 'INGRESO') {
@@ -1304,6 +1375,9 @@ async function onSubmit(e) {
           
           submitBtn.disabled = false;
           submitBtn.textContent = originalText;
+          if (cancelBtn) {
+            cancelBtn.disabled = false;
+          }
           return;
         }
         throw new Error(`HTTP ${res.status} - ${text}`);
@@ -1320,11 +1394,16 @@ async function onSubmit(e) {
         // PATCH /movements/{id} for update
         // Only send fields that can be updated
         const updatePayload = {
-          description: payload.descripcion,
-          amount: parseFloat(payload.valor),
-          category: payload.categoria,
-          movement_date: payload.fecha
+          description: payload.description,
+          amount: payload.amount,
+          category: payload.category,
+          movement_date: payload.movement_date + 'T00:00:00Z' // Add time component for RFC3339
         };
+        
+        // Add payment method ID if it was selected
+        if (payload.payment_method_id) {
+          updatePayload.payment_method_id = payload.payment_method_id;
+        }
 
         res = await fetch(`${API_URL}/movements/${currentEditMovement.id}`, {
           method: 'PATCH',
@@ -1374,6 +1453,9 @@ async function onSubmit(e) {
           
           submitBtn.disabled = false;
           submitBtn.textContent = originalText;
+          if (cancelBtn) {
+            cancelBtn.disabled = false;
+          }
           return;
         }
         
@@ -1422,6 +1504,9 @@ async function onSubmit(e) {
   } finally {
     submitBtn.disabled = false;
     submitBtn.textContent = originalText;
+    if (cancelBtn) {
+      cancelBtn.disabled = false;
+    }
   }
 }
 
@@ -1430,6 +1515,12 @@ async function onSubmit(e) {
  */
 function setStatus(msg, kind) {
   const statusEl = document.getElementById('status');
-  statusEl.textContent = msg || '';
   statusEl.className = `status ${kind || ''}`.trim();
+  
+  if (kind === 'loading' && msg) {
+    // Add spinner for loading state
+    statusEl.innerHTML = `<span class="spinner"></span> ${msg}`;
+  } else {
+    statusEl.textContent = msg || '';
+  }
 }

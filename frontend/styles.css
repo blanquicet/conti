@@ -298,6 +298,19 @@ button.ghost {
   align-items: stretch;
 }
 
+.footer-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.footer-buttons button {
+  flex: 1;
+  padding: 14px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+}
+
 #submitBtn {
   width: 100%;
   padding: 14px 16px;
@@ -306,10 +319,33 @@ button.ghost {
   border-radius: 12px;
 }
 
+#cancelBtn {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+#cancelBtn:hover {
+  background: #e5e7eb;
+}
+
 .status { margin: 0; font-size: 13px; }
 .status.ok { color: #0a7a2f; }
 .status.err { color: #b4231a; }
 .status.loading { color: #0066cc; font-weight: 500; }
+
+/* Inline spinner for status messages */
+.status .spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #a3d0ff;
+  border-top-color: #0066cc;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
 
 
 /* Adaptaciones para pantallas grandes (desktop) */
