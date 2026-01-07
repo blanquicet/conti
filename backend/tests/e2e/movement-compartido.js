@@ -279,7 +279,7 @@ async function testMovementCompartido() {
     console.log('   Split: 50% / 50%');
 
     // ==================================================================
-    // STEP 6: Create COMPARTIDO with Custom Percentages
+    // STEP 6: Create SPLIT with Custom Percentages
     // ==================================================================
     console.log('📝 Step 6: Creating SPLIT with custom percentages...');
     

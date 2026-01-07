@@ -362,7 +362,7 @@ async function testMovementPagoDeuda() {
     const successStatus2 = await page1.locator('#status').textContent();
     if (!successStatus2.includes('correctamente')) {
       console.error('❌ Expected success message, got:', successStatus2);
-      throw new Error('PAGO_DEUDA to contact creation failed');
+      throw new Error('DEBT_PAYMENT to contact creation failed');
     }
     
     console.log('✅ DEBT_PAYMENT movement created (member to contact)');
@@ -415,9 +415,9 @@ async function testMovementPagoDeuda() {
     console.log('✅ Validation working correctly (pagador != tomador)');
 
     // ==================================================================
-    // STEP 9: Test PAGO_DEUDA Without Payment Method (Contact as Payer)
+    // STEP 9: Test DEBT_PAYMENT Without Payment Method (Contact as Payer)
     // ==================================================================
-    console.log('📝 Step 9: Testing PAGO_DEUDA with contact as payer (no payment method)...');
+    console.log('📝 Step 9: Testing DEBT_PAYMENT with contact as payer (no payment method)...');
     
     await page1.goto(`${appUrl}/registrar-movimiento`, { waitUntil: 'networkidle' });
     await page1.waitForTimeout(2000);
@@ -443,10 +443,10 @@ async function testMovementPagoDeuda() {
     
     const successStatus3 = await page1.locator('#status').textContent();
     if (!successStatus3.includes('correctamente')) {
-      throw new Error('PAGO_DEUDA from contact creation failed');
+      throw new Error('DEBT_PAYMENT from contact creation failed');
     }
     
-    console.log('✅ PAGO_DEUDA from contact created successfully');
+    console.log('✅ DEBT_PAYMENT from contact created successfully');
 
     // Verify no payment method in database
     const movement3Result = await pool.query(

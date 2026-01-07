@@ -257,8 +257,8 @@ async function testPaymentMethods() {
     
     await page1.waitForTimeout(500); // Additional wait for form config to load
     
-    // Select a movement type that shows payment methods (FAMILIAR)
-    await page1.click('button.tipo-btn[data-tipo="FAMILIAR"]');
+    // Select a movement type that shows payment methods (HOUSEHOLD)
+    await page1.click('button.tipo-btn[data-tipo="HOUSEHOLD"]');
     await page1.waitForTimeout(1000);
     
     // Get payment method options
@@ -312,7 +312,7 @@ async function testPaymentMethods() {
     
     await page2.waitForTimeout(500); // Additional wait for form config to load
     
-    await page2.click('button.tipo-btn[data-tipo="FAMILIAR"]');
+    await page2.click('button.tipo-btn[data-tipo="HOUSEHOLD"]');
     await page2.waitForTimeout(1000);
     
     const paymentOptions2 = await page2.locator('select#metodo option').allTextContents();
@@ -333,15 +333,15 @@ async function testPaymentMethods() {
     console.log('✅ User 2 sees own + shared payment methods (correctly filtered)');
 
     // ==================================================================
-    // STEP 10.5: Test Payment Method Filtering by Payer (COMPARTIDO)
+    // STEP 10.5: Test Payment Method Filtering by Payer (SPLIT)
     // ==================================================================
     console.log('📝 Step 10.5: Testing payment method filtering by payer selection...');
     
     await page2.goto(`${appUrl}/registrar-movimiento`);
     await page2.waitForTimeout(500);
     
-    // Select COMPARTIDO type
-    await page2.click('button.tipo-btn[data-tipo="COMPARTIDO"]');
+    // Select SPLIT type
+    await page2.click('button.tipo-btn[data-tipo="SPLIT"]');
     await page2.waitForTimeout(1000);
     
     // User 2 selects themselves as payer - should see own + shared
@@ -388,14 +388,14 @@ async function testPaymentMethods() {
     
     await page2.waitForTimeout(500);
     
-    await page2.click('button.tipo-btn[data-tipo="PAGO_DEUDA"]');
+    await page2.click('button.tipo-btn[data-tipo="DEBT_PAYMENT"]');
     await page2.waitForTimeout(500);
     
     // Fill form
     await page2.locator('#fecha').fill('2025-01-15');
     await page2.locator('#descripcion').fill('Test validation');
     await page2.locator('#valor').fill('100,00');
-    // Note: categoria is hidden for PAGO_DEUDA, so we skip it
+    // Note: categoria is hidden for DEBT_PAYMENT, so we skip it
     
     // Select User 1 as payer (pagador)
     await page2.selectOption('select#pagador', 'Test Owner PM');
@@ -450,7 +450,7 @@ async function testPaymentMethods() {
     await page1.goto(`${appUrl}/registrar-movimiento`);
     await page1.waitForTimeout(500);
     
-    await page1.click('button.tipo-btn[data-tipo="COMPARTIDO"]');
+    await page1.click('button.tipo-btn[data-tipo="SPLIT"]');
     await page1.waitForTimeout(500);
     
     // Select contact as payer
@@ -583,7 +583,7 @@ async function testPaymentMethods() {
     
     await page2.waitForTimeout(500);
     
-    await page2.click('button.tipo-btn[data-tipo="FAMILIAR"]');
+    await page2.click('button.tipo-btn[data-tipo="HOUSEHOLD"]');
     await page2.waitForTimeout(500);
     
     const finalOptions = await page2.locator('select#metodo option').allTextContents();
@@ -623,7 +623,7 @@ async function testPaymentMethods() {
     await page2.goto(`${appUrl}/registrar-movimiento`);
     
     await page2.waitForTimeout(500);
-    await page2.click('button.tipo-btn[data-tipo="FAMILIAR"]');
+    await page2.click('button.tipo-btn[data-tipo="HOUSEHOLD"]');
     await page2.waitForTimeout(500);
     
     let beforeDeactivation = await page2.locator('select#metodo option').allTextContents();
@@ -659,7 +659,7 @@ async function testPaymentMethods() {
     await page2.goto(`${appUrl}/registrar-movimiento`);
     
     await page2.waitForTimeout(500);
-    await page2.click('button.tipo-btn[data-tipo="FAMILIAR"]');
+    await page2.click('button.tipo-btn[data-tipo="HOUSEHOLD"]');
     await page2.waitForTimeout(500);
     
     let afterDeactivation = await page2.locator('select#metodo option').allTextContents();

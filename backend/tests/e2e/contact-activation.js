@@ -152,8 +152,8 @@ async function testContactActivation() {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000); // Give extra time for API to load
     
-    // Select "Dividir gasto" (COMPARTIDO) which shows participants
-    await page.click('button.tipo-btn[data-tipo="COMPARTIDO"]');
+    // Select "Dividir gasto" (SPLIT) which shows participants
+    await page.click('button.tipo-btn[data-tipo="SPLIT"]');
     await page.waitForTimeout(2000);
     
     // Wait for participants section to be visible
@@ -246,7 +246,7 @@ async function testContactActivation() {
     await page.waitForTimeout(5000);
     
     // Select "Dividir gasto" again
-    await page.click('button.tipo-btn[data-tipo="COMPARTIDO"]');
+    await page.click('button.tipo-btn[data-tipo="SPLIT"]');
     await page.waitForTimeout(2000);
     
     // Wait for participants section
@@ -330,7 +330,7 @@ async function testContactActivation() {
     await page.waitForTimeout(5000);
     
     // Select "Dividir gasto"
-    await page.click('button.tipo-btn[data-tipo="COMPARTIDO"]');
+    await page.click('button.tipo-btn[data-tipo="SPLIT"]');
     await page.waitForTimeout(2000);
     
     // Wait for participants section
