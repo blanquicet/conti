@@ -584,7 +584,10 @@ function renderIngresoCuentaSelect(ownerId = null) {
 function updateSubmitButton(isCompartido) {
   const submitBtn = document.getElementById('submitBtn');
   submitBtn.disabled = false;
-  submitBtn.textContent = 'Registrar';
+  // Keep "Actualizar" text in edit mode, otherwise use "Registrar"
+  if (!currentEditMovement) {
+    submitBtn.textContent = 'Registrar';
+  }
   submitBtn.style.opacity = '1';
   submitBtn.style.cursor = 'pointer';
 }

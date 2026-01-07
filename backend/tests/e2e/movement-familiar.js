@@ -557,8 +557,15 @@ async function testMovementFamiliar() {
     
     console.log('   Changed description and amount');
     
-    // Submit the update
+    // Verify submit button says "Actualizar"
     const updateBtn = page.locator('#submitBtn');
+    const btnText = await updateBtn.textContent();
+    if (!btnText.includes('Actualizar')) {
+      throw new Error(`Submit button should say "Actualizar" but says "${btnText}"`);
+    }
+    console.log('   ✅ Submit button says "Actualizar"');
+    
+    // Submit the update
     await updateBtn.click();
     
     // Wait for redirect back to dashboard
