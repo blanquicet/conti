@@ -1050,18 +1050,21 @@ function readForm() {
   const tomador = document.getElementById('tomador').value || '';
   const categoria = document.getElementById('categoria').value || '';
 
-  if (tipo !== 'FAMILIAR' && !pagador) throw new Error('Pagador es obligatorio.');
+  // Skip some validations in edit mode
+  const isEditMode = !!currentEditMovement;
+
+  if (!isEditMode && tipo !== 'FAMILIAR' && !pagador) throw new Error('Pagador es obligatorio.');
 
   // Categoria is required for FAMILIAR and COMPARTIDO only (not for PAGO_DEUDA)
   if ((tipo === 'FAMILIAR' || tipo === 'COMPARTIDO') && !categoria) {
     throw new Error('Categoría es obligatoria.');
   }
 
-  const requiresMethod = tipo === 'FAMILIAR' || primaryUsers.includes(pagador);
+  const requiresMethod = !isEditMode && (tipo === 'FAMILIAR' || primaryUsers.includes(pagador));
   if (requiresMethod && !metodo) throw new Error('Método de pago es obligatorio.');
 
-  // Validate that the payment method is valid for the payer
-  if (metodo) {
+  // Validate that the payment method is valid for the payer (skip in edit mode)
+  if (!isEditMode && metodo) {
     const effectivePayer = tipo === 'FAMILIAR' ? (currentUser ? currentUser.name : '') : pagador;
     const availableMethods = getPaymentMethodsForPayer(effectivePayer);
     const isValidMethod = availableMethods.some(pm => pm.name === metodo);
@@ -1073,12 +1076,12 @@ function readForm() {
     }
   }
 
-  if (tipo === 'PAGO_DEUDA') {
+  if (!isEditMode && tipo === 'PAGO_DEUDA') {
     if (!tomador) throw new Error('Para PAGO_DEUDA debes seleccionar quién recibió (Tomador).');
     if (tomador === pagador) throw new Error('Pagador y Tomador no pueden ser la misma persona.');
   }
 
-  if (tipo === 'COMPARTIDO') {
+  if (!isEditMode && tipo === 'COMPARTIDO') {
     if (!participants.length) throw new Error('Debes tener al menos 1 participante.');
     if (!validatePctSum()) throw new Error('Los porcentajes de participantes deben sumar 100%.');
 
@@ -1217,6 +1220,37 @@ async function loadMovementForEdit(movementId) {
       pageTitle.textContent = 'Editar Gasto';
     }
     
+    // Map backend type to frontend tipo
+    const typeMapping = {
+      'HOUSEHOLD': 'FAMILIAR',
+      'SPLIT': 'COMPARTIDO',
+      'DEBT_PAYMENT': 'PAGO_DEUDA'
+    };
+    
+    const frontendTipo = typeMapping[movement.type] || movement.type;
+    
+    // Select the current tipo and set it in the form
+    const currentTipoBtn = document.querySelector(`.tipo-btn[data-tipo="${frontendTipo}"]`);
+    if (currentTipoBtn) {
+      currentTipoBtn.classList.add('active');
+      document.getElementById('tipo').value = frontendTipo;
+      onTipoChange();
+    }
+    
+    // Disable tipo selector buttons after selection
+    const tipoBtns = document.querySelectorAll('.tipo-btn');
+    tipoBtns.forEach(btn => {
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+      btn.title = 'No se puede cambiar el tipo de movimiento';
+    });
+    
+    // But keep the active one visually clear
+    if (currentTipoBtn) {
+      currentTipoBtn.style.opacity = '1';
+    }
+    
     // Disable fields that cannot be edited
     const metodoEl = document.getElementById('metodo');
     if (metodoEl) {
@@ -1226,23 +1260,6 @@ async function loadMovementForEdit(movementId) {
       if (movement.payment_method_id) {
         metodoEl.value = movement.payment_method_id;
       }
-    }
-    
-    // Disable tipo selector buttons
-    const tipoBtns = document.querySelectorAll('.tipo-btn');
-    tipoBtns.forEach(btn => {
-      btn.disabled = true;
-      btn.style.opacity = '0.5';
-      btn.style.cursor = 'not-allowed';
-      btn.title = 'No se puede cambiar el tipo de movimiento';
-    });
-    
-    // Select the current tipo but keep it disabled
-    const currentTipoBtn = document.querySelector(`.tipo-btn[data-tipo="${movement.type}"]`);
-    if (currentTipoBtn) {
-      currentTipoBtn.classList.add('active');
-      document.getElementById('tipo').value = movement.type;
-      onTipoChange();
     }
     
     setStatus('', '');
