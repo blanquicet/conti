@@ -2,7 +2,7 @@
  * Registrar Movimiento Page
  *
  * Handles movement registration form with all business logic:
- * - FAMILIAR, COMPARTIDO, PAGO_DEUDA types
+ * - HOUSEHOLD, SPLIT, DEBT_PAYMENT types
  * - Dynamic form fields based on type
  * - Payment methods, categories, participants loaded from API
  */
@@ -85,15 +85,15 @@ export function render(user) {
           <div class="field col-span-2">
             <span>¿Qué deseas registrar?</span>
             <div class="tipo-selector">
-              <button type="button" class="tipo-btn" data-tipo="FAMILIAR">
+              <button type="button" class="tipo-btn" data-tipo="HOUSEHOLD">
                 <div class="tipo-icon">🏠</div>
                 <div class="tipo-label">Gasto del hogar</div>
               </button>
-              <button type="button" class="tipo-btn" data-tipo="COMPARTIDO">
+              <button type="button" class="tipo-btn" data-tipo="SPLIT">
                 <div class="tipo-icon split-icon">⇄</div>
                 <div class="tipo-label">Dividir gasto</div>
               </button>
-              <button type="button" class="tipo-btn" data-tipo="PAGO_DEUDA">
+              <button type="button" class="tipo-btn" data-tipo="DEBT_PAYMENT">
                 <div class="tipo-icon">💸</div>
                 <div class="tipo-label">Pago de deuda</div>
               </button>
@@ -171,7 +171,7 @@ export function render(user) {
             <small class="hint">Solo cuentas tipo savings o cash</small>
           </label>
 
-          <!-- Pagador y Tomador en fila (para PAGO_DEUDA) -->
+          <!-- Pagador y Tomador en fila (para DEBT_PAYMENT) -->
           <div class="field-row col-span-2 hidden" id="pagadorTomadorRow">
             <label class="field">
               <span id="pagadorLabel">¿Quién pagó?</span>
@@ -183,7 +183,7 @@ export function render(user) {
             </label>
           </div>
 
-          <!-- Pagador solo (para COMPARTIDO) -->
+          <!-- Pagador solo (para SPLIT) -->
           <label class="field hidden" id="pagadorWrap">
             <span>¿Quién pagó?</span>
             <select name="pagadorCompartido" id="pagadorCompartido"></select>
@@ -198,7 +198,7 @@ export function render(user) {
             </select>
           </div>
 
-          <!-- Participantes: solo para COMPARTIDO -->
+          <!-- Participantes: solo para SPLIT -->
           <section class="section col-span-2 hidden" id="participantesWrap">
             <div class="sectionHeader">
               <h2>Participantes</h2>
@@ -362,7 +362,7 @@ export async function setup() {
   renderIngresoMiembroSelect();
   renderIngresoCuentaSelect();
 
-  // Reset participants for COMPARTIDO
+  // Reset participants for SPLIT
   resetParticipants();
 
   // If edit mode, load movement data
@@ -405,7 +405,7 @@ export async function setup() {
   // Format valor field on input and blur
   valorEl.addEventListener('input', (e) => {
     const tipo = document.getElementById('tipo').value;
-    if (tipo === 'COMPARTIDO' && document.getElementById('showAsValue').checked) {
+    if (tipo === 'SPLIT' && document.getElementById('showAsValue').checked) {
       renderParticipants();
     }
   });
@@ -446,8 +446,8 @@ export async function setup() {
  */
 function getCurrentPayer() {
   const tipo = document.getElementById('tipo').value;
-  if (tipo === 'PAGO_DEUDA') return document.getElementById('pagador').value || '';
-  if (tipo === 'COMPARTIDO') return document.getElementById('pagadorCompartido').value || '';
+  if (tipo === 'DEBT_PAYMENT') return document.getElementById('pagador').value || '';
+  if (tipo === 'SPLIT') return document.getElementById('pagadorCompartido').value || '';
   return '';
 }
 
@@ -583,9 +583,9 @@ function updateSubmitButton(isCompartido) {
  */
 function onTipoChange() {
   const tipo = document.getElementById('tipo').value;
-  const isFamiliar = tipo === 'FAMILIAR';
-  const isPagoDeuda = tipo === 'PAGO_DEUDA';
-  const isCompartido = tipo === 'COMPARTIDO';
+  const isFamiliar = tipo === 'HOUSEHOLD';
+  const isPagoDeuda = tipo === 'DEBT_PAYMENT';
+  const isCompartido = tipo === 'SPLIT';
   const isIngreso = tipo === 'INGRESO';
 
   // Show/hide sections based on tipo
@@ -611,8 +611,8 @@ function onTipoChange() {
   }
 
   // Show/hide category field
-  // Hidden when: no tipo selected, INGRESO, or PAGO_DEUDA (until payer is selected)
-  // For PAGO_DEUDA: category visibility is controlled by onPagadorChange()
+  // Hidden when: no tipo selected, INGRESO, or DEBT_PAYMENT (until payer is selected)
+  // For DEBT_PAYMENT: category visibility is controlled by onPagadorChange()
   const categoriaWrap = document.getElementById('categoriaWrap');
   if (categoriaWrap) {
     const shouldHideCategoria = !tipo || isIngreso || isPagoDeuda;
@@ -622,7 +622,7 @@ function onTipoChange() {
   updateSubmitButton(isCompartido);
 
   if (isFamiliar) {
-    // For FAMILIAR type, show payment methods for current user
+    // For HOUSEHOLD type, show payment methods for current user
     showPaymentMethods(currentUser ? currentUser.name : '', true);
   } else if (!isIngreso) {
     onPagadorChange();
@@ -691,7 +691,7 @@ function onPagadorChange() {
   const tipo = document.getElementById('tipo').value;
   const payer = getCurrentPayer();
 
-  if (tipo !== 'FAMILIAR') {
+  if (tipo !== 'HOUSEHOLD') {
     const isMember = primaryUsers.includes(payer);
     const metodoWrap = document.getElementById('metodoWrap');
     const metodoEl = document.getElementById('metodo');
@@ -706,8 +706,8 @@ function onPagadorChange() {
       metodoEl.value = '';
     }
     
-    // For PAGO_DEUDA: category required only when payer is household member
-    if (tipo === 'PAGO_DEUDA') {
+    // For DEBT_PAYMENT: category required only when payer is household member
+    if (tipo === 'DEBT_PAYMENT') {
       const categoriaWrap = document.getElementById('categoriaWrap');
       const categoriaEl = document.getElementById('categoria');
       
@@ -724,7 +724,7 @@ function onPagadorChange() {
     }
   }
 
-  if (tipo === 'COMPARTIDO') {
+  if (tipo === 'SPLIT') {
     resetParticipants();
   }
 }
@@ -795,7 +795,7 @@ function renderParticipants() {
   participantsListEl.innerHTML = '';
 
   const tipo = document.getElementById('tipo').value;
-  if (tipo !== 'COMPARTIDO') return;
+  if (tipo !== 'SPLIT') return;
 
   const editable = !document.getElementById('equitable').checked;
   const showAsValue = document.getElementById('showAsValue').checked;
@@ -965,7 +965,7 @@ function renderParticipants() {
  */
 function validatePctSum() {
   const tipo = document.getElementById('tipo').value;
-  if (tipo !== 'COMPARTIDO') return true;
+  if (tipo !== 'SPLIT') return true;
   if (document.getElementById('equitable').checked) return true;
 
   const sum = participants.reduce((acc, p) => acc + Number(p.pct || 0), 0);
@@ -1053,19 +1053,19 @@ function readForm() {
   // Skip some validations in edit mode
   const isEditMode = !!currentEditMovement;
 
-  if (!isEditMode && tipo !== 'FAMILIAR' && !pagador) throw new Error('Pagador es obligatorio.');
+  if (!isEditMode && tipo !== 'HOUSEHOLD' && !pagador) throw new Error('Pagador es obligatorio.');
 
-  // Categoria is required for FAMILIAR and COMPARTIDO only (not for PAGO_DEUDA)
-  if ((tipo === 'FAMILIAR' || tipo === 'COMPARTIDO') && !categoria) {
+  // Categoria is required for HOUSEHOLD and SPLIT only (not for DEBT_PAYMENT)
+  if ((tipo === 'HOUSEHOLD' || tipo === 'SPLIT') && !categoria) {
     throw new Error('Categoría es obligatoria.');
   }
 
-  const requiresMethod = !isEditMode && (tipo === 'FAMILIAR' || primaryUsers.includes(pagador));
+  const requiresMethod = !isEditMode && (tipo === 'HOUSEHOLD' || primaryUsers.includes(pagador));
   if (requiresMethod && !metodo) throw new Error('Método de pago es obligatorio.');
 
   // Validate that the payment method is valid for the payer (skip in edit mode)
   if (!isEditMode && metodo) {
-    const effectivePayer = tipo === 'FAMILIAR' ? (currentUser ? currentUser.name : '') : pagador;
+    const effectivePayer = tipo === 'HOUSEHOLD' ? (currentUser ? currentUser.name : '') : pagador;
     const availableMethods = getPaymentMethodsForPayer(effectivePayer);
     const isValidMethod = availableMethods.some(pm => pm.name === metodo);
     
@@ -1076,12 +1076,12 @@ function readForm() {
     }
   }
 
-  if (!isEditMode && tipo === 'PAGO_DEUDA') {
-    if (!tomador) throw new Error('Para PAGO_DEUDA debes seleccionar quién recibió (Tomador).');
+  if (!isEditMode && tipo === 'DEBT_PAYMENT') {
+    if (!tomador) throw new Error('Para pago de deuda debes seleccionar quién recibió (Tomador).');
     if (tomador === pagador) throw new Error('Pagador y Tomador no pueden ser la misma persona.');
   }
 
-  if (!isEditMode && tipo === 'COMPARTIDO') {
+  if (!isEditMode && tipo === 'SPLIT') {
     if (!participants.length) throw new Error('Debes tener al menos 1 participante.');
     if (!validatePctSum()) throw new Error('Los porcentajes de participantes deben sumar 100%.');
 
@@ -1090,15 +1090,8 @@ function readForm() {
   }
 
   // Build new API payload with IDs
-  // Map movement type: FAMILIAR -> HOUSEHOLD, COMPARTIDO -> SPLIT, PAGO_DEUDA -> DEBT_PAYMENT
-  const typeMap = {
-    'FAMILIAR': 'HOUSEHOLD',
-    'COMPARTIDO': 'SPLIT',
-    'PAGO_DEUDA': 'DEBT_PAYMENT'
-  };
-
   const payload = {
-    type: typeMap[tipo],
+    type: tipo, // Already in backend format (HOUSEHOLD, SPLIT, DEBT_PAYMENT)
     description: descripcion,
     amount: valor,
     movement_date: fecha,
@@ -1111,8 +1104,8 @@ function readForm() {
   }
 
   // Add payer (user_id or contact_id)
-  if (tipo === 'FAMILIAR') {
-    // For FAMILIAR, payer is always the current user
+  if (tipo === 'HOUSEHOLD') {
+    // For HOUSEHOLD, payer is always the current user
     if (currentUser && currentUser.id) {
       payload.payer_user_id = currentUser.id;
     }
@@ -1136,8 +1129,8 @@ function readForm() {
     }
   }
 
-  // Add counterparty for PAGO_DEUDA
-  if (tipo === 'PAGO_DEUDA' && tomador) {
+  // Add counterparty for DEBT_PAYMENT
+  if (tipo === 'DEBT_PAYMENT' && tomador) {
     const tomadorUser = usersMap[tomador];
     if (tomadorUser) {
       if (tomadorUser.type === 'member') {
@@ -1148,8 +1141,8 @@ function readForm() {
     }
   }
 
-  // Add participants for COMPARTIDO
-  if (tipo === 'COMPARTIDO' && participants.length > 0) {
+  // Add participants for SPLIT
+  if (tipo === 'SPLIT' && participants.length > 0) {
     payload.participants = participants.map(p => {
       const participantUser = usersMap[p.name];
       const participant = {
@@ -1220,20 +1213,11 @@ async function loadMovementForEdit(movementId) {
       pageTitle.textContent = 'Editar Gasto';
     }
     
-    // Map backend type to frontend tipo
-    const typeMapping = {
-      'HOUSEHOLD': 'FAMILIAR',
-      'SPLIT': 'COMPARTIDO',
-      'DEBT_PAYMENT': 'PAGO_DEUDA'
-    };
-    
-    const frontendTipo = typeMapping[movement.type] || movement.type;
-    
-    // Select the current tipo and set it in the form
-    const currentTipoBtn = document.querySelector(`.tipo-btn[data-tipo="${frontendTipo}"]`);
+    // Select the current tipo and set it in the form (no mapping needed, types match)
+    const currentTipoBtn = document.querySelector(`.tipo-btn[data-tipo="${movement.type}"]`);
     if (currentTipoBtn) {
       currentTipoBtn.classList.add('active');
-      document.getElementById('tipo').value = frontendTipo;
+      document.getElementById('tipo').value = movement.type;
       onTipoChange();
     }
     
