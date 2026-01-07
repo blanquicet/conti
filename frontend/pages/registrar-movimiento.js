@@ -601,11 +601,10 @@ function onTipoChange() {
   }
 
   // Show/hide category field
-  // Hidden when: no tipo selected or INGRESO
-  // Note: PAGO_DEUDA requires category when payer is household member
+  // Hidden when: no tipo selected, INGRESO, or PAGO_DEUDA
   const categoriaWrap = document.getElementById('categoriaWrap');
   if (categoriaWrap) {
-    const shouldHideCategoria = !tipo || isIngreso;
+    const shouldHideCategoria = !tipo || isIngreso || isPagoDeuda;
     categoriaWrap.classList.toggle('hidden', shouldHideCategoria);
   }
 

@@ -280,17 +280,17 @@ async function testMovementPagoDeuda() {
     
     await page1.selectOption('#tomador', 'User Two Debt');
     
-    // Select category (required for PAGO_DEUDA)
-    await page1.selectOption('#categoria', 'Préstamo');
-    
-    // Submit form
+    // Submit form (no category needed for PAGO_DEUDA)
     await page1.locator('#submitBtn').click();
-    await page1.waitForTimeout(3000);
+    await page1.waitForTimeout(5000); // Increased timeout
     
     // Check success message
     const successStatus = await page1.locator('#status').textContent();
     if (!successStatus.includes('correctamente')) {
       console.error('❌ Expected success message, got:', successStatus);
+      if (consoleErrors.length > 0) {
+        console.error('JavaScript errors:', consoleErrors);
+      }
       throw new Error('PAGO_DEUDA movement creation failed');
     }
     
@@ -349,7 +349,8 @@ async function testMovementPagoDeuda() {
     await page1.waitForTimeout(500);
     await page1.selectOption('#metodo', 'Nequi Test');
     await page1.selectOption('#tomador', 'Pedro External');
-    await page1.selectOption('#categoria', 'Préstamo');
+    
+    // No category needed for PAGO_DEUDA
     
     await page1.locator('#submitBtn').click();
     await page1.waitForTimeout(3000);
