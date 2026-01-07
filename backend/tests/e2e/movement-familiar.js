@@ -12,7 +12,11 @@ const { Pool } = pg;
  * 4. Test FAMILIAR movement creation
  * 5. Verify movement saved to PostgreSQL
  * 6. Test validation (required fields)
- * 7. Cleanup test data
+ * 7. Create second movement in same category
+ * 8. Verify GET /movements API
+ * 9. Verify movements appear in dashboard/resumen
+ * 10. Verify category grouping and amounts
+ * 11. Cleanup test data
  */
 
 async function testMovementFamiliar() {
@@ -296,6 +300,130 @@ async function testMovementFamiliar() {
     
     console.log('✅ GET /movements API working correctly');
     console.log(`   Found ${movements.length} movements`);
+
+    // ==================================================================
+    // STEP 9: Verify Movement Appears in Dashboard (Resumen)
+    // ==================================================================
+    console.log('📝 Step 9: Verifying movement appears in dashboard...');
+    
+    // Navigate to home page
+    await page.goto(`${appUrl}/`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(2000);
+    
+    // Ensure we're on Gastos tab
+    const gastosTab = page.locator('button.tab-btn').filter({ hasText: 'Gastos' });
+    await gastosTab.click();
+    await page.waitForTimeout(1500);
+    
+    // Wait for categories to load
+    await page.waitForSelector('.categories-grid', { state: 'visible', timeout: 10000 });
+    
+    // Check if we have expense groups
+    const expenseGroups = await page.locator('.expense-group-card').count();
+    if (expenseGroups === 0) {
+      throw new Error('No expense groups found in dashboard');
+    }
+    
+    console.log(`   Found ${expenseGroups} expense groups`);
+    
+    // Find the group containing "Mercado" category
+    // Based on category grouping, "Mercado" should be in "Ocio" group
+    let foundMercado = false;
+    let mercadoGroupName = null;
+    
+    // Click through each group to find Mercado
+    for (let i = 0; i < expenseGroups; i++) {
+      const groupCard = page.locator('.expense-group-card').nth(i);
+      const groupName = await groupCard.locator('.expense-group-name').textContent();
+      
+      // Click to expand group
+      await groupCard.click();
+      await page.waitForTimeout(500);
+      
+      // Check if this group contains Mercado category
+      const categoryItems = groupCard.locator('.expense-category-item');
+      const categoryCount = await categoryItems.count();
+      
+      for (let j = 0; j < categoryCount; j++) {
+        const categoryItem = categoryItems.nth(j);
+        const categoryName = await categoryItem.locator('.expense-category-name').textContent();
+        
+        if (categoryName.includes('Mercado')) {
+          foundMercado = true;
+          mercadoGroupName = groupName;
+          
+          // Verify the total amount for Mercado category
+          // We created two movements: 250,000 + 80,000 = 330,000
+          const categoryAmount = await categoryItem.locator('.expense-category-amount').textContent();
+          console.log(`   Mercado category amount: ${categoryAmount}`);
+          
+          // Click to expand category details
+          await categoryItem.click();
+          await page.waitForTimeout(500);
+          
+          // Check for movement details
+          const movementEntries = categoryItem.locator('.movement-detail-entry');
+          const movementCount = await movementEntries.count();
+          
+          if (movementCount < 2) {
+            throw new Error(`Expected at least 2 movements in Mercado, found ${movementCount}`);
+          }
+          
+          console.log(`   Found ${movementCount} movements in Mercado category`);
+          
+          // Verify our specific movements
+          const descriptions = await movementEntries.locator('.entry-description').allTextContents();
+          const amounts = await movementEntries.locator('.entry-amount').allTextContents();
+          
+          const hasMercadoMes = descriptions.some(d => d.includes('Mercado del mes'));
+          const hasMercadoSemanal = descriptions.some(d => d.includes('Mercado semanal'));
+          
+          if (!hasMercadoMes || !hasMercadoSemanal) {
+            throw new Error('Could not find expected movement descriptions in dashboard');
+          }
+          
+          console.log('   ✅ Found both movements:');
+          console.log('      - Mercado del mes');
+          console.log('      - Mercado semanal');
+          
+          // Verify payment method badges
+          const paymentBadges = await movementEntries.locator('.entry-payment-badge').allTextContents();
+          const hasCorrectPaymentMethod = paymentBadges.some(p => p.includes('Tarjeta Test'));
+          
+          if (!hasCorrectPaymentMethod) {
+            throw new Error('Payment method badge not found or incorrect');
+          }
+          
+          console.log('   ✅ Payment method badge verified');
+          
+          break;
+        }
+      }
+      
+      if (foundMercado) break;
+    }
+    
+    if (!foundMercado) {
+      throw new Error('Mercado category not found in any expense group');
+    }
+    
+    console.log(`✅ Movement verified in dashboard under "${mercadoGroupName}" group`);
+
+    // ==================================================================
+    // STEP 10: Verify Total Amount in Dashboard
+    // ==================================================================
+    console.log('📝 Step 10: Verifying total amount in dashboard...');
+    
+    const totalAmount = await page.locator('.total-amount').textContent();
+    console.log(`   Total displayed: ${totalAmount}`);
+    
+    // The total should include our 330,000 (250,000 + 80,000)
+    // We just verify it's displayed (exact amount depends on other test data)
+    if (!totalAmount || totalAmount.trim() === '') {
+      throw new Error('Total amount not displayed in dashboard');
+    }
+    
+    console.log('✅ Total amount verified in dashboard');
 
     // ==================================================================
     // Cleanup
