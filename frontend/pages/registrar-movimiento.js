@@ -265,6 +265,162 @@ export function render(user) {
       </header>
 
       <form id="movForm" novalidate>
+        <div class="grid">
+          <div class="field col-span-2">
+            <span>¿Qué deseas registrar?</span>
+            <div class="tipo-selector">
+              <button type="button" class="tipo-btn" data-tipo="HOUSEHOLD">
+                <div class="tipo-icon">🏠</div>
+                <div class="tipo-label">Gasto del hogar</div>
+              </button>
+              <button type="button" class="tipo-btn" data-tipo="SPLIT">
+                <div class="tipo-icon split-icon">⇄</div>
+                <div class="tipo-label">Dividir gasto</div>
+              </button>
+              <button type="button" class="tipo-btn" data-tipo="DEBT_PAYMENT">
+                <div class="tipo-icon">💸</div>
+                <div class="tipo-label">Pago de deuda</div>
+              </button>
+              <button type="button" class="tipo-btn" data-tipo="INGRESO">
+                <div class="tipo-icon">💰</div>
+                <div class="tipo-label">Ingreso</div>
+              </button>
+            </div>
+            <input type="hidden" name="tipo" id="tipo" required />
+            
+          </div>
+
+          <label class="field">
+            <span>Fecha</span>
+            <input name="fecha" id="fecha" type="date" value="${getTodayLocal()}" required />
+            
+          </label>
+
+          <label class="field col-span-2">
+            <span>Nota</span>
+            <input name="descripcion" id="descripcion" type="text" placeholder="Ej: Almuerzo, Uber a casa, Guaritos…" required />
+            
+          </label>
+
+          <label class="field col-span-2 hidden" id="categoriaWrap">
+            <span>Categoría</span>
+            <select name="categoria" id="categoria" required>
+              <option value="" selected disabled>Seleccionar</option>
+            </select>
+            
+          </label>
+
+          <label class="field col-span-2">
+            <span>Monto total</span>
+            <div class="input-wrapper" id="valorWrapper" style="display: flex; align-items: center; border: 1px solid #e5e7eb; border-radius: 12px; padding: 0; background-color: white;">
+              <span style="color: #9ca3af; padding-left: 14px; padding-right: 4px; user-select: none; font-size: 14px; flex-shrink: 0; font-weight: 500;">COP</span>
+              <input name="valor" id="valor" type="text" inputmode="decimal" placeholder="0" required style="border: none; outline: none; flex: 1; padding: 12px 14px 12px 2px; background-color: transparent; text-align: right; min-width: 0;" />
+            </div>
+            
+          </label>
+
+          <!-- Income-specific fields -->
+          <label class="field hidden" id="ingresoMiembroWrap">
+            <span>Quien recibe</span>
+            <select name="ingresoMiembro" id="ingresoMiembro">
+              <option value="" selected>Seleccionar</option>
+            </select>
+            <small class="hint">Solo miembros del hogar</small>
+          </label>
+
+          <label class="field col-span-2 hidden" id="ingresoTipoWrap">
+            <span>Tipo de Ingreso</span>
+            <select name="ingresoTipo" id="ingresoTipo">
+              <option value="" selected disabled>Seleccionar</option>
+              <optgroup label="INGRESO REAL">
+                <option value="salary">Sueldo</option>
+                <option value="bonus">Bono / Prima</option>
+                <option value="reimbursement">Reembolso de Gastos</option>
+                <option value="other_income">Otro Ingreso</option>
+              </optgroup>
+              <optgroup label="MOVIMIENTO INTERNO">
+                <option value="savings_withdrawal">Retiro de Ahorros</option>
+                <option value="previous_balance">Sobrante Mes Anterior</option>
+                <option value="adjustment">Ajuste Contable</option>
+              </optgroup>
+            </select>
+            
+          </label>
+
+          <label class="field col-span-2 hidden" id="ingresoCuentaWrap">
+            <span>Cuenta destino</span>
+            <select name="ingresoCuenta" id="ingresoCuenta">
+              <option value="" selected>Seleccionar</option>
+            </select>
+            <small class="hint">Solo cuentas tipo savings o cash</small>
+          </label>
+
+          <!-- Pagador y Tomador en fila (para DEBT_PAYMENT) -->
+          <div class="field-row col-span-2 hidden" id="pagadorTomadorRow">
+            <label class="field">
+              <span id="pagadorLabel">¿Quién pagó?</span>
+              <select name="pagador" id="pagador"></select>
+            </label>
+            <label class="field">
+              <span>¿Quién recibió?</span>
+              <select name="tomador" id="tomador"></select>
+            </label>
+          </div>
+
+          <!-- Pagador solo (para SPLIT) -->
+          <label class="field hidden" id="pagadorWrap">
+            <span>¿Quién pagó?</span>
+            <select name="pagadorCompartido" id="pagadorCompartido"></select>
+            
+          </label>
+
+          <!-- Método de pago -->
+          <div class="field col-span-2 hidden" id="metodoWrap">
+            <span>Método de pago</span>
+            <select name="metodo" id="metodo">
+              <option value="" selected>Seleccionar</option>
+            </select>
+          </div>
+
+          <!-- Participantes: solo para SPLIT -->
+          <section class="section col-span-2 hidden" id="participantesWrap">
+            <div class="sectionHeader">
+              <h2>Participantes</h2>
+              <div style="display: flex; gap: 16px;">
+                <label class="checkbox">
+                  <input type="checkbox" id="equitable" checked />
+                  <span>Dividir equitativamente</span>
+                </label>
+                <label class="checkbox">
+                  <input type="checkbox" id="showAsValue" />
+                  <span>Mostrar como valor</span>
+                </label>
+              </div>
+            </div>
+
+            <div id="participantsList" class="participantsList"></div>
+
+            <div class="actionsRow">
+              <button type="button" class="secondary" id="addParticipantBtn">Agregar participante</button>
+            </div>
+
+            <p class="note">
+              Si no es equitativo, puedes editar los porcentajes. La suma debe ser 100%.
+            </p>
+          </section>
+        </div>
+
+        <div class="footer">
+          <div class="footer-buttons">
+            <button type="button" id="cancelBtn" class="secondary hidden">Cancelar</button>
+            <button type="submit" id="submitBtn">Registrar</button>
+          </div>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </div>
+      </form>
+    </main>
+  `;
+}
 
 /**
  * Load form configuration from API
