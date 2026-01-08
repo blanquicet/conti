@@ -347,14 +347,20 @@ export async function setup() {
   // Reset config loaded flag to force fresh data on each page visit
   formConfigLoaded = false;
 
-  // Load form configuration from API
-  await loadFormConfig();
-
   // Check URL params for edit mode and tipo pre-selection
   const urlParams = new URLSearchParams(window.location.search);
   const editId = urlParams.get('edit');
   const isEditMode = !!editId;
   const tipoParam = urlParams.get('tipo');
+  
+  // If we have a tipo param or edit mode, show loading screen
+  if (tipoParam || isEditMode) {
+    const loadingMessage = isEditMode ? 'Cargando movimiento...' : 'Cargando formulario...';
+    showFullScreenLoading(loadingMessage);
+  }
+
+  // Load form configuration from API
+  await loadFormConfig();
 
   // Initialize selects
   renderUserSelect(pagadorEl, users, true);
@@ -368,9 +374,8 @@ export async function setup() {
   // Reset participants for SPLIT
   resetParticipants();
 
-  // If edit mode, show loading screen and load movement data
+  // If edit mode, load movement data
   if (isEditMode) {
-    showFullScreenLoading();
     await loadMovementForEdit(editId);
   }
 
@@ -400,6 +405,8 @@ export async function setup() {
     if (targetBtn) {
       targetBtn.click();
     }
+    // Hide loading screen after tipo is selected
+    hideFullScreenLoading();
   }
   pagadorEl.addEventListener('change', onPagadorChange);
   pagadorCompartidoEl.addEventListener('change', onPagadorChange);
@@ -1182,9 +1189,9 @@ function readForm() {
 /**
  * Show full-screen loading overlay
  */
-function showFullScreenLoading() {
+function showFullScreenLoading(message = 'Cargando movimiento...') {
   const pageTitle = document.getElementById('pageTitle');
-  if (pageTitle) {
+  if (pageTitle && message === 'Cargando movimiento...') {
     pageTitle.textContent = 'Editar Movimiento';
   }
   
@@ -1207,7 +1214,7 @@ function showFullScreenLoading() {
     `;
     loadingDiv.innerHTML = `
       <div class="spinner" style="width: 40px; height: 40px; border-width: 4px;"></div>
-      <p style="color: #6b7280; font-size: 16px;">Cargando movimiento...</p>
+      <p style="color: #6b7280; font-size: 16px;">${message}</p>
     `;
     main.appendChild(loadingDiv);
   }
