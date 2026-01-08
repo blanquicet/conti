@@ -756,14 +756,14 @@ async function testMovementFamiliar() {
     await page.waitForTimeout(500);
     
     // Verify confirmation modal text
-    const modalText = await page.locator('.confirmation-modal').textContent();
+    const modalText = await page.locator('.modal').textContent();
     if (!modalText.includes('¿Eliminar gasto?')) {
       throw new Error('Delete confirmation modal not shown or has wrong text');
     }
     console.log('   ✅ Delete confirmation modal appeared');
     
     // Click confirm button
-    const confirmBtn = page.locator('.confirmation-modal .btn-danger');
+    const confirmBtn = page.locator('.modal .btn-danger');
     await confirmBtn.click();
     
     // Wait for deletion to complete and success message
