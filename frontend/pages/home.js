@@ -202,7 +202,7 @@ function getCategoryIcon(category) {
 function renderTabs() {
   return `
     <div class="dashboard-tabs">
-      <button class="tab-btn ${activeTab === 'gastos' ? 'active' : ''}" data-tab="gastos">Gastos</button>
+      <button class="tab-btn ${activeTab === 'gastos' ? 'active' : ''}" data-tab="gastos">Gastos del hogar</button>
       <button class="tab-btn ${activeTab === 'ingresos' ? 'active' : ''}" data-tab="ingresos">Ingresos</button>
       <button class="tab-btn ${activeTab === 'tarjetas' ? 'active' : ''}" data-tab="tarjetas">Tarjetas de crédito</button>
     </div>
@@ -509,7 +509,7 @@ export function render(user) {
   return `
     <main class="dashboard">
       <header class="dashboard-header">
-        <h1 class="dashboard-title">Resumen mensual</h1>
+        <h1 class="dashboard-title">Hogar</h1>
         ${Navbar.render(user, '/')}
       </header>
 

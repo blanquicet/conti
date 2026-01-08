@@ -83,6 +83,9 @@ export function render(user) {
     return `
       <main class="card">
         <header class="header">
+          <a href="/" class="back-link" id="back-to-home">
+            ← Volver a Hogar
+          </a>
           <div class="header-row">
             <h1 id="pageTitle">${title}</h1>
             ${Navbar.render(user, '/registrar-movimiento')}
@@ -527,6 +530,15 @@ export async function setup() {
 
   // Initialize navbar
   Navbar.setup();
+  
+  // Setup back link if present (when coming from home)
+  const backLink = document.getElementById('back-to-home');
+  if (backLink) {
+    backLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      router.navigate('/');
+    });
+  }
 
   // Reset config loaded flag to force fresh data on each page visit
   formConfigLoaded = false;
