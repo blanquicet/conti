@@ -279,10 +279,10 @@ async function testContactActivation() {
     await page.waitForTimeout(1000);
     
     // Find deactivated contact, click three-dots menu, then "Activar" button
-    const deactivatedContact = page.locator('.contact-item', { hasText: 'To Deactivate' });
-    await deactivatedContact.locator('.three-dots-btn').click();
+    const contactToReactivate = page.locator('.contact-item', { hasText: 'To Deactivate' });
+    await contactToReactivate.locator('.three-dots-btn').click();
     await page.waitForTimeout(300);
-    await deactivatedContact.locator('button[data-action="toggle-active"]').click();
+    await contactToReactivate.locator('button[data-action="toggle-active"]').click();
     
     // Wait for confirmation modal and confirm
     await page.waitForTimeout(500);
