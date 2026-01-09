@@ -211,7 +211,7 @@ function renderMembersList(isOwner) {
             <div class="member-email">${member.user_email || ''}</div>
           </div>
           <div class="member-role ${member.role === 'owner' ? 'role-owner' : 'role-member'}">
-            ${member.role === 'owner' ? '👑 Dueño' : 'Miembro'}
+            ${member.role === 'owner' ? 'Dueño' : 'Miembro'}
           </div>
           ${renderMemberActions(member, isOwner, userMember)}
         </div>
@@ -291,8 +291,8 @@ function renderContactsList() {
             </div>
           </div>
           <div class="contact-badges">
-            ${contact.is_registered ? '<span class="linked-badge">🔗 Registrado</span>' : ''}
-            ${!contact.is_active ? '<span class="inactive-badge">❌ Inactivo</span>' : ''}
+            ${contact.is_registered ? '<span class="linked-badge">Registrado</span>' : ''}
+            ${!contact.is_active ? '<span class="inactive-badge">Inactivo</span>' : ''}
           </div>
           <div class="contact-actions">
             <button class="three-dots-btn" data-contact-id="${contact.id}">⋮</button>
