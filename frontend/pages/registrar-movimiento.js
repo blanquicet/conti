@@ -1507,6 +1507,49 @@ async function loadMovementForEdit(movementId) {
       currentTipoBtn.style.opacity = '1';
     }
     
+    // Load participants for SPLIT movements
+    if (movement.type === 'SPLIT' && movement.participants && movement.participants.length > 0) {
+      // Clear current participants
+      participants = [];
+      
+      // Load participants from movement
+      movement.participants.forEach(p => {
+        const userName = p.participant_name;
+        const percentage = (p.percentage * 100).toFixed(0); // Convert 0.0-1.0 to 0-100
+        
+        participants.push({
+          name: userName,
+          pct: percentage
+        });
+      });
+      
+      // Render participants list
+      renderParticipants();
+      
+      // Set pagador (payer) for SPLIT movement
+      const pagadorCompartidoEl = document.getElementById('pagadorCompartido');
+      if (pagadorCompartidoEl && movement.payer_name) {
+        pagadorCompartidoEl.value = movement.payer_name;
+        onPagadorCompartidoChange(); // Update payment methods if needed
+      }
+    }
+    
+    // Load counterparty for DEBT_PAYMENT movements
+    if (movement.type === 'DEBT_PAYMENT') {
+      // Set pagador (payer)
+      const pagadorEl = document.getElementById('pagador');
+      if (pagadorEl && movement.payer_name) {
+        pagadorEl.value = movement.payer_name;
+        onPagadorChange(); // Update payment methods if needed
+      }
+      
+      // Set tomador (counterparty)
+      const tomadorEl = document.getElementById('tomador');
+      if (tomadorEl && movement.counterparty_name) {
+        tomadorEl.value = movement.counterparty_name;
+      }
+    }
+    
     // For HOUSEHOLD movements, we need to show payment methods for the actual payer
     // (not currentUser, which is who's logged in)
     if (movement.type === 'HOUSEHOLD' && movement.payer_user_id) {

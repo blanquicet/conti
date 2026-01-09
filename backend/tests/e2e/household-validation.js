@@ -339,7 +339,12 @@ async function testHouseholdValidation() {
     console.log('🧹 Cleaning up test data...');
     
     // Delete household first (cascade will delete contacts)
-    await page.getByRole('button', { name: 'Eliminar hogar', exact: true }).click();
+    // Click household three-dots menu
+    await page.locator('#household-menu-btn').click();
+    await page.waitForTimeout(300);
+    
+    // Click "Eliminar hogar" in the menu
+    await page.locator('button[data-action="delete-household"]').click();
     await page.waitForTimeout(500);
     await page.locator('#confirm-input').fill('eliminar');
     await page.waitForTimeout(500);
