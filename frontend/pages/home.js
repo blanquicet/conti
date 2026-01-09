@@ -2021,14 +2021,13 @@ export async function setup() {
     
     const { scrollLeft, scrollWidth, clientWidth } = tabsWrapper;
     
-    // Calculate if content would overflow WITHOUT the buttons taking space
-    // Get the full container width to see if content fits when buttons are hidden
-    const containerWidth = tabsContainer.clientWidth;
+    // Get the dashboard tabs element to measure its actual content width
     const dashboardTabs = tabsWrapper.querySelector('.dashboard-tabs');
-    const tabsContentWidth = dashboardTabs ? dashboardTabs.scrollWidth : scrollWidth;
+    if (!dashboardTabs) return;
     
-    // Check if scrolling is needed (would content overflow the full container?)
-    const hasOverflow = tabsContentWidth > containerWidth;
+    // Check if tabs would overflow the wrapper (with generous margin for button width)
+    // Each button is 40px, so we add 90px margin to be safe
+    const hasOverflow = dashboardTabs.scrollWidth > (clientWidth + 90);
     
     if (!hasOverflow) {
       // No overflow - hide both buttons
