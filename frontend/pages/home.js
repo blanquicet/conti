@@ -718,7 +718,7 @@ function renderLoanMovements(debtorId, creditorId, direction) {
         <div class="entry-info">
           <span class="entry-description">${movement.description || typeLabel}${percentageInfo}</span>
           <span class="entry-amount">${formatCurrency(movement.displayAmount)}</span>
-          <div class="entry-date">${formatDate(movement.movement_date)}${movement.category ? ` • ${getCategoryIcon(movement.category)} ${movement.category}` : ''}</div>
+          <div class="entry-date">${formatDate(movement.movement_date)}</div>
         </div>
         <div class="entry-actions">
           <button class="three-dots-btn" data-movement-id="${movement.id}">⋮</button>
