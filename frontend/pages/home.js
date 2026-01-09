@@ -2012,34 +2012,43 @@ export async function setup() {
 
   // Setup tab scroll buttons
   const tabsWrapper = document.querySelector('.tabs-wrapper');
-  const tabsContainer = document.querySelector('.tabs-container');
   const scrollLeftBtn = document.querySelector('.tab-scroll-left');
   const scrollRightBtn = document.querySelector('.tab-scroll-right');
 
   function updateScrollButtons() {
-    if (!tabsWrapper || !scrollLeftBtn || !scrollRightBtn || !tabsContainer) return;
+    if (!tabsWrapper || !scrollLeftBtn || !scrollRightBtn) return;
     
     const { scrollLeft, scrollWidth, clientWidth } = tabsWrapper;
     
-    // Get the dashboard tabs element to measure its actual content width
-    const dashboardTabs = tabsWrapper.querySelector('.dashboard-tabs');
-    if (!dashboardTabs) return;
-    
-    // Check if tabs would overflow the wrapper (with generous margin for button width)
-    // Each button is 40px, so we add 90px margin to be safe
-    const hasOverflow = dashboardTabs.scrollWidth > (clientWidth + 90);
+    // Check if scrolling is needed (with small tolerance for rounding)
+    const hasOverflow = scrollWidth > clientWidth + 5;
     
     if (!hasOverflow) {
       // No overflow - hide both buttons
-      scrollLeftBtn.style.display = 'none';
-      scrollRightBtn.style.display = 'none';
+      scrollLeftBtn.style.visibility = 'hidden';
+      scrollLeftBtn.style.pointerEvents = 'none';
+      scrollRightBtn.style.visibility = 'hidden';
+      scrollRightBtn.style.pointerEvents = 'none';
     } else {
       // Has overflow - show/hide based on scroll position
-      const isAtStart = scrollLeft <= 0;
+      const isAtStart = scrollLeft <= 1;
       const isAtEnd = scrollLeft + clientWidth >= scrollWidth - 1;
       
-      scrollLeftBtn.style.display = isAtStart ? 'none' : 'flex';
-      scrollRightBtn.style.display = isAtEnd ? 'none' : 'flex';
+      if (isAtStart) {
+        scrollLeftBtn.style.visibility = 'hidden';
+        scrollLeftBtn.style.pointerEvents = 'none';
+      } else {
+        scrollLeftBtn.style.visibility = 'visible';
+        scrollLeftBtn.style.pointerEvents = 'auto';
+      }
+      
+      if (isAtEnd) {
+        scrollRightBtn.style.visibility = 'hidden';
+        scrollRightBtn.style.pointerEvents = 'none';
+      } else {
+        scrollRightBtn.style.visibility = 'visible';
+        scrollRightBtn.style.pointerEvents = 'auto';
+      }
     }
   }
 
