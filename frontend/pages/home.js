@@ -715,17 +715,12 @@ function renderLoanMovements(debtorId, creditorId, direction) {
     
     return `
       <div class="movement-detail-entry">
-        <div class="movement-info">
-          <div class="movement-description">
-            ${movement.description || typeLabel}${percentageInfo}
-          </div>
-          <div class="movement-meta">
-            <span class="movement-date">${formatDate(movement.movement_date)}</span>
-            ${movement.category ? `<span class="movement-category-badge">${getCategoryIcon(movement.category)} ${movement.category}</span>` : ''}
-          </div>
+        <div class="entry-info">
+          <span class="entry-description">${movement.description || typeLabel}${percentageInfo}</span>
+          <span class="entry-amount">${formatCurrency(movement.displayAmount)}</span>
+          <div class="entry-date">${formatDate(movement.movement_date)}${movement.category ? ` • ${getCategoryIcon(movement.category)} ${movement.category}` : ''}</div>
         </div>
-        <div class="movement-actions">
-          <span class="movement-amount">${formatCurrency(movement.displayAmount)}</span>
+        <div class="entry-actions">
           <button class="three-dots-btn" data-movement-id="${movement.id}">⋮</button>
           <div class="three-dots-menu" id="movement-menu-${movement.id}">
             <button class="menu-item" data-action="edit" data-id="${movement.id}">Editar</button>
