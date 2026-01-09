@@ -1768,25 +1768,33 @@ function setupLoansListeners() {
  * Setup loan details listeners (Level 2 direction items)
  */
 function setupLoanDetailsListeners(debtorId, creditorId) {
+  console.log('Setting up loan details listeners for:', debtorId, creditorId);
   // Direction item click to expand/collapse (Level 2 → Level 3)
   const directionItems = document.querySelectorAll(`.expense-category-item[data-debtor-id="${debtorId}"][data-creditor-id="${creditorId}"]`);
+  console.log('Found direction items:', directionItems.length);
   
-  directionItems.forEach(item => {
+  directionItems.forEach((item, index) => {
+    console.log(`Direction item ${index}:`, item.dataset.direction, item.outerHTML.substring(0, 100));
     item.addEventListener('click', () => {
+      console.log('Direction item clicked!', item.dataset.direction);
       const direction = item.dataset.direction;
       const movementsContainer = document.getElementById(`loan-movements-${direction}-${debtorId}-${creditorId}`);
+      console.log('Looking for container:', `loan-movements-${direction}-${debtorId}-${creditorId}`);
+      console.log('Found container:', movementsContainer);
       
       if (movementsContainer) {
         const isHidden = movementsContainer.classList.contains('hidden');
         
         if (isHidden) {
           // Render Level 3 content
+          console.log('Rendering loan movements...');
           movementsContainer.innerHTML = renderLoanMovements(debtorId, creditorId, direction);
           movementsContainer.classList.remove('hidden');
           
           // Setup listeners for movement actions
           setupLoanMovementListeners();
         } else {
+          console.log('Hiding movements...');
           movementsContainer.classList.add('hidden');
         }
       }
