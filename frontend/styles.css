@@ -1932,14 +1932,14 @@ button.loading::after {
 .dashboard-tabs {
   display: flex;
   gap: 0;
-  padding: 0 24px;
+  padding: 0 8px;
   min-width: min-content;
   flex: 0 1 auto;
 }
 
 @media (max-width: 600px) {
   .dashboard-tabs {
-    padding: 0 20px;
+    padding: 0 8px;
   }
 }
 
