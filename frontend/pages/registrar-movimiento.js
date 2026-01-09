@@ -1453,6 +1453,9 @@ async function loadMovementForEdit(movementId) {
     }
     
     const movement = await response.json();
+    console.log('Movement loaded for edit:', movement); // DEBUG
+    console.log('Movement type:', movement.type); // DEBUG
+    console.log('Movement participants:', movement.participants); // DEBUG
     currentEditMovement = movement;
     
     // Hide loading overlay
@@ -1507,30 +1510,35 @@ async function loadMovementForEdit(movementId) {
       currentTipoBtn.style.opacity = '1';
     }
     
-    // Load participants for SPLIT movements
-    if (movement.type === 'SPLIT' && movement.participants && movement.participants.length > 0) {
-      // Clear current participants
-      participants = [];
-      
-      // Load participants from movement
-      movement.participants.forEach(p => {
-        const userName = p.participant_name;
-        const percentage = (p.percentage * 100).toFixed(0); // Convert 0.0-1.0 to 0-100
-        
-        participants.push({
-          name: userName,
-          pct: percentage
-        });
-      });
-      
-      // Render participants list
-      renderParticipants();
-      
-      // Set pagador (payer) for SPLIT movement
+    // For SPLIT movements: set payer FIRST, then load participants
+    if (movement.type === 'SPLIT') {
+      // Set pagador (payer) for SPLIT movement BEFORE loading participants
       const pagadorCompartidoEl = document.getElementById('pagadorCompartido');
       if (pagadorCompartidoEl && movement.payer_name) {
         pagadorCompartidoEl.value = movement.payer_name;
         onPagadorCompartidoChange(); // Update payment methods if needed
+      }
+      
+      // Now load participants
+      if (movement.participants && movement.participants.length > 0) {
+        // Clear current participants
+        participants = [];
+        
+        // Load participants from movement
+        movement.participants.forEach(p => {
+          const userName = p.participant_name;
+          const percentage = (p.percentage * 100).toFixed(0); // Convert 0.0-1.0 to 0-100
+          
+          participants.push({
+            name: userName,
+            pct: percentage
+          });
+        });
+        
+        console.log('Loaded participants:', participants); // DEBUG
+        
+        // Render participants list
+        renderParticipants();
       }
     }
     
