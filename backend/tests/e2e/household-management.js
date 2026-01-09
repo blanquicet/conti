@@ -207,13 +207,19 @@ async function testHouseholdManagement() {
     await page1.reload();
     await page1.waitForTimeout(1000);
     
-    // Find User 2's promote button
+    // Find User 2's member item and click promote in three-dots menu
     const memberItems = await page1.locator('.member-item').all();
     for (const item of memberItems) {
       const email = await item.locator('.member-email').textContent();
       if (email.includes(user2Email)) {
-        const promoteBtn = item.locator('button:has-text("Promover a dueño")');
-        if (await promoteBtn.count() > 0) {
+        // Click three-dots menu
+        const threeDotsBtn = item.locator('.three-dots-btn[data-member-id]');
+        if (await threeDotsBtn.count() > 0) {
+          await threeDotsBtn.click();
+          await page1.waitForTimeout(300);
+          
+          // Click "Promover a dueño" in menu
+          const promoteBtn = item.locator('button[data-action="promote"]');
           await promoteBtn.click();
           await page1.waitForTimeout(500);
           
@@ -310,12 +316,18 @@ async function testHouseholdManagement() {
     // ==================================================================
     console.log('🗑️ Step 9: User 1 removing User 2...');
     
-    // Find User 2's remove button
+    // Find User 2's member item and click remove in three-dots menu
     const memberItems3 = await page1.locator('.member-item').all();
     for (const item of memberItems3) {
       const email = await item.locator('.member-email').textContent();
       if (email.includes(user2Email)) {
-        const removeBtn = item.locator('button:has-text("Remover")');
+        // Click three-dots menu
+        const threeDotsBtn = item.locator('.three-dots-btn[data-member-id]');
+        await threeDotsBtn.click();
+        await page1.waitForTimeout(300);
+        
+        // Click "Remover" in menu
+        const removeBtn = item.locator('button[data-action="remove"]');
         await removeBtn.click();
         await page1.waitForTimeout(500);
         

@@ -230,22 +230,31 @@ function renderMemberActions(member, isOwner, userMember) {
   
   if (!isOwner && !isSelf) return '';
   
-  let actions = '';
+  let menuItems = [];
   
   if (isSelf && !isLastOwner) {
-    actions += `<button class="btn-link text-sm" data-action="leave" data-user-id="${member.user_id}">Salir del hogar</button>`;
+    menuItems.push(`<button class="menu-item" data-action="leave" data-user-id="${member.user_id}">Salir del hogar</button>`);
   }
   
   if (isOwner && !isSelf) {
     if (member.role === 'member') {
-      actions += `<button class="btn-link text-sm" data-action="promote" data-user-id="${member.user_id}">Promover a dueño</button>`;
+      menuItems.push(`<button class="menu-item" data-action="promote" data-user-id="${member.user_id}">Promover a dueño</button>`);
     } else if (!isLastOwner) {
-      actions += `<button class="btn-link text-sm" data-action="demote" data-user-id="${member.user_id}">Quitar como dueño</button>`;
+      menuItems.push(`<button class="menu-item" data-action="demote" data-user-id="${member.user_id}">Quitar como dueño</button>`);
     }
-    actions += `<button class="btn-link text-sm text-danger" data-action="remove" data-user-id="${member.user_id}">Remover</button>`;
+    menuItems.push(`<button class="menu-item menu-item-danger" data-action="remove" data-user-id="${member.user_id}">Remover</button>`);
   }
   
-  return actions ? `<div class="member-actions">${actions}</div>` : '';
+  if (menuItems.length === 0) return '';
+  
+  return `
+    <div class="member-actions">
+      <button class="three-dots-btn" data-member-id="${member.user_id}">⋮</button>
+      <div class="three-dots-menu" id="member-menu-${member.user_id}">
+        ${menuItems.join('')}
+      </div>
+    </div>
+  `;
 }
 
 /**
@@ -479,9 +488,30 @@ function setupEventHandlers() {
     });
   });
 
+  // Member three-dots menu toggle
+  document.querySelectorAll('.three-dots-btn[data-member-id]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const memberId = e.currentTarget.dataset.memberId;
+      const menu = document.getElementById(`member-menu-${memberId}`);
+      const isOpen = menu.style.display === 'block';
+      
+      // Close all menus
+      document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
+      
+      // Toggle this menu
+      if (!isOpen) {
+        menu.style.display = 'block';
+      }
+    });
+  });
+
   // Close menus when clicking outside
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.contact-actions') && !e.target.closest('.household-header-actions')) {
+    if (!e.target.closest('.contact-actions') && 
+        !e.target.closest('.household-header-actions') && 
+        !e.target.closest('.member-actions')) {
       document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
     }
   });
