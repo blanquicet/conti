@@ -1899,7 +1899,7 @@ button.loading::after {
   position: relative;
   display: flex;
   align-items: center;
-  margin: 0 -24px;
+  margin: 20px -24px 0 -24px;
   background: white;
   border-top: 1px solid #e5e7eb;
   border-bottom: 1px solid #e5e7eb;
@@ -1907,7 +1907,7 @@ button.loading::after {
 
 @media (max-width: 600px) {
   .tabs-container {
-    margin: 0 -20px;
+    margin: 16px -20px 0 -20px;
   }
 }
 
