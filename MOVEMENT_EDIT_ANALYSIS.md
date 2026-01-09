@@ -1,14 +1,19 @@
 # Análisis: Implementación de Edición de Gastos
 
+> **Status:** ✅ COMPLETE (2026-01-07)
+>
+> La funcionalidad de editar y eliminar gastos está completamente implementada
+> tanto en backend como frontend.
+
 ## Resumen
-Queremos agregar la funcionalidad de editar gastos desde el dashboard, similar a como funciona con ingresos.
+Funcionalidad completa para editar gastos desde el dashboard, similar a como funciona con ingresos.
 
 ---
 
-## 1. Backend - Estado Actual ✅
+## 1. Backend - Estado Actual ✅ COMPLETE
 
 ### Endpoints Existentes
-El backend **YA TIENE** implementada la funcionalidad de edición:
+El backend tiene implementada la funcionalidad de edición:
 
 ```
 PATCH /movements/{id}
@@ -47,11 +52,11 @@ type UpdateMovementInput struct {
 
 ---
 
-## 2. Tests Backend - Pendiente ⚠️
+## 2. Tests Backend - Completado ✅
 
-### Tests Necesarios
+### Tests Implementados
 
-#### 2.1. Unit Tests (Nuevo)
+#### 2.1. Unit Tests (Completado)
 **Ubicación**: `backend/internal/movements/service_test.go`
 
 Casos de prueba:
@@ -66,8 +71,8 @@ Casos de prueba:
 9. ✅ Error: usuario sin autorización (otro household)
 10. ✅ No cambios (retorna movimiento actual)
 
-#### 2.2. Integration Tests (Nuevo)
-**Ubicación**: `backend/tests/integration/movements_test.go` (crear)
+#### 2.2. Integration Tests (Completado)
+**Ubicación**: Incluidos en los 41 tests de integración
 
 Casos de prueba:
 1. ✅ PATCH /movements/{id} - Actualización exitosa
@@ -136,16 +141,14 @@ console.log('✅ Movement edit verified');
 
 ---
 
-## 3. Frontend - Pendiente ⚠️
+## 3. Frontend - Completado ✅
 
-### 3.1. Home Page (Dashboard) - Modificaciones
+### 3.1. Home Page (Dashboard) - Implementado
 
 **Archivo**: `frontend/pages/home.js`
 
-#### Cambio 1: Agregar Three-Dots Menu en Movements
-**Ubicación**: Línea ~1042-1053 (dentro de `renderMovementCategories`)
-
-**Actual**:
+#### ✅ Cambio 1: Three-Dots Menu en Movements (Implementado)
+Three-dots menu agregado a cada entrada de movimiento con opciones de editar y eliminar.
 ```javascript
 <div class="movement-detail-entry">
   <div class="entry-info">
