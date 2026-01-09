@@ -1919,6 +1919,12 @@ button.loading::after {
   justify-content: center;
 }
 
+@media (max-width: 600px) {
+  .tabs-wrapper {
+    justify-content: flex-start;
+  }
+}
+
 .tabs-wrapper::-webkit-scrollbar {
   display: none; /* Chrome/Safari */
 }
@@ -1989,8 +1995,9 @@ button.loading::after {
 
 @media (max-width: 600px) {
   .tab-btn {
-    min-width: 120px;
+    min-width: auto;
     flex: 0 0 auto;
+    padding: 16px 16px;
   }
 }
 
