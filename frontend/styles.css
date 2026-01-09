@@ -2990,3 +2990,34 @@ button.loading::after {
     padding: 5px 12px;
   }
 }
+
+/* Loan direction toggle (Hacer/Pagar préstamo) */
+.loan-direction-selector {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.loan-direction-btn {
+  flex: 1;
+  padding: 12px 16px;
+  background: #f3f4f6;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.loan-direction-btn:hover {
+  background: #e5e7eb;
+}
+
+.loan-direction-btn.active {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}

@@ -2,7 +2,8 @@
  * Registrar Movimiento Page
  *
  * Handles movement registration form with all business logic:
- * - HOUSEHOLD, SPLIT, DEBT_PAYMENT types
+ * - HOUSEHOLD, SPLIT, LOAN (LEND/REPAY), INGRESO types
+ * - LOAN type converts to SPLIT (lend) or DEBT_PAYMENT (repay) on backend
  * - Dynamic form fields based on type
  * - Payment methods, categories, participants loaded from API
  */
@@ -108,12 +109,12 @@ export function render(user) {
                 <div class="tipo-label">Gasto del hogar</div>
               </button>
               <button type="button" class="tipo-btn" data-tipo="SPLIT">
-                <div class="tipo-icon split-icon">⇄</div>
+                <div class="tipo-icon split-icon">÷</div>
                 <div class="tipo-label">Dividir gasto</div>
               </button>
-              <button type="button" class="tipo-btn" data-tipo="DEBT_PAYMENT">
+              <button type="button" class="tipo-btn" data-tipo="LOAN">
                 <div class="tipo-icon">💸</div>
-                <div class="tipo-label">Pago de deuda</div>
+                <div class="tipo-label">Préstamo</div>
               </button>
               <button type="button" class="tipo-btn" data-tipo="INGRESO">
                 <div class="tipo-icon">💰</div>
@@ -122,6 +123,19 @@ export function render(user) {
             </div>
             <input type="hidden" name="tipo" id="tipo" required />
             
+          </div>
+
+          <!-- Loan direction selector (Hacer/Pagar préstamo) -->
+          <div class="field col-span-2 hidden" id="loanDirectionWrap">
+            <div class="loan-direction-selector">
+              <button type="button" class="loan-direction-btn active" data-direction="LEND">
+                Hacer un préstamo
+              </button>
+              <button type="button" class="loan-direction-btn" data-direction="REPAY">
+                Pagar un préstamo
+              </button>
+            </div>
+            <input type="hidden" id="loanDirection" value="LEND" />
           </div>
 
           <label class="field">
@@ -277,12 +291,12 @@ export function render(user) {
                 <div class="tipo-label">Gasto del hogar</div>
               </button>
               <button type="button" class="tipo-btn" data-tipo="SPLIT">
-                <div class="tipo-icon split-icon">⇄</div>
+                <div class="tipo-icon split-icon">÷</div>
                 <div class="tipo-label">Dividir gasto</div>
               </button>
-              <button type="button" class="tipo-btn" data-tipo="DEBT_PAYMENT">
+              <button type="button" class="tipo-btn" data-tipo="LOAN">
                 <div class="tipo-icon">💸</div>
-                <div class="tipo-label">Pago de deuda</div>
+                <div class="tipo-label">Préstamo</div>
               </button>
               <button type="button" class="tipo-btn" data-tipo="INGRESO">
                 <div class="tipo-icon">💰</div>
@@ -291,6 +305,19 @@ export function render(user) {
             </div>
             <input type="hidden" name="tipo" id="tipo" required />
             
+          </div>
+
+          <!-- Loan direction selector (Hacer/Pagar préstamo) -->
+          <div class="field col-span-2 hidden" id="loanDirectionWrap">
+            <div class="loan-direction-selector">
+              <button type="button" class="loan-direction-btn active" data-direction="LEND">
+                Hacer un préstamo
+              </button>
+              <button type="button" class="loan-direction-btn" data-direction="REPAY">
+                Pagar un préstamo
+              </button>
+            </div>
+            <input type="hidden" id="loanDirection" value="LEND" />
           </div>
 
           <label class="field">
@@ -589,6 +616,26 @@ export async function setup() {
     });
   });
 
+  // Setup loan direction toggle listeners
+  const loanDirectionBtns = document.querySelectorAll('.loan-direction-btn');
+  loanDirectionBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const direction = btn.dataset.direction;
+      
+      // Remove active class from all buttons
+      loanDirectionBtns.forEach(b => b.classList.remove('active'));
+      
+      // Add active class to clicked button
+      btn.classList.add('active');
+      
+      // Set hidden input value
+      document.getElementById('loanDirection').value = direction;
+      
+      // Trigger tipo change to update UI
+      onTipoChange();
+    });
+  });
+
   // Check URL params for tipo pre-selection
   if (tipoParam && !isEditMode) {
     // Map GASTO to HOUSEHOLD (for backward compatibility)
@@ -659,6 +706,12 @@ export async function setup() {
  */
 function getCurrentPayer() {
   const tipo = document.getElementById('tipo').value;
+  
+  // For LOAN type, always use pagador field (same for both LEND and REPAY)
+  if (tipo === 'LOAN') {
+    return document.getElementById('pagador').value || '';
+  }
+  
   if (tipo === 'DEBT_PAYMENT') return document.getElementById('pagador').value || '';
   if (tipo === 'SPLIT') return document.getElementById('pagadorCompartido').value || '';
   return '';
@@ -799,15 +852,41 @@ function updateSubmitButton(isCompartido) {
  */
 function onTipoChange() {
   const tipo = document.getElementById('tipo').value;
+  const loanDirection = document.getElementById('loanDirection')?.value || 'LEND';
+  
   const isFamiliar = tipo === 'HOUSEHOLD';
-  const isPagoDeuda = tipo === 'DEBT_PAYMENT';
+  const isLoan = tipo === 'LOAN';
+  const isPagoDeuda = tipo === 'DEBT_PAYMENT' || isLoan; // Both LOAN directions use pagador/tomador UI
   const isCompartido = tipo === 'SPLIT';
   const isIngreso = tipo === 'INGRESO';
+
+  // Show/hide loan direction selector
+  document.getElementById('loanDirectionWrap').classList.toggle('hidden', !isLoan);
 
   // Show/hide sections based on tipo
   document.getElementById('pagadorTomadorRow').classList.toggle('hidden', !isPagoDeuda);
   document.getElementById('pagadorWrap').classList.toggle('hidden', !isCompartido);
   document.getElementById('participantesWrap').classList.toggle('hidden', !isCompartido);
+  
+  // Update labels for LOAN type
+  if (isLoan) {
+    const pagadorLabel = document.getElementById('pagadorLabel');
+    const tomadorLabel = document.querySelector('#pagadorTomadorRow label:nth-child(2) span');
+    
+    if (loanDirection === 'LEND') {
+      if (pagadorLabel) pagadorLabel.textContent = '¿Quién prestó?';
+      if (tomadorLabel) tomadorLabel.textContent = '¿Quién recibió?';
+    } else {
+      if (pagadorLabel) pagadorLabel.textContent = '¿Quién pagó?';
+      if (tomadorLabel) tomadorLabel.textContent = '¿Quién recibió?';
+    }
+  } else if (tipo === 'DEBT_PAYMENT') {
+    // Reset to default labels
+    const pagadorLabel = document.getElementById('pagadorLabel');
+    const tomadorLabel = document.querySelector('#pagadorTomadorRow label:nth-child(2) span');
+    if (pagadorLabel) pagadorLabel.textContent = '¿Quién pagó?';
+    if (tomadorLabel) tomadorLabel.textContent = '¿Quién recibió?';
+  }
   
   // Income-specific fields
   document.getElementById('ingresoMiembroWrap').classList.toggle('hidden', !isIngreso);
@@ -1263,6 +1342,17 @@ function readForm() {
       income_date: fecha
     };
   }
+  
+  // Handle LOAN type - convert to appropriate backend type based on direction
+  let effectiveTipo = tipo;
+  if (tipo === 'LOAN') {
+    const loanDirection = document.getElementById('loanDirection').value;
+    if (loanDirection === 'LEND') {
+      effectiveTipo = 'SPLIT'; // Hacer un préstamo = SPLIT with one participant at 100%
+    } else {
+      effectiveTipo = 'DEBT_PAYMENT'; // Pagar un préstamo = DEBT_PAYMENT
+    }
+  }
 
   // Handle regular movements (gastos, prestamos)
   const pagador = getCurrentPayer();
@@ -1273,19 +1363,19 @@ function readForm() {
   // Skip some validations in edit mode
   const isEditMode = !!currentEditMovement;
 
-  if (!isEditMode && tipo !== 'HOUSEHOLD' && !pagador) throw new Error('Pagador es obligatorio.');
+  if (!isEditMode && effectiveTipo !== 'HOUSEHOLD' && !pagador) throw new Error('Pagador es obligatorio.');
 
-  // Categoria is required for HOUSEHOLD and SPLIT only (not for DEBT_PAYMENT)
-  if ((tipo === 'HOUSEHOLD' || tipo === 'SPLIT') && !categoria) {
+  // Categoria is required for HOUSEHOLD and SPLIT only (not for DEBT_PAYMENT or LOAN)
+  if ((effectiveTipo === 'HOUSEHOLD' || effectiveTipo === 'SPLIT') && tipo !== 'LOAN' && !categoria) {
     throw new Error('Categoría es obligatoria.');
   }
 
-  const requiresMethod = !isEditMode && (tipo === 'HOUSEHOLD' || primaryUsers.includes(pagador));
+  const requiresMethod = !isEditMode && (effectiveTipo === 'HOUSEHOLD' || primaryUsers.includes(pagador));
   if (requiresMethod && !metodo) throw new Error('Método de pago es obligatorio.');
 
   // Validate that the payment method is valid for the payer (skip in edit mode)
   if (!isEditMode && metodo) {
-    const effectivePayer = tipo === 'HOUSEHOLD' ? (currentUser ? currentUser.name : '') : pagador;
+    const effectivePayer = effectiveTipo === 'HOUSEHOLD' ? (currentUser ? currentUser.name : '') : pagador;
     const availableMethods = getPaymentMethodsForPayer(effectivePayer);
     const isValidMethod = availableMethods.some(pm => pm.name === metodo);
     
@@ -1296,12 +1386,13 @@ function readForm() {
     }
   }
 
-  if (!isEditMode && tipo === 'DEBT_PAYMENT') {
-    if (!tomador) throw new Error('Para pago de deuda debes seleccionar quién recibió (Tomador).');
-    if (tomador === pagador) throw new Error('Pagador y Tomador no pueden ser la misma persona.');
+  if (!isEditMode && (effectiveTipo === 'DEBT_PAYMENT' || tipo === 'LOAN')) {
+    if (!tomador) throw new Error('Debes seleccionar quién recibió.');
+    if (tomador === pagador) throw new Error('El que prestó/pagó y el que recibió no pueden ser la misma persona.');
   }
 
-  if (tipo === 'SPLIT') {
+  // For SPLIT (not LOAN), validate participants
+  if (effectiveTipo === 'SPLIT' && tipo !== 'LOAN') {
     if (!participants.length) throw new Error('Debes tener al menos 1 participante.');
     if (!validatePctSum()) throw new Error('Los porcentajes de participantes deben sumar 100%.');
 
@@ -1311,7 +1402,7 @@ function readForm() {
 
   // Build new API payload with IDs
   const payload = {
-    type: tipo, // Already in backend format (HOUSEHOLD, SPLIT, DEBT_PAYMENT)
+    type: effectiveTipo, // Backend type (HOUSEHOLD, SPLIT, DEBT_PAYMENT)
     description: descripcion,
     amount: valor,
     movement_date: fecha,
@@ -1319,12 +1410,13 @@ function readForm() {
   };
 
   // Add category (required for HOUSEHOLD, optional for DEBT_PAYMENT if payer is member)
+  // NOT required for LOAN type
   if (categoria) {
     payload.category = categoria;
   }
 
   // Add payer (user_id or contact_id)
-  if (tipo === 'HOUSEHOLD') {
+  if (effectiveTipo === 'HOUSEHOLD') {
     // For HOUSEHOLD, payer is always the current user
     if (currentUser && currentUser.id) {
       payload.payer_user_id = currentUser.id;
@@ -1350,7 +1442,7 @@ function readForm() {
   }
 
   // Add counterparty for DEBT_PAYMENT
-  if (tipo === 'DEBT_PAYMENT' && tomador) {
+  if (effectiveTipo === 'DEBT_PAYMENT' && tomador) {
     const tomadorUser = usersMap[tomador];
     if (tomadorUser) {
       if (tomadorUser.type === 'member') {
@@ -1362,23 +1454,43 @@ function readForm() {
   }
 
   // Add participants for SPLIT
-  if (tipo === 'SPLIT' && participants.length > 0) {
-    payload.participants = participants.map(p => {
-      const participantUser = usersMap[p.name];
+  if (effectiveTipo === 'SPLIT') {
+    // For LOAN+LEND: create one participant from tomador at 100%
+    if (tipo === 'LOAN' && tomador) {
+      const tomadorUser = usersMap[tomador];
       const participant = {
-        percentage: Number(p.pct || 0) / 100
+        percentage: 1.0 // 100%
       };
       
-      if (participantUser) {
-        if (participantUser.type === 'member') {
-          participant.participant_user_id = participantUser.id;
-        } else if (participantUser.type === 'contact') {
-          participant.participant_contact_id = participantUser.id;
+      if (tomadorUser) {
+        if (tomadorUser.type === 'member') {
+          participant.participant_user_id = tomadorUser.id;
+        } else if (tomadorUser.type === 'contact') {
+          participant.participant_contact_id = tomadorUser.id;
         }
       }
       
-      return participant;
-    });
+      payload.participants = [participant];
+    } 
+    // For regular SPLIT: use participants array
+    else if (participants.length > 0) {
+      payload.participants = participants.map(p => {
+        const participantUser = usersMap[p.name];
+        const participant = {
+          percentage: Number(p.pct || 0) / 100
+        };
+        
+        if (participantUser) {
+          if (participantUser.type === 'member') {
+            participant.participant_user_id = participantUser.id;
+          } else if (participantUser.type === 'contact') {
+            participant.participant_contact_id = participantUser.id;
+          }
+        }
+        
+        return participant;
+      });
+    }
   }
 
   return payload;

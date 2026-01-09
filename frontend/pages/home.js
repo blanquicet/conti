@@ -2,7 +2,7 @@
  * Home / Dashboard Page
  *
  * Modern dashboard showing income summary with:
- * - Tab navigation (Gastos | Ingresos | Tarjetas)
+ * - Tab navigation (Gastos | Ingresos | Préstamos | Tarjetas)
  * - Month selector with date range
  * - Total amount prominently displayed
  * - Category breakdown with icons and percentages
@@ -211,6 +211,7 @@ function renderTabs() {
         <div class="dashboard-tabs">
           <button class="tab-btn ${activeTab === 'gastos' ? 'active' : ''}" data-tab="gastos">Gastos</button>
           <button class="tab-btn ${activeTab === 'ingresos' ? 'active' : ''}" data-tab="ingresos">Ingresos</button>
+          <button class="tab-btn ${activeTab === 'prestamos' ? 'active' : ''}" data-tab="prestamos">Préstamos</button>
           <button class="tab-btn ${activeTab === 'tarjetas' ? 'active' : ''}" data-tab="tarjetas">Tarjetas de crédito</button>
         </div>
       </div>
@@ -563,6 +564,12 @@ export function render(user) {
           <div class="loading-state">
             <div class="loading-spinner"></div>
             <p>Cargando...</p>
+          </div>
+        ` : activeTab === 'prestamos' ? `
+          <div class="coming-soon">
+            <div class="coming-soon-icon">💸</div>
+            <p>Préstamos</p>
+            <small>Próximamente</small>
           </div>
         ` : `
           <div class="coming-soon">
