@@ -1429,13 +1429,6 @@ button.loading::after {
     flex-wrap: nowrap;
   }
   
-  .member-actions {
-    width: 100%;
-    flex-direction: row;
-    justify-content: flex-start;
-    margin-top: 8px;
-  }
-  
   .contact-actions {
     flex-shrink: 0;
     margin-left: auto;
@@ -1775,6 +1768,9 @@ button.loading::after {
 
 .member-actions {
   position: relative;
+  min-width: 36px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .three-dots-menu {
