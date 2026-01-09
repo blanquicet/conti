@@ -526,7 +526,6 @@ function renderLoansCards() {
   const balances = loansData.balances;
 
   const cardsHtml = balances.map(balance => {
-    console.log('Rendering balance:', balance);
     return `
       <div class="expense-group-card" data-debtor-id="${balance.debtor_id}" data-creditor-id="${balance.creditor_id}">
         <div class="expense-group-header">
@@ -1736,37 +1735,27 @@ function setupCategoryListeners() {
  * Setup loans view listeners (for prestamos tab)
  */
 function setupLoansListeners() {
-  console.log('Setting up loans listeners...');
   // Debt pair card click to expand/collapse (Level 1 → Level 2)
   const loanCards = document.querySelectorAll('.expense-group-card[data-debtor-id]');
-  console.log('Found loan cards:', loanCards.length);
-  loanCards.forEach((card, index) => {
-    console.log(`Card ${index}:`, card.outerHTML.substring(0, 200));
+  loanCards.forEach((card) => {
     const header = card.querySelector('.expense-group-header');
     if (header) {
       header.addEventListener('click', () => {
-        console.log('Card clicked!');
-        const debtorId = parseInt(card.dataset.debtorId);
-        const creditorId = parseInt(card.dataset.creditorId);
-        console.log('Debtor ID:', debtorId, 'Creditor ID:', creditorId);
-        const expectedId = `loan-details-${debtorId}-${creditorId}`;
-        console.log('Looking for element with ID:', expectedId);
-        const detailsContainer = document.getElementById(expectedId);
-        console.log('Details container:', detailsContainer);
+        const debtorId = card.dataset.debtorId;
+        const creditorId = card.dataset.creditorId;
+        const detailsContainer = document.getElementById(`loan-details-${debtorId}-${creditorId}`);
         
         if (detailsContainer) {
           const isHidden = detailsContainer.classList.contains('hidden');
           
           if (isHidden) {
             // Render Level 2 content
-            console.log('Rendering loan details...');
             detailsContainer.innerHTML = renderLoanDetails(debtorId, creditorId);
             detailsContainer.classList.remove('hidden');
             
             // Setup listeners for newly rendered elements
             setupLoanDetailsListeners(debtorId, creditorId);
           } else {
-            console.log('Hiding details...');
             detailsContainer.classList.add('hidden');
           }
         }
