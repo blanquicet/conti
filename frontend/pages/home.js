@@ -609,15 +609,15 @@ function renderLoanDetails(debtorId, creditorId) {
   if (debtorOwesCreditor > 0.01) {
     html += `
       <div class="expense-category-item" data-direction="debtor-owes" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
-        <div class="category-item-icon">💰</div>
-        <div class="category-item-info">
-          <div class="category-item-name">${debtorName} le debe a ${creditorName}</div>
-          <div class="category-item-amount">${formatCurrency(debtorOwesCreditor)}</div>
+        <div class="expense-category-header">
+          <div class="expense-category-info">
+            <span class="expense-category-name">${debtorName} le debe a ${creditorName}</span>
+            <span class="expense-category-amount">${formatCurrency(debtorOwesCreditor)}</span>
+          </div>
         </div>
-        <div class="category-item-expand">›</div>
-      </div>
-      <div class="category-movements hidden" id="loan-movements-debtor-owes-${debtorId}-${creditorId}">
-        <!-- Level 3 content will be rendered here -->
+        <div class="expense-category-details hidden" id="loan-movements-debtor-owes-${debtorId}-${creditorId}">
+          <!-- Level 3 content will be rendered here -->
+        </div>
       </div>
     `;
   }
@@ -626,15 +626,15 @@ function renderLoanDetails(debtorId, creditorId) {
   if (creditorOwesDebtor > 0.01) {
     html += `
       <div class="expense-category-item" data-direction="creditor-owes" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
-        <div class="category-item-icon">💰</div>
-        <div class="category-item-info">
-          <div class="category-item-name">${creditorName} le debe a ${debtorName}</div>
-          <div class="category-item-amount">${formatCurrency(creditorOwesDebtor)}</div>
+        <div class="expense-category-header">
+          <div class="expense-category-info">
+            <span class="expense-category-name">${creditorName} le debe a ${debtorName}</span>
+            <span class="expense-category-amount">${formatCurrency(creditorOwesDebtor)}</span>
+          </div>
         </div>
-        <div class="category-item-expand">›</div>
-      </div>
-      <div class="category-movements hidden" id="loan-movements-creditor-owes-${debtorId}-${creditorId}">
-        <!-- Level 3 content will be rendered here -->
+        <div class="expense-category-details hidden" id="loan-movements-creditor-owes-${debtorId}-${creditorId}">
+          <!-- Level 3 content will be rendered here -->
+        </div>
       </div>
     `;
   }
@@ -1774,31 +1774,33 @@ function setupLoanDetailsListeners(debtorId, creditorId) {
   console.log('Found direction items:', directionItems.length);
   
   directionItems.forEach((item, index) => {
-    console.log(`Direction item ${index}:`, item.dataset.direction, item.outerHTML.substring(0, 100));
-    item.addEventListener('click', () => {
-      console.log('Direction item clicked!', item.dataset.direction);
-      const direction = item.dataset.direction;
-      const movementsContainer = document.getElementById(`loan-movements-${direction}-${debtorId}-${creditorId}`);
-      console.log('Looking for container:', `loan-movements-${direction}-${debtorId}-${creditorId}`);
-      console.log('Found container:', movementsContainer);
-      
-      if (movementsContainer) {
-        const isHidden = movementsContainer.classList.contains('hidden');
+    console.log(`Direction item ${index}:`, item.dataset.direction);
+    const header = item.querySelector('.expense-category-header');
+    if (header) {
+      header.addEventListener('click', () => {
+        console.log('Direction item clicked!', item.dataset.direction);
+        const direction = item.dataset.direction;
+        const detailsContainer = item.querySelector('.expense-category-details');
+        console.log('Found details container:', detailsContainer);
         
-        if (isHidden) {
-          // Render Level 3 content
-          console.log('Rendering loan movements...');
-          movementsContainer.innerHTML = renderLoanMovements(debtorId, creditorId, direction);
-          movementsContainer.classList.remove('hidden');
+        if (detailsContainer) {
+          const isHidden = detailsContainer.classList.contains('hidden');
           
-          // Setup listeners for movement actions
-          setupLoanMovementListeners();
-        } else {
-          console.log('Hiding movements...');
-          movementsContainer.classList.add('hidden');
+          if (isHidden) {
+            // Render Level 3 content
+            console.log('Rendering loan movements...');
+            detailsContainer.innerHTML = renderLoanMovements(debtorId, creditorId, direction);
+            detailsContainer.classList.remove('hidden');
+            
+            // Setup listeners for movement actions
+            setupLoanMovementListeners();
+          } else {
+            console.log('Hiding movements...');
+            detailsContainer.classList.add('hidden');
+          }
         }
-      }
-    });
+      });
+    }
   });
 }
 
