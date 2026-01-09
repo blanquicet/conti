@@ -18,7 +18,9 @@ let currentMonth = null; // YYYY-MM format
 let incomeData = null;
 let movementsData = null; // Gastos data (filtered)
 let originalMovementsData = null; // Original unfiltered movements data from API
-let activeTab = 'gastos'; // 'gastos', 'ingresos', 'tarjetas' - DEFAULT TO GASTOS
+let loansData = null; // Préstamos data (debts consolidation)
+let loanMovements = null; // SPLIT and DEBT_PAYMENT movements for loans
+let activeTab = 'gastos'; // 'gastos', 'ingresos', 'prestamos', 'tarjetas' - DEFAULT TO GASTOS
 let householdMembers = []; // List of household members for filtering
 let selectedMemberIds = []; // Array of selected member IDs (empty = all)
 let selectedIncomeTypes = []; // Array of selected income types (empty = all)
@@ -509,6 +511,235 @@ function renderIncomeCategories() {
 }
 
 /**
+ * Render loans cards (Level 1: debt pairs with net amounts)
+ */
+function renderLoansCards() {
+  if (!loansData || !loansData.balances || loansData.balances.length === 0) {
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">💸</div>
+        <p>No hay préstamos pendientes este mes</p>
+      </div>
+    `;
+  }
+
+  const balances = loansData.balances;
+
+  const cardsHtml = balances.map(balance => {
+    return `
+      <div class="expense-group-card" data-debtor-id="${balance.debtor_id}" data-creditor-id="${balance.creditor_id}">
+        <div class="expense-group-header">
+          <div class="expense-group-icon">🤝</div>
+          <div class="expense-group-info">
+            <div class="expense-group-name">${balance.debtor_name} → ${balance.creditor_name}</div>
+            <div class="expense-group-amount">${formatCurrency(balance.amount)}</div>
+          </div>
+        </div>
+        <div class="expense-group-details hidden" id="loan-details-${balance.debtor_id}-${balance.creditor_id}">
+          <!-- Level 2 content will be rendered here when expanded -->
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="expense-groups">
+      ${cardsHtml}
+    </div>
+  `;
+}
+
+/**
+ * Render loan details (Level 2: breakdown by direction)
+ */
+function renderLoanDetails(debtorId, creditorId) {
+  if (!loanMovements || loanMovements.length === 0) {
+    return '<p class="no-data">No hay movimientos disponibles</p>';
+  }
+
+  // Calculate amounts for each direction
+  let debtorOwesCreditor = 0; // Debtor owes Creditor
+  let creditorOwesDebtor = 0; // Creditor owes Debtor
+
+  loanMovements.forEach(movement => {
+    if (movement.type === 'SPLIT') {
+      // For SPLIT: participants owe the payer
+      const payerId = movement.payer_id;
+      
+      // Check if payer is creditor and debtor is a participant
+      if (payerId === creditorId) {
+        const participant = movement.participants.find(p => p.participant_user_id === debtorId);
+        if (participant) {
+          debtorOwesCreditor += movement.amount * participant.percentage;
+        }
+      }
+      
+      // Check if payer is debtor and creditor is a participant
+      if (payerId === debtorId) {
+        const participant = movement.participants.find(p => p.participant_user_id === creditorId);
+        if (participant) {
+          creditorOwesDebtor += movement.amount * participant.percentage;
+        }
+      }
+    } else if (movement.type === 'DEBT_PAYMENT') {
+      // For DEBT_PAYMENT: payer pays receiver, reducing debt
+      const payerId = movement.payer_id;
+      const receiverId = movement.receiver_id;
+      
+      // Payment from debtor to creditor reduces debtorOwesCreditor
+      if (payerId === debtorId && receiverId === creditorId) {
+        creditorOwesDebtor += movement.amount; // Shown as reverse debt
+      }
+      
+      // Payment from creditor to debtor
+      if (payerId === creditorId && receiverId === debtorId) {
+        debtorOwesCreditor += movement.amount; // Shown as reverse debt
+      }
+    }
+  });
+
+  // Get names from loansData
+  const balance = loansData.balances.find(b => b.debtor_id === debtorId && b.creditor_id === creditorId);
+  const debtorName = balance?.debtor_name || 'Desconocido';
+  const creditorName = balance?.creditor_name || 'Desconocido';
+
+  let html = '';
+
+  // Show "Debtor owes Creditor" if > 0
+  if (debtorOwesCreditor > 0.01) {
+    html += `
+      <div class="expense-category-item" data-direction="debtor-owes" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
+        <div class="category-item-icon">💰</div>
+        <div class="category-item-info">
+          <div class="category-item-name">${debtorName} le debe a ${creditorName}</div>
+          <div class="category-item-amount">${formatCurrency(debtorOwesCreditor)}</div>
+        </div>
+        <div class="category-item-expand">›</div>
+      </div>
+      <div class="category-movements hidden" id="loan-movements-debtor-${debtorId}-${creditorId}">
+        <!-- Level 3 content will be rendered here -->
+      </div>
+    `;
+  }
+
+  // Show "Creditor owes Debtor" if > 0
+  if (creditorOwesDebtor > 0.01) {
+    html += `
+      <div class="expense-category-item" data-direction="creditor-owes" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
+        <div class="category-item-icon">💰</div>
+        <div class="category-item-info">
+          <div class="category-item-name">${creditorName} le debe a ${debtorName}</div>
+          <div class="category-item-amount">${formatCurrency(creditorOwesDebtor)}</div>
+        </div>
+        <div class="category-item-expand">›</div>
+      </div>
+      <div class="category-movements hidden" id="loan-movements-creditor-${debtorId}-${creditorId}">
+        <!-- Level 3 content will be rendered here -->
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+/**
+ * Render loan movements (Level 3: individual movements for a direction)
+ */
+function renderLoanMovements(debtorId, creditorId, direction) {
+  if (!loanMovements || loanMovements.length === 0) {
+    return '<p class="no-data">No hay movimientos</p>';
+  }
+
+  const relevantMovements = [];
+
+  loanMovements.forEach(movement => {
+    if (movement.type === 'SPLIT') {
+      const payerId = movement.payer_id;
+      
+      if (direction === 'debtor-owes') {
+        // Debtor owes Creditor: creditor is payer, debtor is participant
+        if (payerId === creditorId) {
+          const participant = movement.participants.find(p => p.participant_user_id === debtorId);
+          if (participant) {
+            relevantMovements.push({
+              ...movement,
+              displayAmount: movement.amount * participant.percentage,
+              percentage: participant.percentage
+            });
+          }
+        }
+      } else if (direction === 'creditor-owes') {
+        // Creditor owes Debtor: debtor is payer, creditor is participant
+        if (payerId === debtorId) {
+          const participant = movement.participants.find(p => p.participant_user_id === creditorId);
+          if (participant) {
+            relevantMovements.push({
+              ...movement,
+              displayAmount: movement.amount * participant.percentage,
+              percentage: participant.percentage
+            });
+          }
+        }
+      }
+    } else if (movement.type === 'DEBT_PAYMENT') {
+      const payerId = movement.payer_id;
+      const receiverId = movement.receiver_id;
+      
+      if (direction === 'debtor-owes') {
+        // Show payments FROM creditor TO debtor (creates debt for debtor)
+        if (payerId === creditorId && receiverId === debtorId) {
+          relevantMovements.push({
+            ...movement,
+            displayAmount: movement.amount
+          });
+        }
+      } else if (direction === 'creditor-owes') {
+        // Show payments FROM debtor TO creditor (creates debt for creditor)
+        if (payerId === debtorId && receiverId === creditorId) {
+          relevantMovements.push({
+            ...movement,
+            displayAmount: movement.amount
+          });
+        }
+      }
+    }
+  });
+
+  if (relevantMovements.length === 0) {
+    return '<p class="no-data">No hay movimientos</p>';
+  }
+
+  const movementsHtml = relevantMovements.map(movement => {
+    const typeLabel = movement.type === 'SPLIT' ? 'Gasto compartido' : 'Pago de deuda';
+    const percentageInfo = movement.percentage ? ` (${(movement.percentage * 100).toFixed(2)}%)` : '';
+    
+    return `
+      <div class="movement-detail-entry">
+        <div class="movement-info">
+          <div class="movement-description">
+            ${movement.description || typeLabel}${percentageInfo}
+          </div>
+          <div class="movement-meta">
+            <span class="movement-date">${formatDate(movement.movement_date)}</span>
+            ${movement.category ? `<span class="movement-category-badge">${getCategoryIcon(movement.category)} ${movement.category}</span>` : ''}
+          </div>
+        </div>
+        <div class="movement-actions">
+          <span class="movement-amount">${formatCurrency(movement.displayAmount)}</span>
+          <button class="three-dots-btn" data-movement-id="${movement.id}">⋮</button>
+          <div class="three-dots-menu" id="movement-menu-${movement.id}">
+            <button class="menu-item" data-action="edit" data-id="${movement.id}">Editar</button>
+            <button class="menu-item" data-action="delete" data-id="${movement.id}">Eliminar</button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return movementsHtml;
+}
+
+/**
  * Render home page
  */
 export function render(user) {
@@ -565,11 +796,16 @@ export function render(user) {
             <div class="loading-spinner"></div>
             <p>Cargando...</p>
           </div>
+        ` : activeTab === 'prestamos' && loansData ? `
+          ${renderMonthSelector()}
+          
+          <div id="loans-container">
+            ${renderLoansCards()}
+          </div>
         ` : activeTab === 'prestamos' ? `
-          <div class="coming-soon">
-            <div class="coming-soon-icon">💸</div>
-            <p>Préstamos</p>
-            <small>Próximamente</small>
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Cargando...</p>
           </div>
         ` : `
           <div class="coming-soon">
@@ -794,6 +1030,48 @@ async function loadMovementsData() {
   } catch (error) {
     console.error('Error loading movements data:', error);
     movementsData = null;
+  }
+}
+
+/**
+ * Load loans data for the current month (debts consolidation + movements)
+ */
+async function loadLoansData() {
+  try {
+    // Load debts consolidation and movements in parallel
+    const [consolidationResponse, splitResponse, debtPaymentResponse] = await Promise.all([
+      fetch(`${API_URL}/movements/debts/consolidate?month=${currentMonth}`, {
+        credentials: 'include'
+      }),
+      fetch(`${API_URL}/movements?type=SPLIT&month=${currentMonth}`, {
+        credentials: 'include'
+      }),
+      fetch(`${API_URL}/movements?type=DEBT_PAYMENT&month=${currentMonth}`, {
+        credentials: 'include'
+      })
+    ]);
+
+    if (!consolidationResponse.ok || !splitResponse.ok || !debtPaymentResponse.ok) {
+      console.error('Error loading loans data');
+      loansData = null;
+      loanMovements = null;
+      return;
+    }
+
+    loansData = await consolidationResponse.json();
+    const splitData = await splitResponse.json();
+    const debtPaymentData = await debtPaymentResponse.json();
+    
+    // Combine SPLIT and DEBT_PAYMENT movements
+    loanMovements = [
+      ...(splitData.movements || []),
+      ...(debtPaymentData.movements || [])
+    ];
+    
+  } catch (error) {
+    console.error('Error loading loans data:', error);
+    loansData = null;
+    loanMovements = null;
   }
 }
 
@@ -1123,10 +1401,12 @@ function renderMovementCategories() {
 }
 
 /**
- * Refresh display (handles both gastos and ingresos tabs)
+ * Refresh display (handles gastos, ingresos, and prestamos tabs)
  */
 function refreshDisplay() {
   const container = document.getElementById('categories-container');
+  const loansContainer = document.getElementById('loans-container');
+  
   if (container) {
     if (activeTab === 'gastos') {
       container.innerHTML = renderMovementCategories();
@@ -1135,6 +1415,11 @@ function refreshDisplay() {
     }
     setupCategoryListeners();
     setupFilterListeners(); // Re-setup filter listeners after re-render
+  }
+  
+  if (loansContainer && activeTab === 'prestamos') {
+    loansContainer.innerHTML = renderLoansCards();
+    setupLoansListeners();
   }
 
   const totalEl = document.querySelector('.total-amount');
@@ -1444,6 +1729,174 @@ function setupCategoryListeners() {
 
   // Setup filter event listeners
   setupFilterListeners();
+}
+
+/**
+ * Setup loans view listeners (for prestamos tab)
+ */
+function setupLoansListeners() {
+  // Debt pair card click to expand/collapse (Level 1 → Level 2)
+  const loanCards = document.querySelectorAll('.expense-group-card[data-debtor-id]');
+  loanCards.forEach(card => {
+    const header = card.querySelector('.expense-group-header');
+    if (header) {
+      header.addEventListener('click', () => {
+        const debtorId = parseInt(card.dataset.debtorId);
+        const creditorId = parseInt(card.dataset.creditorId);
+        const detailsContainer = document.getElementById(`loan-details-${debtorId}-${creditorId}`);
+        
+        if (detailsContainer) {
+          const isHidden = detailsContainer.classList.contains('hidden');
+          
+          if (isHidden) {
+            // Render Level 2 content
+            detailsContainer.innerHTML = renderLoanDetails(debtorId, creditorId);
+            detailsContainer.classList.remove('hidden');
+            
+            // Setup listeners for newly rendered elements
+            setupLoanDetailsListeners(debtorId, creditorId);
+          } else {
+            detailsContainer.classList.add('hidden');
+          }
+        }
+      });
+    }
+  });
+}
+
+/**
+ * Setup loan details listeners (Level 2 direction items)
+ */
+function setupLoanDetailsListeners(debtorId, creditorId) {
+  // Direction item click to expand/collapse (Level 2 → Level 3)
+  const directionItems = document.querySelectorAll(`.expense-category-item[data-debtor-id="${debtorId}"][data-creditor-id="${creditorId}"]`);
+  
+  directionItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const direction = item.dataset.direction;
+      const movementsContainer = document.getElementById(`loan-movements-${direction}-${debtorId}-${creditorId}`);
+      
+      if (movementsContainer) {
+        const isHidden = movementsContainer.classList.contains('hidden');
+        
+        if (isHidden) {
+          // Render Level 3 content
+          movementsContainer.innerHTML = renderLoanMovements(debtorId, creditorId, direction);
+          movementsContainer.classList.remove('hidden');
+          
+          // Setup listeners for movement actions
+          setupLoanMovementListeners();
+        } else {
+          movementsContainer.classList.add('hidden');
+        }
+      }
+    });
+  });
+}
+
+/**
+ * Setup loan movement action listeners (Level 3)
+ */
+function setupLoanMovementListeners() {
+  // Three-dots menu toggle for loan movements
+  document.querySelectorAll('.three-dots-btn[data-movement-id]').forEach(btn => {
+    // Skip if already has listener
+    if (btn.dataset.listenerAdded) return;
+    btn.dataset.listenerAdded = 'true';
+    
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const movementId = e.currentTarget.dataset.movementId;
+      const menu = document.getElementById(`movement-menu-${movementId}`);
+      const isOpen = menu && menu.style.display === 'block';
+      
+      // Close all menus
+      document.querySelectorAll('.three-dots-menu').forEach(m => {
+        m.style.display = 'none';
+        m.classList.remove('menu-above');
+      });
+      
+      // Toggle this menu
+      if (!isOpen && menu) {
+        // Check if menu would overflow bottom of viewport
+        const btnRect = btn.getBoundingClientRect();
+        const menuHeight = 80;
+        const spaceBelow = window.innerHeight - btnRect.bottom;
+        
+        if (spaceBelow < menuHeight) {
+          menu.classList.add('menu-above');
+        }
+        
+        menu.style.display = 'block';
+      }
+    });
+  });
+  
+  // Menu action buttons for loan movements
+  document.querySelectorAll('.three-dots-menu .menu-item[data-action]').forEach(btn => {
+    // Skip if already has listener or not a movement menu
+    if (btn.dataset.listenerAdded) return;
+    const menu = btn.closest('.three-dots-menu');
+    if (!menu || !menu.id.startsWith('movement-menu-')) return;
+    
+    btn.dataset.listenerAdded = 'true';
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const action = e.currentTarget.dataset.action;
+      const id = e.currentTarget.dataset.id;
+
+      // Close menu
+      document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
+
+      if (action === 'edit') {
+        await handleEditMovement(id);
+      } else if (action === 'delete') {
+        await handleDeleteLoanMovement(id);
+      }
+    });
+  });
+  
+  // Close menus when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.movement-actions') && !e.target.closest('.three-dots-menu')) {
+      document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
+    }
+  });
+}
+
+/**
+ * Handle delete loan movement (reloads loans data after deletion)
+ */
+async function handleDeleteLoanMovement(movementId) {
+  const confirmed = await showConfirmation(
+    '¿Eliminar movimiento?',
+    'Esta acción no se puede deshacer.'
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(`${API_URL}/movements/${movementId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => null);
+      throw new Error(errorData?.error || 'Error al eliminar el movimiento');
+    }
+
+    showSuccess('Movimiento eliminado', 'El movimiento se eliminó correctamente');
+    
+    // Reload loans data and refresh display
+    await loadLoansData();
+    refreshDisplay();
+  } catch (error) {
+    console.error('Error deleting loan movement:', error);
+    showError(error.message || 'Error al eliminar el movimiento');
+  }
 }
 
 /**
@@ -1992,6 +2445,14 @@ export async function setup() {
           ${renderIncomeCategories()}
         </div>
       `;
+    } else if (activeTab === 'prestamos' && loansData) {
+      contentContainer.innerHTML = `
+        ${renderMonthSelector()}
+        
+        <div id="loans-container">
+          ${renderLoansCards()}
+        </div>
+      `;
     }
   }
 
@@ -2013,6 +2474,8 @@ export async function setup() {
         await loadMovementsData();
       } else if (activeTab === 'ingresos' && !incomeData) {
         await loadIncomeData();
+      } else if (activeTab === 'prestamos' && !loansData) {
+        await loadLoansData();
       }
       
       // Update content
@@ -2048,6 +2511,16 @@ export async function setup() {
           `;
           setupMonthNavigation();
           setupCategoryListeners();
+        } else if (activeTab === 'prestamos') {
+          contentContainer.innerHTML = `
+            ${renderMonthSelector()}
+            
+            <div id="loans-container">
+              ${renderLoansCards()}
+            </div>
+          `;
+          setupMonthNavigation();
+          setupLoansListeners();
         } else {
           contentContainer.innerHTML = `
             <div class="coming-soon">
@@ -2134,8 +2607,19 @@ export async function setup() {
  */
 function showLoadingState() {
   const container = document.getElementById('categories-container');
+  const loansContainer = document.getElementById('loans-container');
+  
   if (container) {
     container.innerHTML = `
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Cargando...</p>
+      </div>
+    `;
+  }
+  
+  if (loansContainer) {
+    loansContainer.innerHTML = `
       <div class="loading-state">
         <div class="loading-spinner"></div>
         <p>Cargando...</p>
@@ -2157,8 +2641,10 @@ function setupMonthNavigation() {
       showLoadingState();
       if (activeTab === 'gastos') {
         await loadMovementsData();
-      } else {
+      } else if (activeTab === 'ingresos') {
         await loadIncomeData();
+      } else if (activeTab === 'prestamos') {
+        await loadLoansData();
       }
       refreshDisplay();
     };
@@ -2170,8 +2656,10 @@ function setupMonthNavigation() {
       showLoadingState();
       if (activeTab === 'gastos') {
         await loadMovementsData();
-      } else {
+      } else if (activeTab === 'ingresos') {
         await loadIncomeData();
+      } else if (activeTab === 'prestamos') {
+        await loadLoansData();
       }
       refreshDisplay();
     };
