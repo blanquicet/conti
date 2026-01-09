@@ -574,7 +574,7 @@ function renderLoanDetails(debtorId, creditorId) {
     console.log('Processing movement:', movement.type, movement.id);
     if (movement.type === 'SPLIT') {
       // For SPLIT: participants owe the payer
-      const payerId = movement.payer_id;
+      const payerId = movement.payer_user_id;
       console.log('SPLIT - Payer:', payerId, 'Looking for debtor:', debtorId, 'creditor:', creditorId);
       
       // Check if payer is creditor and debtor is a participant
@@ -596,8 +596,8 @@ function renderLoanDetails(debtorId, creditorId) {
       }
     } else if (movement.type === 'DEBT_PAYMENT') {
       // For DEBT_PAYMENT: payer pays receiver, reducing debt
-      const payerId = movement.payer_id;
-      const receiverId = movement.receiver_id;
+      const payerId = movement.payer_user_id;
+      const receiverId = movement.receiver_user_id;
       console.log('DEBT_PAYMENT - Payer:', payerId, 'Receiver:', receiverId);
       
       // Payment from debtor to creditor reduces debtorOwesCreditor
@@ -670,7 +670,7 @@ function renderLoanMovements(debtorId, creditorId, direction) {
 
   loanMovements.forEach(movement => {
     if (movement.type === 'SPLIT') {
-      const payerId = movement.payer_id;
+      const payerId = movement.payer_user_id;
       
       if (direction === 'debtor-owes') {
         // Debtor owes Creditor: creditor is payer, debtor is participant
@@ -698,8 +698,8 @@ function renderLoanMovements(debtorId, creditorId, direction) {
         }
       }
     } else if (movement.type === 'DEBT_PAYMENT') {
-      const payerId = movement.payer_id;
-      const receiverId = movement.receiver_id;
+      const payerId = movement.payer_user_id;
+      const receiverId = movement.receiver_user_id;
       
       if (direction === 'debtor-owes') {
         // Show payments FROM creditor TO debtor (creates debt for debtor)
