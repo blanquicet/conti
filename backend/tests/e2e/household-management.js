@@ -213,13 +213,18 @@ async function testHouseholdManagement() {
       const email = await item.locator('.member-email').textContent();
       if (email.includes(user2Email)) {
         // Click three-dots menu
-        const threeDotsBtn = item.locator('.three-dots-btn[data-member-id]');
+        const threeDotsBtn = item.locator('.three-dots-btn');
         if (await threeDotsBtn.count() > 0) {
           await threeDotsBtn.click();
           await page1.waitForTimeout(300);
           
+          // Wait for menu to be visible
+          const menu = item.locator('.three-dots-menu');
+          await menu.waitFor({ state: 'visible', timeout: 5000 });
+          
           // Click "Promover a dueño" in menu
           const promoteBtn = item.locator('button[data-action="promote"]');
+          await promoteBtn.waitFor({ state: 'visible', timeout: 5000 });
           await promoteBtn.click();
           await page1.waitForTimeout(500);
           
@@ -269,16 +274,25 @@ async function testHouseholdManagement() {
     for (const item of memberItems2) {
       const email = await item.locator('.member-email').textContent();
       if (email.includes(user2Email)) {
-        const demoteBtn = item.locator('button:has-text("Quitar como dueño")');
-        if (await demoteBtn.count() > 0) {
-          await demoteBtn.click();
-          await page1.waitForTimeout(500);
-          
-          // Confirm modal
-          await page1.locator('#modal-confirm').click();
-          await page1.waitForTimeout(2000);
-          break;
-        }
+        // Click three-dots menu
+        const threeDotsBtn = item.locator('.three-dots-btn');
+        await threeDotsBtn.click();
+        await page1.waitForTimeout(300);
+        
+        // Wait for menu to be visible
+        const menu = item.locator('.three-dots-menu');
+        await menu.waitFor({ state: 'visible', timeout: 5000 });
+        
+        // Click "Quitar como dueño" in menu
+        const demoteBtn = item.locator('button[data-action="demote"]');
+        await demoteBtn.waitFor({ state: 'visible', timeout: 5000 });
+        await demoteBtn.click();
+        await page1.waitForTimeout(500);
+        
+        // Confirm modal
+        await page1.locator('#modal-confirm').click();
+        await page1.waitForTimeout(2000);
+        break;
       }
     }
     
@@ -322,12 +336,17 @@ async function testHouseholdManagement() {
       const email = await item.locator('.member-email').textContent();
       if (email.includes(user2Email)) {
         // Click three-dots menu
-        const threeDotsBtn = item.locator('.three-dots-btn[data-member-id]');
+        const threeDotsBtn = item.locator('.three-dots-btn');
         await threeDotsBtn.click();
         await page1.waitForTimeout(300);
         
+        // Wait for menu to be visible
+        const menu = item.locator('.three-dots-menu');
+        await menu.waitFor({ state: 'visible', timeout: 5000 });
+        
         // Click "Remover" in menu
         const removeBtn = item.locator('button[data-action="remove"]');
+        await removeBtn.waitFor({ state: 'visible', timeout: 5000 });
         await removeBtn.click();
         await page1.waitForTimeout(500);
         
