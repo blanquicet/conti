@@ -517,45 +517,91 @@ function renderIncomeCategories() {
  */
 function renderLoansFilterDropdown() {
   // Get all unique people involved in loans (debtors + creditors)
-  const people = new Map(); // ID -> Name
+  const peopleMap = new Map(); // ID -> name
   
   if (loansData && loansData.balances) {
     loansData.balances.forEach(balance => {
-      people.set(balance.debtor_id, balance.debtor_name);
-      people.set(balance.creditor_id, balance.creditor_name);
+      peopleMap.set(balance.debtor_id, balance.debtor_name);
+      peopleMap.set(balance.creditor_id, balance.creditor_name);
     });
   }
   
-  const peopleArray = Array.from(people.entries()).map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  // Create set of member IDs for quick lookup
+  const memberIds = new Set(householdMembers.map(m => m.id));
+  
+  // Separate into members and contacts
+  const members = [];
+  const contacts = [];
+  
+  peopleMap.forEach((name, id) => {
+    const personObj = { id, name };
+    if (memberIds.has(id)) {
+      members.push(personObj);
+    } else {
+      contacts.push(personObj);
+    }
+  });
+  
+  members.sort((a, b) => a.name.localeCompare(b.name));
+  contacts.sort((a, b) => a.name.localeCompare(b.name));
   
   const showAllPeople = Array.isArray(selectedLoanPeople) && selectedLoanPeople.length === 0;
   
   return `
     <div class="filter-dropdown" id="loans-filter-dropdown" style="display: ${isLoansFilterOpen ? 'block' : 'none'}">
-      <div class="filter-section">
-        <div class="filter-section-header">
-          <span class="filter-section-title">Personas</span>
-          <div class="filter-section-actions">
-            <button class="filter-link-btn" id="select-all-loan-people">Todos</button>
-            <button class="filter-link-btn" id="clear-all-loan-people">Limpiar</button>
+      ${members.length > 0 ? `
+        <div class="filter-section">
+          <div class="filter-section-header">
+            <span class="filter-section-title">Miembros</span>
+            <div class="filter-section-actions">
+              <button class="filter-link-btn" id="select-all-loan-members">Todos</button>
+              <button class="filter-link-btn" id="clear-all-loan-members">Limpiar</button>
+            </div>
+          </div>
+          <div class="filter-options">
+            ${members.map(person => {
+              const isChecked = showAllPeople || (selectedLoanPeople && selectedLoanPeople.includes(person.id));
+              return `
+                <label class="filter-checkbox-label">
+                  <input type="checkbox" class="filter-checkbox" 
+                         data-filter-type="loan-person" 
+                         data-person-type="member"
+                         data-value="${person.id}" 
+                         ${isChecked ? 'checked' : ''}>
+                  <span>${person.name}</span>
+                </label>
+              `;
+            }).join('')}
           </div>
         </div>
-        <div class="filter-options">
-          ${peopleArray.map(person => {
-            const isChecked = showAllPeople || (selectedLoanPeople && selectedLoanPeople.includes(person.id));
-            return `
-              <label class="filter-checkbox-label">
-                <input type="checkbox" class="filter-checkbox" 
-                       data-filter-type="loan-person" 
-                       data-value="${person.id}" 
-                       ${isChecked ? 'checked' : ''}>
-                <span>${person.name}</span>
-              </label>
-            `;
-          }).join('')}
+      ` : ''}
+      
+      ${contacts.length > 0 ? `
+        <div class="filter-section">
+          <div class="filter-section-header">
+            <span class="filter-section-title">Contactos</span>
+            <div class="filter-section-actions">
+              <button class="filter-link-btn" id="select-all-loan-contacts">Todos</button>
+              <button class="filter-link-btn" id="clear-all-loan-contacts">Limpiar</button>
+            </div>
+          </div>
+          <div class="filter-options">
+            ${contacts.map(person => {
+              const isChecked = showAllPeople || (selectedLoanPeople && selectedLoanPeople.includes(person.id));
+              return `
+                <label class="filter-checkbox-label">
+                  <input type="checkbox" class="filter-checkbox" 
+                         data-filter-type="loan-person"
+                         data-person-type="contact" 
+                         data-value="${person.id}" 
+                         ${isChecked ? 'checked' : ''}>
+                  <span>${person.name}</span>
+                </label>
+              `;
+            }).join('')}
+          </div>
         </div>
-      </div>
+      ` : ''}
 
       <div class="filter-footer">
         <button class="btn-secondary btn-small" id="clear-loans-filter">Mostrar todo</button>
@@ -590,11 +636,11 @@ function renderLoansCards() {
 
   let balances = loansData.balances;
   
-  // Apply filter if any people are selected
+  // Apply filter if any people are selected (AND logic: both debtor AND creditor must be in selection)
   const hasFilter = selectedLoanPeople === null || (Array.isArray(selectedLoanPeople) && selectedLoanPeople.length > 0);
   if (hasFilter && selectedLoanPeople && selectedLoanPeople.length > 0) {
     balances = balances.filter(balance => 
-      selectedLoanPeople.includes(balance.debtor_id) || selectedLoanPeople.includes(balance.creditor_id)
+      selectedLoanPeople.includes(balance.debtor_id) && selectedLoanPeople.includes(balance.creditor_id)
     );
   }
   
@@ -2014,24 +2060,45 @@ function setupLoansFilterListeners() {
     }
   });
 
-  // Select all people
-  const selectAllBtn = document.getElementById('select-all-loan-people');
-  if (selectAllBtn) {
-    selectAllBtn.addEventListener('click', () => {
-      document.querySelectorAll('[data-filter-type="loan-person"]').forEach(checkbox => {
+  // Select all members
+  const selectAllMembersBtn = document.getElementById('select-all-loan-members');
+  if (selectAllMembersBtn) {
+    selectAllMembersBtn.addEventListener('click', () => {
+      document.querySelectorAll('[data-filter-type="loan-person"][data-person-type="member"]').forEach(checkbox => {
         checkbox.checked = true;
       });
     });
   }
 
-  // Clear all people
-  const clearAllBtn = document.getElementById('clear-all-loan-people');
-  if (clearAllBtn) {
-    clearAllBtn.addEventListener('click', () => {
-      document.querySelectorAll('[data-filter-type="loan-person"]').forEach(checkbox => {
+  // Clear all members
+  const clearAllMembersBtn = document.getElementById('clear-all-loan-members');
+  if (clearAllMembersBtn) {
+    clearAllMembersBtn.addEventListener('click', () => {
+      document.querySelectorAll('[data-filter-type="loan-person"][data-person-type="member"]').forEach(checkbox => {
         checkbox.checked = false;
       });
     });
+  }
+
+  // Select all contacts
+  const selectAllContactsBtn = document.getElementById('select-all-loan-contacts');
+  if (selectAllContactsBtn) {
+    selectAllContactsBtn.addEventListener('click', () => {
+      document.querySelectorAll('[data-filter-type="loan-person"][data-person-type="contact"]').forEach(checkbox => {
+        checkbox.checked = true;
+      });
+    });
+  }
+
+  // Clear all contacts
+  const clearAllContactsBtn = document.getElementById('clear-all-loan-contacts');
+  if (clearAllContactsBtn) {
+    clearAllContactsBtn.addEventListener('click', () => {
+      document.querySelectorAll('[data-filter-type="loan-person"][data-person-type="contact"]').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+    });
+  }
   }
 
   // Clear filter button
