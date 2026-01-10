@@ -251,6 +251,8 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 	// Calculate balances: map[debtorID][creditorID] = amount
 	balanceMap := make(map[string]map[string]float64)
 	balanceNames := make(map[string]string) // ID -> Name mapping
+	// Track movements contributing to each debt: map[debtorID][creditorID] = []movements
+	movementDetails := make(map[string]map[string][]DebtMovementDetail)
 
 	for _, m := range movements {
 		currency := m.Currency
@@ -296,6 +298,23 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 						balanceMap[participantID] = make(map[string]float64)
 					}
 					balanceMap[participantID][payerID] += share
+					
+					// Track movement detail
+					if movementDetails[participantID] == nil {
+						movementDetails[participantID] = make(map[string][]DebtMovementDetail)
+					}
+					movementDetails[participantID][payerID] = append(
+						movementDetails[participantID][payerID],
+						DebtMovementDetail{
+							MovementID:   m.ID,
+							Description:  m.Description,
+							Amount:       share,
+							MovementDate: m.MovementDate.Format("2006-01-02T15:04:05Z07:00"),
+							Type:         string(TypeSplit),
+							PayerID:      payerID,
+							PayerName:    payerName,
+						},
+					)
 				}
 			}
 		}
@@ -327,12 +346,29 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 				balanceNames[payerID] = payerName
 				balanceNames[counterpartyID] = counterpartyName
 				
-				// Debt payment REDUCES what counterparty owes payer
-				// (or increases what payer owes counterparty if it's a repayment)
-				if balanceMap[counterpartyID] == nil {
-					balanceMap[counterpartyID] = make(map[string]float64)
+				// Debt payment: payer pays counterparty
+				// This REDUCES what payer owes counterparty
+				if balanceMap[payerID] == nil {
+					balanceMap[payerID] = make(map[string]float64)
 				}
-				balanceMap[counterpartyID][payerID] -= m.Amount
+				balanceMap[payerID][counterpartyID] -= m.Amount
+				
+				// Track movement detail (negative amount for payment)
+				if movementDetails[payerID] == nil {
+					movementDetails[payerID] = make(map[string][]DebtMovementDetail)
+				}
+				movementDetails[payerID][counterpartyID] = append(
+					movementDetails[payerID][counterpartyID],
+					DebtMovementDetail{
+						MovementID:   m.ID,
+						Description:  m.Description,
+						Amount:       -m.Amount, // Negative because it reduces debt
+						MovementDate: m.MovementDate.Format("2006-01-02T15:04:05Z07:00"),
+						Type:         string(TypeDebtPayment),
+						PayerID:      payerID,      // Who made the payment
+						PayerName:    payerName,    // Name of who made the payment
+					},
+				)
 			}
 		}
 	}
@@ -358,7 +394,16 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 			
 			netAmount := amount - reverseAmount
 			
-			// Only include non-zero balances
+			// Combine movements from both directions
+			movements := movementDetails[debtorID][creditorID]
+			if movementDetails[creditorID] != nil {
+				movements = append(movements, movementDetails[creditorID][debtorID]...)
+			}
+			
+			// Include balance if:
+			// 1. Net amount is positive (debtor owes creditor)
+			// 2. Net amount is negative (creditor owes debtor - reverse)
+			// 3. Net amount is zero BUT there are movements (debt was settled this month)
 			if netAmount > 0.01 { // Small tolerance for floating point
 				balances = append(balances, DebtBalance{
 					DebtorID:     debtorID,
@@ -367,6 +412,7 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 					CreditorName: balanceNames[creditorID],
 					Amount:       netAmount,
 					Currency:     "COP", // TODO: handle multi-currency
+					Movements:    movements,
 				})
 				processed[pairKey] = true
 			} else if netAmount < -0.01 {
@@ -378,19 +424,82 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 					CreditorName: balanceNames[debtorID],
 					Amount:       -netAmount,
 					Currency:     "COP",
+					Movements:    movements,
 				})
 				processed[reversePairKey] = true
+			} else if len(movements) > 0 {
+				// Balance is zero but there are movements - show it
+				// Pick the direction with more debt-increasing movements
+				debtIncreasing := 0.0
+				for _, m := range movementDetails[debtorID][creditorID] {
+					if m.Amount > 0 {
+						debtIncreasing += m.Amount
+					}
+				}
+				
+				balances = append(balances, DebtBalance{
+					DebtorID:     debtorID,
+					DebtorName:   balanceNames[debtorID],
+					CreditorID:   creditorID,
+					CreditorName: balanceNames[creditorID],
+					Amount:       0,
+					Currency:     "COP",
+					Movements:    movements,
+				})
+				processed[pairKey] = true
+				processed[reversePairKey] = true
 			} else {
-				// Balanced out - mark as processed
+				// Balanced out with no movements - don't show
 				processed[pairKey] = true
 				processed[reversePairKey] = true
 			}
 		}
 	}
 
+	// Calculate summary for household members
+	// Get household members to identify internal vs external debts
+	members, err := s.householdsRepo.GetMembers(ctx, householdID)
+	if err != nil {
+		// If we can't get members, skip summary calculation
+		members = nil
+	}
+
+	var summary *DebtSummary
+	if members != nil {
+		// Build set of household member IDs
+		memberIDs := make(map[string]bool)
+		for _, member := range members {
+			memberIDs[member.UserID] = true
+		}
+
+		theyOweUs := 0.0
+		weOwe := 0.0
+
+		for _, balance := range balances {
+			debtorIsMember := memberIDs[balance.DebtorID]
+			creditorIsMember := memberIDs[balance.CreditorID]
+
+			// Only count if one side is a household member
+			if debtorIsMember && !creditorIsMember {
+				// Household member owes to external contact
+				weOwe += balance.Amount
+			} else if !debtorIsMember && creditorIsMember {
+				// External contact owes to household member
+				theyOweUs += balance.Amount
+			}
+			// If both are members or both are contacts, don't count (internal debts)
+		}
+
+		summary = &DebtSummary{
+			TheyOweUs: theyOweUs,
+			WeOwe:     weOwe,
+		}
+	}
+
 	return &DebtConsolidationResponse{
 		Balances: balances,
 		Month:    month,
+		Summary:  summary,
 	}, nil
 }
 

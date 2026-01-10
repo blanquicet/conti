@@ -1650,11 +1650,17 @@ async function loadMovementForEdit(movementId) {
       }
     }
     
-    // Select the current tipo and set it in the form (no mapping needed, types match)
-    const currentTipoBtn = document.querySelector(`.tipo-btn[data-tipo="${movement.type}"]`);
+    // Select the current tipo and set it in the form
+    // Map DEBT_PAYMENT to LOAN for editing (they use the same UI)
+    let tipoForUI = movement.type;
+    if (movement.type === 'DEBT_PAYMENT') {
+      tipoForUI = 'LOAN';
+    }
+    
+    const currentTipoBtn = document.querySelector(`.tipo-btn[data-tipo="${tipoForUI}"]`);
     if (currentTipoBtn) {
       currentTipoBtn.classList.add('active');
-      document.getElementById('tipo').value = movement.type;
+      document.getElementById('tipo').value = tipoForUI;
       onTipoChange(); // This will render participants if type is SPLIT
     }
     
@@ -1683,11 +1689,29 @@ async function loadMovementForEdit(movementId) {
     
     // Load counterparty for DEBT_PAYMENT movements
     if (movement.type === 'DEBT_PAYMENT') {
+      // Set loan direction to REPAY (since DEBT_PAYMENT means repaying a debt)
+      const loanDirectionEl = document.getElementById('loanDirection');
+      if (loanDirectionEl) {
+        loanDirectionEl.value = 'REPAY';
+        
+        // Update button states
+        const loanDirectionBtns = document.querySelectorAll('.loan-direction-btn');
+        loanDirectionBtns.forEach(btn => {
+          if (btn.dataset.direction === 'REPAY') {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+        
+        // Trigger UI update
+        onTipoChange();
+      }
+      
       // Set pagador (payer)
       const pagadorEl = document.getElementById('pagador');
       if (pagadorEl && movement.payer_name) {
         pagadorEl.value = movement.payer_name;
-        onPagadorChange(); // Update payment methods if needed
       }
       
       // Set tomador (counterparty)
@@ -1697,40 +1721,88 @@ async function loadMovementForEdit(movementId) {
       }
     }
     
-    // For HOUSEHOLD movements, we need to show payment methods for the actual payer
+    // For HOUSEHOLD and DEBT_PAYMENT movements, we need to show payment methods for the actual payer
     // (not currentUser, which is who's logged in)
-    if (movement.type === 'HOUSEHOLD' && movement.payer_user_id) {
+    // Use setTimeout to ensure the form fields are rendered after onTipoChange()
+    if ((movement.type === 'HOUSEHOLD' || movement.type === 'DEBT_PAYMENT') && movement.payer_user_id) {
       const payerUser = Object.values(usersMap).find(u => u.id === movement.payer_user_id);
       if (payerUser) {
-        showPaymentMethods(payerUser.name, true);
+        setTimeout(() => {
+          showPaymentMethods(payerUser.name, true);
+          
+          // Now select the payment method after the dropdown is populated
+          const metodoEl = document.getElementById('metodo');
+          if (metodoEl && movement.payment_method_id) {
+            // Try to find payment method by ID first
+            let selectedPaymentMethodName = null;
+            const paymentMethod = paymentMethods.find(pm => pm.id === movement.payment_method_id);
+            
+            if (paymentMethod) {
+              selectedPaymentMethodName = paymentMethod.name;
+              console.log('Found payment method by ID:', selectedPaymentMethodName);
+            } else if (movement.payment_method_name) {
+              // Fallback: use the name directly from the movement (might be inactive)
+              selectedPaymentMethodName = movement.payment_method_name;
+              console.log('Using payment method name from movement (possibly inactive):', selectedPaymentMethodName);
+            } else {
+              console.warn('Payment method not found in paymentMethods array:', movement.payment_method_id);
+            }
+            
+            if (selectedPaymentMethodName) {
+              // Small additional delay to ensure options are rendered
+              setTimeout(() => {
+                const optionIndex = Array.from(metodoEl.options).findIndex(opt => opt.value === selectedPaymentMethodName);
+                
+                if (optionIndex >= 0) {
+                  metodoEl.selectedIndex = optionIndex;
+                  console.log('Payment method selected at index:', optionIndex);
+                } else {
+                  // Payment method not in dropdown - add it as unavailable option
+                  console.warn('Payment method not found in dropdown, adding as unavailable:', selectedPaymentMethodName);
+                  const unavailableOption = document.createElement('option');
+                  unavailableOption.value = selectedPaymentMethodName;
+                  unavailableOption.textContent = `${selectedPaymentMethodName} (no disponible)`;
+                  unavailableOption.selected = true;
+                  metodoEl.appendChild(unavailableOption);
+                  
+                  console.log('Unavailable payment method added and selected');
+                }
+              }, 50);
+            }
+          }
+        }, 50);
       }
     }
     
-    // Pre-select current payment method (now editable!)
-    // Note: showPaymentMethods() above repopulated the select options for the correct payer
-    // We need to find the payment method by ID and set its name
-    const metodoEl = document.getElementById('metodo');
-    let selectedPaymentMethodName = null;
-    
-    if (metodoEl && movement.payment_method_id) {
-      const paymentMethod = paymentMethods.find(pm => pm.id === movement.payment_method_id);
-      if (paymentMethod) {
-        selectedPaymentMethodName = paymentMethod.name;
-      }
-    }
-    
-    // Set the payment method value (now editable!)
-    // Use setTimeout to ensure the select is properly rendered before setting value
-    if (metodoEl && selectedPaymentMethodName) {
-      setTimeout(() => {
-        const optionIndex = Array.from(metodoEl.options).findIndex(opt => opt.value === selectedPaymentMethodName);
+    // For SPLIT movements, handle payment method selection
+    if (movement.type === 'SPLIT' && movement.payment_method_id) {
+      const metodoEl = document.getElementById('metodo');
+      if (metodoEl) {
+        let selectedPaymentMethodName = null;
+        const paymentMethod = paymentMethods.find(pm => pm.id === movement.payment_method_id);
         
-        if (optionIndex >= 0) {
-          metodoEl.selectedIndex = optionIndex;
-        } else {
-          console.warn('Payment method option not found:', selectedPaymentMethodName);
+        if (paymentMethod) {
+          selectedPaymentMethodName = paymentMethod.name;
+        } else if (movement.payment_method_name) {
+          selectedPaymentMethodName = movement.payment_method_name;
         }
-      }, 0);
+        
+        if (selectedPaymentMethodName) {
+          setTimeout(() => {
+            const optionIndex = Array.from(metodoEl.options).findIndex(opt => opt.value === selectedPaymentMethodName);
+            if (optionIndex >= 0) {
+              metodoEl.selectedIndex = optionIndex;
+            } else {
+              // Add as unavailable option
+              const unavailableOption = document.createElement('option');
+              unavailableOption.value = selectedPaymentMethodName;
+              unavailableOption.textContent = `${selectedPaymentMethodName} (no disponible)`;
+              unavailableOption.selected = true;
+              metodoEl.appendChild(unavailableOption);
+            }
+          }, 100);
+        }
+      }
     }
     
   } catch (error) {
@@ -1805,6 +1877,18 @@ async function onSubmit(e) {
       }
 
       setStatus('Ingreso registrado correctamente.', 'ok');
+      
+      // Navigate back to home and show income tab
+      setTimeout(() => {
+        router.navigate('/?tab=ingresos');
+      }, 1500);
+      
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+      if (cancelBtn) {
+        cancelBtn.disabled = false;
+      }
+      return;
     } else {
       // Handle regular movements (gastos) - now using new backend API
       const isEditMode = !!currentEditMovement;
@@ -1896,6 +1980,17 @@ async function onSubmit(e) {
     // If in edit mode, navigate back to home instead of resetting form
     if (currentEditMovement) {
       currentEditMovement = null;
+      setTimeout(() => {
+        router.navigate('/');
+      }, 1500);
+      return;
+    }
+
+    // If creating a LOAN (SPLIT or DEBT_PAYMENT), navigate back to home
+    const isLoan = payload.type === 'SPLIT' || payload.type === 'DEBT_PAYMENT';
+    const wasLoanType = document.getElementById('tipo')?.value === 'LOAN';
+    
+    if (isLoan || wasLoanType) {
       setTimeout(() => {
         router.navigate('/');
       }, 1500);

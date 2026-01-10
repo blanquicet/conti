@@ -337,6 +337,17 @@ func GetDefaultCategoryGroups() []CategoryGroup {
 	}
 }
 
+// DebtMovementDetail represents a single movement contributing to a debt
+type DebtMovementDetail struct {
+	MovementID   string  `json:"movement_id"`
+	Description  string  `json:"description"`
+	Amount       float64 `json:"amount"`      // Amount contributed to this debt (positive) or payment (negative)
+	MovementDate string  `json:"movement_date"`
+	Type         string  `json:"type"` // "SPLIT" or "DEBT_PAYMENT"
+	PayerID      string  `json:"payer_id,omitempty"` // ID of who paid (for SPLIT movements)
+	PayerName    string  `json:"payer_name,omitempty"` // Name of who paid (for SPLIT movements)
+}
+
 // DebtBalance represents who owes whom and how much
 type DebtBalance struct {
 	DebtorID   string  `json:"debtor_id"`   // ID of person who owes
@@ -345,12 +356,20 @@ type DebtBalance struct {
 	CreditorName string `json:"creditor_name"` // Name of person who is owed
 	Amount     float64 `json:"amount"`      // Amount owed
 	Currency   string  `json:"currency"`
+	Movements  []DebtMovementDetail `json:"movements,omitempty"` // Breakdown of movements contributing to this debt
 }
 
 // DebtConsolidationResponse represents consolidated debts for a household
 type DebtConsolidationResponse struct {
-	Balances []DebtBalance `json:"balances"` // List of who owes whom
-	Month    *string       `json:"month,omitempty"` // Optional month filter
+	Balances   []DebtBalance       `json:"balances"`             // List of who owes whom
+	Month      *string             `json:"month,omitempty"`      // Optional month filter
+	Summary    *DebtSummary        `json:"summary,omitempty"`    // Summary for household members
+}
+
+// DebtSummary represents totals for household members
+type DebtSummary struct {
+	TheyOweUs float64 `json:"they_owe_us"` // What external contacts owe to household members
+	WeOwe     float64 `json:"we_owe"`      // What household members owe to external contacts
 }
 
 // ListMovementsResponse represents the response for listing movements

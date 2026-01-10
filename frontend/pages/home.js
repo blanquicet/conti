@@ -18,15 +18,16 @@ let currentMonth = null; // YYYY-MM format
 let incomeData = null;
 let movementsData = null; // Gastos data (filtered)
 let originalMovementsData = null; // Original unfiltered movements data from API
-let loansData = null; // Préstamos data (debts consolidation)
-let loanMovements = null; // SPLIT and DEBT_PAYMENT movements for loans
+let loansData = null; // Préstamos data (debts consolidation with movement details)
 let activeTab = 'gastos'; // 'gastos', 'ingresos', 'prestamos', 'tarjetas' - DEFAULT TO GASTOS
 let householdMembers = []; // List of household members for filtering
 let selectedMemberIds = []; // Array of selected member IDs (empty = all)
 let selectedIncomeTypes = []; // Array of selected income types (empty = all)
 let selectedCategories = []; // Array of selected categories for gastos filter (empty = all)
 let selectedPaymentMethods = []; // Array of selected payment method IDs for gastos filter (empty = all)
+let selectedLoanPeople = []; // Array of selected person IDs for loans filter (empty = all)
 let isFilterOpen = false; // Track if filter dropdown is open
+let isLoansFilterOpen = false; // Track if loans filter dropdown is open
 
 /**
  * Format number as COP currency
@@ -511,6 +512,59 @@ function renderIncomeCategories() {
 }
 
 /**
+ * Render loans filter dropdown
+ */
+function renderLoansFilterDropdown() {
+  // Get all unique people involved in loans (debtors + creditors)
+  const people = new Map(); // ID -> Name
+  
+  if (loansData && loansData.balances) {
+    loansData.balances.forEach(balance => {
+      people.set(balance.debtor_id, balance.debtor_name);
+      people.set(balance.creditor_id, balance.creditor_name);
+    });
+  }
+  
+  const peopleArray = Array.from(people.entries()).map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  
+  const showAllPeople = Array.isArray(selectedLoanPeople) && selectedLoanPeople.length === 0;
+  
+  return `
+    <div class="filter-dropdown" id="loans-filter-dropdown" style="display: ${isLoansFilterOpen ? 'block' : 'none'}">
+      <div class="filter-section">
+        <div class="filter-section-header">
+          <span class="filter-section-title">Personas</span>
+          <div class="filter-section-actions">
+            <button class="filter-link-btn" id="select-all-loan-people">Todos</button>
+            <button class="filter-link-btn" id="clear-all-loan-people">Limpiar</button>
+          </div>
+        </div>
+        <div class="filter-options">
+          ${peopleArray.map(person => {
+            const isChecked = showAllPeople || (selectedLoanPeople && selectedLoanPeople.includes(person.id));
+            return `
+              <label class="filter-checkbox-label">
+                <input type="checkbox" class="filter-checkbox" 
+                       data-filter-type="loan-person" 
+                       data-value="${person.id}" 
+                       ${isChecked ? 'checked' : ''}>
+                <span>${person.name}</span>
+              </label>
+            `;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="filter-footer">
+        <button class="btn-secondary btn-small" id="clear-loans-filter">Mostrar todo</button>
+        <button class="btn-primary btn-small" id="apply-loans-filter">Aplicar</button>
+      </div>
+    </div>
+  `;
+}
+
+/**
  * Render loans cards (Level 1: debt pairs with net amounts)
  */
 function renderLoansCards() {
@@ -519,20 +573,99 @@ function renderLoansCards() {
       <div class="empty-state">
         <div class="empty-icon">💸</div>
         <p>No hay préstamos pendientes este mes</p>
+        <button id="add-loan-btn-empty" class="btn-primary">+ Registrar préstamo</button>
+      </div>
+      <div class="floating-actions">
+        <button id="filter-loans-btn" class="btn-filter-floating" title="Filtrar por personas">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
+          </svg>
+        </button>
+        ${renderLoansFilterDropdown()}
+        <button id="add-loan-btn" class="btn-add-floating">+</button>
       </div>
     `;
   }
 
-  const balances = loansData.balances;
+  let balances = loansData.balances;
+  
+  // Apply filter if any people are selected
+  const hasFilter = selectedLoanPeople === null || (Array.isArray(selectedLoanPeople) && selectedLoanPeople.length > 0);
+  if (hasFilter && selectedLoanPeople && selectedLoanPeople.length > 0) {
+    balances = balances.filter(balance => 
+      selectedLoanPeople.includes(balance.debtor_id) || selectedLoanPeople.includes(balance.creditor_id)
+    );
+  }
+  
+  // Recalculate summary based on filtered balances (if filter is active)
+  let displaySummary = loansData.summary;
+  if (hasFilter && selectedLoanPeople && selectedLoanPeople.length > 0 && householdMembers.length > 0) {
+    const memberIds = new Set(householdMembers.map(m => m.id));
+    let theyOweUs = 0;
+    let weOwe = 0;
+    
+    balances.forEach(balance => {
+      const debtorIsMember = memberIds.has(balance.debtor_id);
+      const creditorIsMember = memberIds.has(balance.creditor_id);
+      
+      if (debtorIsMember && !creditorIsMember) {
+        weOwe += balance.amount;
+      } else if (!debtorIsMember && creditorIsMember) {
+        theyOweUs += balance.amount;
+      }
+    });
+    
+    displaySummary = { they_owe_us: theyOweUs, we_owe: weOwe };
+  }
+  
+  // Store filtered summary for use in refreshDisplay
+  window.__filteredLoansSummary = displaySummary;
+  
+  // Helper function to get initials from name
+  const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+  };
+  
+  // Helper function to get color based on name
+  const getAvatarColor = (name) => {
+    const colors = [
+      '#FF6B6B', // red
+      '#4ECDC4', // teal
+      '#45B7D1', // blue
+      '#FFA07A', // salmon
+      '#98D8C8', // mint
+      '#F7DC6F', // yellow
+      '#BB8FCE', // purple
+      '#85C1E2', // sky blue
+    ];
+    const index = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[index % colors.length];
+  };
 
   const cardsHtml = balances.map(balance => {
+    const debtorInitials = getInitials(balance.debtor_name);
+    const creditorInitials = getInitials(balance.creditor_name);
+    const debtorColor = getAvatarColor(balance.debtor_name);
+    const creditorColor = getAvatarColor(balance.creditor_name);
+    const isSettled = balance.amount === 0;
+    
     return `
-      <div class="expense-group-card" data-debtor-id="${balance.debtor_id}" data-creditor-id="${balance.creditor_id}">
-        <div class="expense-group-header">
-          <div class="expense-group-icon">🤝</div>
-          <div class="expense-group-info">
-            <div class="expense-group-name">${balance.debtor_name} → ${balance.creditor_name}</div>
-            <div class="expense-group-amount">${formatCurrency(balance.amount)}</div>
+      <div class="expense-group-card loan-card ${isSettled ? 'loan-settled' : ''}" data-debtor-id="${balance.debtor_id}" data-creditor-id="${balance.creditor_id}">
+        <div class="expense-group-header loan-header-split">
+          <div class="loan-avatar" style="background-color: ${debtorColor}">
+            ${debtorInitials}
+          </div>
+          <div class="expense-group-info loan-center-info">
+            <div class="expense-group-name">${isSettled ? `${balance.debtor_name} y ${balance.creditor_name} están a paz y salvo` : `${balance.debtor_name} le debe a ${balance.creditor_name}`}</div>
+            <div class="expense-group-amount ${isSettled ? 'settled-amount' : ''}">${isSettled ? '✓' : formatCurrency(balance.amount)}</div>
+          </div>
+          <div class="loan-avatar" style="background-color: ${creditorColor}">
+            ${creditorInitials}
           </div>
         </div>
         <div class="expense-group-details hidden" id="loan-details-${balance.debtor_id}-${balance.creditor_id}">
@@ -546,6 +679,15 @@ function renderLoansCards() {
     <div class="categories-grid">
       ${cardsHtml}
     </div>
+    <div class="floating-actions">
+      <button id="filter-loans-btn" class="btn-filter-floating" title="Filtrar por personas">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
+        </svg>
+      </button>
+      ${renderLoansFilterDropdown()}
+      <button id="add-loan-btn" class="btn-add-floating">+</button>
+    </div>
   `;
 }
 
@@ -553,103 +695,113 @@ function renderLoansCards() {
  * Render loan details (Level 2: breakdown by direction)
  */
 function renderLoanDetails(debtorId, creditorId) {
-  console.log('=== renderLoanDetails ===');
-  console.log('Debtor ID:', debtorId);
-  console.log('Creditor ID:', creditorId);
+  // Get balance data from backend (already calculated)
+  const balance = loansData.balances.find(b => b.debtor_id === debtorId && b.creditor_id === creditorId);
   
-  if (!loanMovements || loanMovements.length === 0) {
+  if (!balance || !balance.movements || balance.movements.length === 0) {
     return '<p class="no-data">No hay movimientos disponibles</p>';
   }
 
-  // Calculate amounts for each direction
-  let debtorOwesCreditor = 0; // Debtor owes Creditor
-  let creditorOwesDebtor = 0; // Creditor owes Debtor
-
-  loanMovements.forEach(movement => {
-    if (movement.type === 'SPLIT') {
-      // For SPLIT: participants owe the payer
-      const payerId = movement.payer_user_id;
-      
-      // Check if payer is creditor and debtor is a participant
-      if (payerId === creditorId) {
-        const participant = movement.participants.find(p => p.participant_user_id === debtorId);
-        if (participant) {
-          console.log('Found SPLIT: creditor is payer, debtor is participant', movement.description, movement.amount * participant.percentage);
-          debtorOwesCreditor += movement.amount * participant.percentage;
-        }
-      }
-      
-      // Check if payer is debtor and creditor is a participant
-      if (payerId === debtorId) {
-        const participant = movement.participants.find(p => p.participant_user_id === creditorId);
-        if (participant) {
-          console.log('Found SPLIT: debtor is payer, creditor is participant', movement.description, movement.amount * participant.percentage);
-          creditorOwesDebtor += movement.amount * participant.percentage;
-        }
-      }
-    } else if (movement.type === 'DEBT_PAYMENT') {
-      // For DEBT_PAYMENT: payer pays receiver, reducing debt
-      const payerId = movement.payer_user_id;
-      const receiverId = movement.receiver_user_id;
-      
-      // Payment from debtor to creditor reduces debtorOwesCreditor
-      if (payerId === debtorId && receiverId === creditorId) {
-        console.log('Found DEBT_PAYMENT: debtor pays creditor', movement.description, movement.amount);
-        creditorOwesDebtor += movement.amount; // Shown as reverse debt
-      }
-      
-      // Payment from creditor to debtor
-      if (payerId === creditorId && receiverId === debtorId) {
-        console.log('Found DEBT_PAYMENT: creditor pays debtor', movement.description, movement.amount);
-        debtorOwesCreditor += movement.amount; // Shown as reverse debt
-      }
-    }
-  });
-
-  console.log('Calculated:', { debtorOwesCreditor, creditorOwesDebtor });
-
-  // Get names from loansData
-  const balance = loansData.balances.find(b => b.debtor_id === debtorId && b.creditor_id === creditorId);
-  const debtorName = balance?.debtor_name || 'Desconocido';
-  const creditorName = balance?.creditor_name || 'Desconocido';
+  const debtorName = balance.debtor_name || 'Desconocido';
+  const creditorName = balance.creditor_name || 'Desconocido';
+  
+  // Group movements into 4 categories: who paid × movement type
+  // 1. Debtor owes Creditor (SPLIT where creditor paid)
+  const debtorOwesCreditorSplit = balance.movements.filter(m => 
+    m.type === 'SPLIT' && m.payer_id === creditorId
+  );
+  
+  // 2. Creditor owes Debtor (SPLIT where debtor paid)
+  const creditorOwesDebtorSplit = balance.movements.filter(m => 
+    m.type === 'SPLIT' && m.payer_id === debtorId
+  );
+  
+  // 3. Debtor paid to Creditor (DEBT_PAYMENT from debtor to creditor)
+  const debtorPaidCreditor = balance.movements.filter(m => 
+    m.type === 'DEBT_PAYMENT' && m.amount < 0 && m.payer_id === debtorId
+  );
+  
+  // 4. Creditor paid to Debtor (DEBT_PAYMENT from creditor to debtor - rare but possible)
+  const creditorPaidDebtor = balance.movements.filter(m => 
+    m.type === 'DEBT_PAYMENT' && m.amount < 0 && m.payer_id === creditorId
+  );
+  
+  const totalDebtorOwes = debtorOwesCreditorSplit.reduce((sum, m) => sum + Math.abs(m.amount), 0);
+  const totalCreditorOwes = creditorOwesDebtorSplit.reduce((sum, m) => sum + Math.abs(m.amount), 0);
+  const totalDebtorPaid = debtorPaidCreditor.reduce((sum, m) => sum + Math.abs(m.amount), 0);
+  const totalCreditorPaid = creditorPaidDebtor.reduce((sum, m) => sum + Math.abs(m.amount), 0);
 
   let html = '';
 
-  // Show "Debtor owes Creditor" if > 0
-  if (debtorOwesCreditor > 0.01) {
+  // 1. Show "Debtor owes Creditor" (SPLIT - creditor paid for shared expenses)
+  if (debtorOwesCreditorSplit.length > 0) {
     html += `
-      <div class="expense-category-item" data-direction="debtor-owes" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
+      <div class="expense-category-item" data-direction="debtor-owes-split" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
         <div class="expense-category-header">
           <div class="expense-category-info">
-            <span class="expense-category-name">${debtorName} le debe a ${creditorName}</span>
-            <span class="expense-category-amount">${formatCurrency(debtorOwesCreditor)}</span>
+            <span class="expense-category-name">Lo que ${debtorName} le debe a ${creditorName}</span>
+            <span class="expense-category-amount">${formatCurrency(totalDebtorOwes)}</span>
           </div>
         </div>
-        <div class="expense-category-details hidden" id="loan-movements-debtor-owes-${debtorId}-${creditorId}">
+        <div class="expense-category-details hidden" id="loan-movements-debtor-owes-split-${debtorId}-${creditorId}">
           <!-- Level 3 content will be rendered here -->
         </div>
       </div>
     `;
   }
 
-  // Show "Creditor owes Debtor" if > 0
-  if (creditorOwesDebtor > 0.01) {
+  // 2. Show "Debtor paid Creditor" (DEBT_PAYMENT - debtor made payments)
+  if (debtorPaidCreditor.length > 0) {
     html += `
-      <div class="expense-category-item" data-direction="creditor-owes" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
+      <div class="expense-category-item" data-direction="debtor-paid-creditor" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
         <div class="expense-category-header">
           <div class="expense-category-info">
-            <span class="expense-category-name">${creditorName} le debe a ${debtorName}</span>
-            <span class="expense-category-amount">${formatCurrency(creditorOwesDebtor)}</span>
+            <span class="expense-category-name">Lo que ${debtorName} le pagó a ${creditorName}</span>
+            <span class="expense-category-amount">${formatCurrency(totalDebtorPaid)}</span>
           </div>
         </div>
-        <div class="expense-category-details hidden" id="loan-movements-creditor-owes-${debtorId}-${creditorId}">
+        <div class="expense-category-details hidden" id="loan-movements-debtor-paid-creditor-${debtorId}-${creditorId}">
           <!-- Level 3 content will be rendered here -->
         </div>
       </div>
     `;
   }
 
-  // If no debts found, show a message
+  // 3. Show "Creditor owes Debtor" (SPLIT - debtor paid for shared expenses)
+  if (creditorOwesDebtorSplit.length > 0) {
+    html += `
+      <div class="expense-category-item" data-direction="creditor-owes-split" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
+        <div class="expense-category-header">
+          <div class="expense-category-info">
+            <span class="expense-category-name">Lo que ${creditorName} le debe a ${debtorName}</span>
+            <span class="expense-category-amount">${formatCurrency(totalCreditorOwes)}</span>
+          </div>
+        </div>
+        <div class="expense-category-details hidden" id="loan-movements-creditor-owes-split-${debtorId}-${creditorId}">
+          <!-- Level 3 content will be rendered here -->
+        </div>
+      </div>
+    `;
+  }
+
+  // 4. Show "Creditor paid Debtor" (DEBT_PAYMENT - creditor made payments, rare)
+  if (creditorPaidDebtor.length > 0) {
+    html += `
+      <div class="expense-category-item" data-direction="creditor-paid-debtor" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
+        <div class="expense-category-header">
+          <div class="expense-category-info">
+            <span class="expense-category-name">Lo que ${creditorName} le pagó a ${debtorName}</span>
+            <span class="expense-category-amount">${formatCurrency(totalCreditorPaid)}</span>
+          </div>
+        </div>
+        <div class="expense-category-details hidden" id="loan-movements-creditor-paid-debtor-${debtorId}-${creditorId}">
+          <!-- Level 3 content will be rendered here -->
+        </div>
+      </div>
+    `;
+  }
+
+  // If no movements found, show a message
   if (html === '') {
     html = '<p class="no-data">No se encontraron movimientos de préstamo entre estas personas en este mes.</p>';
   }
@@ -661,64 +813,37 @@ function renderLoanDetails(debtorId, creditorId) {
  * Render loan movements (Level 3: individual movements for a direction)
  */
 function renderLoanMovements(debtorId, creditorId, direction) {
-  if (!loanMovements || loanMovements.length === 0) {
+  // Get balance data from backend
+  const balance = loansData.balances.find(b => b.debtor_id === debtorId && b.creditor_id === creditorId);
+  
+  if (!balance || !balance.movements || balance.movements.length === 0) {
     return '<p class="no-data">No hay movimientos</p>';
   }
 
-  const relevantMovements = [];
-
-  loanMovements.forEach(movement => {
-    if (movement.type === 'SPLIT') {
-      const payerId = movement.payer_user_id;
-      
-      if (direction === 'debtor-owes') {
-        // Debtor owes Creditor: creditor is payer, debtor is participant
-        if (payerId === creditorId) {
-          const participant = movement.participants.find(p => p.participant_user_id === debtorId);
-          if (participant) {
-            relevantMovements.push({
-              ...movement,
-              displayAmount: movement.amount * participant.percentage,
-              percentage: participant.percentage
-            });
-          }
-        }
-      } else if (direction === 'creditor-owes') {
-        // Creditor owes Debtor: debtor is payer, creditor is participant
-        if (payerId === debtorId) {
-          const participant = movement.participants.find(p => p.participant_user_id === creditorId);
-          if (participant) {
-            relevantMovements.push({
-              ...movement,
-              displayAmount: movement.amount * participant.percentage,
-              percentage: participant.percentage
-            });
-          }
-        }
-      }
-    } else if (movement.type === 'DEBT_PAYMENT') {
-      const payerId = movement.payer_user_id;
-      const receiverId = movement.receiver_user_id;
-      
-      if (direction === 'debtor-owes') {
-        // Show payments FROM creditor TO debtor (creates debt for debtor)
-        if (payerId === creditorId && receiverId === debtorId) {
-          relevantMovements.push({
-            ...movement,
-            displayAmount: movement.amount
-          });
-        }
-      } else if (direction === 'creditor-owes') {
-        // Show payments FROM debtor TO creditor (creates debt for creditor)
-        if (payerId === debtorId && receiverId === creditorId) {
-          relevantMovements.push({
-            ...movement,
-            displayAmount: movement.amount
-          });
-        }
-      }
-    }
-  });
+  // Filter movements based on direction (combines payer + type)
+  let relevantMovements = [];
+  
+  if (direction === 'debtor-owes-split') {
+    // SPLIT movements where creditor paid
+    relevantMovements = balance.movements.filter(m => 
+      m.type === 'SPLIT' && m.payer_id === creditorId
+    );
+  } else if (direction === 'debtor-paid-creditor') {
+    // DEBT_PAYMENT where debtor paid to creditor
+    relevantMovements = balance.movements.filter(m => 
+      m.type === 'DEBT_PAYMENT' && m.amount < 0 && m.payer_id === debtorId
+    ).map(m => ({ ...m, amount: Math.abs(m.amount) })); // Convert to positive for display
+  } else if (direction === 'creditor-owes-split') {
+    // SPLIT movements where debtor paid
+    relevantMovements = balance.movements.filter(m => 
+      m.type === 'SPLIT' && m.payer_id === debtorId
+    );
+  } else if (direction === 'creditor-paid-debtor') {
+    // DEBT_PAYMENT where creditor paid to debtor
+    relevantMovements = balance.movements.filter(m => 
+      m.type === 'DEBT_PAYMENT' && m.amount < 0 && m.payer_id === creditorId
+    ).map(m => ({ ...m, amount: Math.abs(m.amount) })); // Convert to positive for display
+  }
 
   if (relevantMovements.length === 0) {
     return '<p class="no-data">No hay movimientos</p>';
@@ -731,14 +856,14 @@ function renderLoanMovements(debtorId, creditorId, direction) {
       <div class="movement-detail-entry">
         <div class="entry-info">
           <span class="entry-description">${movement.description || typeLabel}</span>
-          <span class="entry-amount">${formatCurrency(movement.displayAmount)}</span>
+          <span class="entry-amount">${formatCurrency(movement.amount)}</span>
           <div class="entry-date">${formatDate(movement.movement_date)}</div>
         </div>
         <div class="entry-actions">
-          <button class="three-dots-btn" data-movement-id="${movement.id}">⋮</button>
-          <div class="three-dots-menu" id="movement-menu-${movement.id}">
-            <button class="menu-item" data-action="edit" data-id="${movement.id}">Editar</button>
-            <button class="menu-item" data-action="delete" data-id="${movement.id}">Eliminar</button>
+          <button class="three-dots-btn" data-movement-id="${movement.movement_id}">⋮</button>
+          <div class="three-dots-menu" id="movement-menu-${movement.movement_id}">
+            <button class="menu-item" data-action="edit" data-id="${movement.movement_id}">Editar</button>
+            <button class="menu-item" data-action="delete" data-id="${movement.movement_id}">Eliminar</button>
           </div>
         </div>
       </div>
@@ -808,6 +933,20 @@ export function render(user) {
         ` : activeTab === 'prestamos' && loansData ? `
           ${renderMonthSelector()}
           
+          <div class="loans-summary">
+            ${loansData.summary ? `
+              <div class="summary-item">
+                <div class="summary-label">Nos deben</div>
+                <div class="summary-amount">${formatCurrency(loansData.summary.they_owe_us)}</div>
+              </div>
+              <div class="summary-divider"></div>
+              <div class="summary-item">
+                <div class="summary-label">Debemos</div>
+                <div class="summary-amount">${formatCurrency(loansData.summary.we_owe)}</div>
+              </div>
+            ` : ''}
+          </div>
+
           <div id="loans-container">
             ${renderLoansCards()}
           </div>
@@ -1043,44 +1182,26 @@ async function loadMovementsData() {
 }
 
 /**
- * Load loans data for the current month (debts consolidation + movements)
+ * Load loans data for the current month (debts consolidation with movement details)
  */
 async function loadLoansData() {
   try {
-    // Load debts consolidation and movements in parallel
-    const [consolidationResponse, splitResponse, debtPaymentResponse] = await Promise.all([
-      fetch(`${API_URL}/movements/debts/consolidate?month=${currentMonth}`, {
-        credentials: 'include'
-      }),
-      fetch(`${API_URL}/movements?type=SPLIT&month=${currentMonth}`, {
-        credentials: 'include'
-      }),
-      fetch(`${API_URL}/movements?type=DEBT_PAYMENT&month=${currentMonth}`, {
-        credentials: 'include'
-      })
-    ]);
+    // Load debts consolidation (includes movement details)
+    const consolidationResponse = await fetch(`${API_URL}/movements/debts/consolidate?month=${currentMonth}`, {
+      credentials: 'include'
+    });
 
-    if (!consolidationResponse.ok || !splitResponse.ok || !debtPaymentResponse.ok) {
+    if (!consolidationResponse.ok) {
       console.error('Error loading loans data');
       loansData = null;
-      loanMovements = null;
       return;
     }
 
     loansData = await consolidationResponse.json();
-    const splitData = await splitResponse.json();
-    const debtPaymentData = await debtPaymentResponse.json();
-    
-    // Combine SPLIT and DEBT_PAYMENT movements
-    loanMovements = [
-      ...(splitData.movements || []),
-      ...(debtPaymentData.movements || [])
-    ];
     
   } catch (error) {
     console.error('Error loading loans data:', error);
     loansData = null;
-    loanMovements = null;
   }
 }
 
@@ -1429,6 +1550,25 @@ function refreshDisplay() {
   if (loansContainer && activeTab === 'prestamos') {
     loansContainer.innerHTML = renderLoansCards();
     setupLoansListeners();
+    setupLoanButtonListeners();
+    setupLoansFilterListeners();
+    
+    // Update loans summary
+    const loansSummary = document.querySelector('.loans-summary');
+    if (loansSummary && loansData?.summary) {
+      const summaryToDisplay = window.__filteredLoansSummary || loansData.summary;
+      loansSummary.innerHTML = `
+        <div class="summary-item">
+          <div class="summary-label">Nos deben</div>
+          <div class="summary-amount">${formatCurrency(summaryToDisplay.they_owe_us)}</div>
+        </div>
+        <div class="summary-divider"></div>
+        <div class="summary-item">
+          <div class="summary-label">Debemos</div>
+          <div class="summary-amount">${formatCurrency(summaryToDisplay.we_owe)}</div>
+        </div>
+      `;
+    }
   }
 
   const totalEl = document.querySelector('.total-amount');
@@ -1804,6 +1944,105 @@ function setupLoanDetailsListeners(debtorId, creditorId) {
       });
     }
   });
+}
+
+/**
+ * Setup loan button listeners (+ and filter buttons)
+ */
+function setupLoanButtonListeners() {
+  // Add loan button (in category list)
+  const addLoanBtn = document.getElementById('add-loan-btn');
+  if (addLoanBtn) {
+    addLoanBtn.addEventListener('click', () => {
+      router.navigate('/registrar-movimiento?tipo=LOAN');
+    });
+  }
+
+  // Add loan button (in empty state)
+  const addLoanBtnEmpty = document.getElementById('add-loan-btn-empty');
+  if (addLoanBtnEmpty) {
+    addLoanBtnEmpty.addEventListener('click', () => {
+      router.navigate('/registrar-movimiento?tipo=LOAN');
+    });
+  }
+
+  // Filter loans button
+  const filterLoansBtn = document.getElementById('filter-loans-btn');
+  if (filterLoansBtn) {
+    filterLoansBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isLoansFilterOpen = !isLoansFilterOpen;
+      const dropdown = document.getElementById('loans-filter-dropdown');
+      if (dropdown) {
+        dropdown.style.display = isLoansFilterOpen ? 'block' : 'none';
+      }
+    });
+  }
+}
+
+/**
+ * Setup loans filter listeners
+ */
+function setupLoansFilterListeners() {
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('loans-filter-dropdown');
+    const filterBtn = document.getElementById('filter-loans-btn');
+    if (dropdown && !dropdown.contains(e.target) && e.target !== filterBtn && !filterBtn?.contains(e.target)) {
+      isLoansFilterOpen = false;
+      dropdown.style.display = 'none';
+    }
+  });
+
+  // Select all people
+  const selectAllBtn = document.getElementById('select-all-loan-people');
+  if (selectAllBtn) {
+    selectAllBtn.addEventListener('click', () => {
+      document.querySelectorAll('[data-filter-type="loan-person"]').forEach(checkbox => {
+        checkbox.checked = true;
+      });
+    });
+  }
+
+  // Clear all people
+  const clearAllBtn = document.getElementById('clear-all-loan-people');
+  if (clearAllBtn) {
+    clearAllBtn.addEventListener('click', () => {
+      document.querySelectorAll('[data-filter-type="loan-person"]').forEach(checkbox => {
+        checkbox.checked = false;
+      });
+    });
+  }
+
+  // Clear filter button
+  const clearFilterBtn = document.getElementById('clear-loans-filter');
+  if (clearFilterBtn) {
+    clearFilterBtn.addEventListener('click', () => {
+      selectedLoanPeople = [];
+      isLoansFilterOpen = false;
+      refreshDisplay();
+    });
+  }
+
+  // Apply filter button
+  const applyFilterBtn = document.getElementById('apply-loans-filter');
+  if (applyFilterBtn) {
+    applyFilterBtn.addEventListener('click', () => {
+      const checkedPeople = Array.from(document.querySelectorAll('[data-filter-type="loan-person"]:checked'))
+        .map(cb => cb.dataset.value);
+      
+      // If all are checked or none are checked, show all
+      const allPeopleCheckboxes = document.querySelectorAll('[data-filter-type="loan-person"]');
+      if (checkedPeople.length === 0 || checkedPeople.length === allPeopleCheckboxes.length) {
+        selectedLoanPeople = [];
+      } else {
+        selectedLoanPeople = checkedPeople;
+      }
+      
+      isLoansFilterOpen = false;
+      refreshDisplay();
+    });
+  }
 }
 
 /**
@@ -2418,14 +2657,23 @@ export async function setup() {
     currentMonth = getCurrentMonth();
   }
 
+  // Check URL parameters for active tab
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  if (tabParam && ['gastos', 'ingresos', 'prestamos', 'tarjetas'].includes(tabParam)) {
+    activeTab = tabParam;
+  }
+
   // Load household members for filter
   await loadHouseholdMembers();
 
   // Load data based on active tab (gastos by default)
   if (activeTab === 'gastos') {
     await loadMovementsData();
-  } else {
+  } else if (activeTab === 'ingresos') {
     await loadIncomeData();
+  } else if (activeTab === 'prestamos') {
+    await loadLoansData();
   }
   
   // Initial render of content - UPDATE THE DOM after loading data
@@ -2465,6 +2713,10 @@ export async function setup() {
           ${renderLoansCards()}
         </div>
       `;
+      setupMonthNavigation();
+      setupLoansListeners();
+      setupLoanButtonListeners();
+      setupLoansFilterListeners();
     }
   }
 
@@ -2481,17 +2733,31 @@ export async function setup() {
       tabButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      // Load data for the new tab if not already loaded
+      // Show loading state immediately
+      const contentContainer = document.querySelector('.dashboard-content');
+      if (contentContainer) {
+        if (activeTab === 'prestamos') {
+          contentContainer.innerHTML = `
+            <div class="loading-state">
+              <div class="loading-spinner"></div>
+              <p>Cargando...</p>
+            </div>
+          `;
+        }
+      }
+      
+      // Load data for the new tab
+      // For gastos/ingresos: only load if not already loaded
+      // For prestamos: always reload to get fresh data
       if (activeTab === 'gastos' && !movementsData) {
         await loadMovementsData();
       } else if (activeTab === 'ingresos' && !incomeData) {
         await loadIncomeData();
-      } else if (activeTab === 'prestamos' && !loansData) {
-        await loadLoansData();
+      } else if (activeTab === 'prestamos') {
+        await loadLoansData(); // Always reload loans
       }
       
       // Update content
-      const contentContainer = document.querySelector('.dashboard-content');
       if (contentContainer) {
         if (activeTab === 'gastos') {
           contentContainer.innerHTML = `
@@ -2527,12 +2793,28 @@ export async function setup() {
           contentContainer.innerHTML = `
             ${renderMonthSelector()}
             
+            ${loansData?.summary ? `
+              <div class="loans-summary">
+                <div class="summary-item">
+                  <div class="summary-label">Nos deben</div>
+                  <div class="summary-amount">${formatCurrency(loansData.summary.they_owe_us)}</div>
+                </div>
+                <div class="summary-divider"></div>
+                <div class="summary-item">
+                  <div class="summary-label">Debemos</div>
+                  <div class="summary-amount">${formatCurrency(loansData.summary.we_owe)}</div>
+                </div>
+              </div>
+            ` : ''}
+            
             <div id="loans-container">
               ${renderLoansCards()}
             </div>
           `;
           setupMonthNavigation();
           setupLoansListeners();
+          setupLoanButtonListeners();
+          setupLoansFilterListeners();
         } else {
           contentContainer.innerHTML = `
             <div class="coming-soon">
