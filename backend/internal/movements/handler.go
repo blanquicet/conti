@@ -487,6 +487,7 @@ type FormConfigResponse struct {
 	Users          []User          `json:"users"`
 	PaymentMethods []PaymentMethod `json:"payment_methods"`
 	Categories     []string        `json:"categories"`
+	CategoryGroups []CategoryGroup `json:"category_groups"`
 }
 
 // Hardcoded categories (Phase 3 - will be customizable in Phase 4)
@@ -626,6 +627,7 @@ func (h *FormConfigHandler) GetFormConfig(w http.ResponseWriter, r *http.Request
 		Users:          users,
 		PaymentMethods: paymentMethods,
 		Categories:     defaultCategories,
+		CategoryGroups: GetDefaultCategoryGroups(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

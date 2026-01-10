@@ -20,6 +20,7 @@ let primaryUsers = [];
 let paymentMethods = []; // Full payment method objects with owner_id and is_shared
 let paymentMethodsMap = {}; // Map of name -> payment method object
 let categories = [];
+let categoryGroups = []; // Category groups with name and categories array
 let accounts = []; // Accounts for income registration
 let formConfigLoaded = false;
 
@@ -487,6 +488,7 @@ async function loadFormConfig() {
     
     // Use categories from API
     categories = config.categories || [];
+    categoryGroups = config.category_groups || [];
     
     // Load accounts for income registration
     await loadAccounts();
@@ -502,6 +504,7 @@ async function loadFormConfig() {
     paymentMethods = [];
     paymentMethodsMap = {};
     categories = [];
+    categoryGroups = [];
     accounts = [];
   }
 }
@@ -763,11 +766,50 @@ function renderCategorySelect() {
   base.selected = true;
   categoriaEl.appendChild(base);
 
-  for (const c of categories) {
-    const opt = document.createElement('option');
-    opt.value = c;
-    opt.textContent = c;
-    categoriaEl.appendChild(opt);
+  // If we have category groups, render with optgroups
+  if (categoryGroups && categoryGroups.length > 0) {
+    // Create a set of all categories in groups for tracking
+    const groupedCategories = new Set();
+    
+    // Render grouped categories
+    categoryGroups.forEach(group => {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = group.name.toUpperCase();
+      
+      group.categories.forEach(category => {
+        const opt = document.createElement('option');
+        opt.value = category;
+        opt.textContent = category;
+        optgroup.appendChild(opt);
+        groupedCategories.add(category);
+      });
+      
+      categoriaEl.appendChild(optgroup);
+    });
+    
+    // Add ungrouped categories (like "Gastos médicos", "Préstamo" if still in categories list)
+    const ungroupedCategories = categories.filter(c => !groupedCategories.has(c));
+    if (ungroupedCategories.length > 0) {
+      const optgroup = document.createElement('optgroup');
+      optgroup.label = 'OTROS';
+      
+      ungroupedCategories.forEach(category => {
+        const opt = document.createElement('option');
+        opt.value = category;
+        opt.textContent = category;
+        optgroup.appendChild(opt);
+      });
+      
+      categoriaEl.appendChild(optgroup);
+    }
+  } else {
+    // Fallback: render flat list if no groups
+    for (const c of categories) {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      categoriaEl.appendChild(opt);
+    }
   }
 }
 
