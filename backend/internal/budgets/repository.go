@@ -30,14 +30,17 @@ func (r *PostgresRepository) GetByMonth(ctx context.Context, householdID, month 
 			mb.id,
 			c.id as category_id,
 			c.name as category_name,
-			c.category_group,
-			c.category_group_icon,
+			cg.id as category_group_id,
+			cg.name as category_group_name,
+			cg.icon as category_group_icon,
+			cg.display_order as group_display_order,
 			COALESCE(mb.amount, 0) as amount,
 			COALESCE(mb.currency, 'COP') as currency,
 			COALESCE(SUM(m.amount), 0) as spent,
 			mb.created_at,
 			mb.updated_at
 		FROM categories c
+		LEFT JOIN category_groups cg ON cg.id = c.category_group_id
 		LEFT JOIN monthly_budgets mb ON mb.category_id = c.id 
 			AND mb.household_id = $1
 			AND mb.month = $2
@@ -46,8 +49,8 @@ func (r *PostgresRepository) GetByMonth(ctx context.Context, householdID, month 
 			AND DATE_TRUNC('month', m.movement_date) = $2
 		WHERE c.household_id = $1
 			AND c.is_active = true
-		GROUP BY mb.id, c.id, c.name, c.category_group, c.category_group_icon, c.display_order, mb.amount, mb.currency, mb.created_at, mb.updated_at
-		ORDER BY c.category_group NULLS LAST, c.display_order ASC, c.name ASC
+		GROUP BY mb.id, c.id, c.name, cg.id, cg.name, cg.icon, cg.display_order, c.display_order, mb.amount, mb.currency, mb.created_at, mb.updated_at
+		ORDER BY cg.display_order NULLS LAST, c.display_order ASC, c.name ASC
 	`
 
 	rows, err := r.pool.Query(ctx, query, householdID, monthDate)
@@ -63,8 +66,10 @@ func (r *PostgresRepository) GetByMonth(ctx context.Context, householdID, month 
 			&budget.ID,
 			&budget.CategoryID,
 			&budget.CategoryName,
-			&budget.CategoryGroup,
+			&budget.CategoryGroupID,
+			&budget.CategoryGroupName,
 			&budget.CategoryGroupIcon,
+			&budget.GroupDisplayOrder,
 			&budget.Amount,
 			&budget.Currency,
 			&budget.Spent,

@@ -540,16 +540,16 @@ function renderBudgets() {
     `;
   }
 
-  // Group budgets by category_group
+  // Group budgets by category_group_name
   const grouped = {};
   const ungrouped = [];
 
   budgets.forEach(budget => {
-    if (budget.category_group) {
-      if (!grouped[budget.category_group]) {
-        grouped[budget.category_group] = [];
+    if (budget.category_group_name) {
+      if (!grouped[budget.category_group_name]) {
+        grouped[budget.category_group_name] = [];
       }
-      grouped[budget.category_group].push(budget);
+      grouped[budget.category_group_name].push(budget);
     } else {
       ungrouped.push(budget);
     }
