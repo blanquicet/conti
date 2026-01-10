@@ -1952,6 +1952,7 @@ button.loading::after {
   height: 100%;
   background: white;
   border: none;
+  padding: 10px;
   color: #6b7280;
   cursor: pointer;
   transition: background-color 0.2s, color 0.2s;
@@ -1971,11 +1972,11 @@ button.loading::after {
 }
 
 .tab-scroll-left {
-  border-right: 1px solid #e5e7eb;
+  border-right: 1px solid transparent;
 }
 
 .tab-scroll-right {
-  border-left: 1px solid #e5e7eb;
+  border-left: 1px solid transparent;
 }
 
 .tab-btn {

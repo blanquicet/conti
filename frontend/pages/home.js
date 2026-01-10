@@ -2099,7 +2099,6 @@ function setupLoansFilterListeners() {
       });
     });
   }
-  }
 
   // Clear filter button
   const clearFilterBtn = document.getElementById('clear-loans-filter');
