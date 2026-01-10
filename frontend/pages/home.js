@@ -676,6 +676,11 @@ function renderLoansCards() {
   }).join('');
 
   return `
+    <!-- Filter loading overlay -->
+    <div class="filter-loading-overlay" id="filter-loading" style="display: none;">
+      <div class="spinner"></div>
+      <p>Filtrando...</p>
+    </div>
     <div class="categories-grid">
       ${cardsHtml}
     </div>
@@ -2020,7 +2025,21 @@ function setupLoansFilterListeners() {
     clearFilterBtn.addEventListener('click', () => {
       selectedLoanPeople = [];
       isLoansFilterOpen = false;
-      refreshDisplay();
+      const dropdown = document.getElementById('loans-filter-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+      
+      // Show filter loading overlay
+      const filterLoading = document.getElementById('filter-loading');
+      if (filterLoading) filterLoading.style.display = 'flex';
+      
+      // Use setTimeout to allow UI to update before re-rendering
+      setTimeout(() => {
+        refreshDisplay();
+        
+        // Hide filter loading overlay
+        const filterLoadingEnd = document.getElementById('filter-loading');
+        if (filterLoadingEnd) filterLoadingEnd.style.display = 'none';
+      }, 50);
     });
   }
 
@@ -2040,7 +2059,21 @@ function setupLoansFilterListeners() {
       }
       
       isLoansFilterOpen = false;
-      refreshDisplay();
+      const dropdown = document.getElementById('loans-filter-dropdown');
+      if (dropdown) dropdown.style.display = 'none';
+      
+      // Show filter loading overlay
+      const filterLoading = document.getElementById('filter-loading');
+      if (filterLoading) filterLoading.style.display = 'flex';
+      
+      // Use setTimeout to allow UI to update before re-rendering
+      setTimeout(() => {
+        refreshDisplay();
+        
+        // Hide filter loading overlay
+        const filterLoadingEnd = document.getElementById('filter-loading');
+        if (filterLoadingEnd) filterLoadingEnd.style.display = 'none';
+      }, 50);
     });
   }
 }
