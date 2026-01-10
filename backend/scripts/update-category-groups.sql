@@ -85,6 +85,17 @@ WHERE category_group IS NULL
     'Salidas juntos'
   );
 
+-- Update category_group_icon based on category_group
+-- (This should be run after migration 022 has been applied)
+UPDATE categories SET category_group_icon = '🏠' WHERE category_group = 'Casa';
+UPDATE categories SET category_group_icon = '🤴🏾' WHERE category_group = 'Jose';
+UPDATE categories SET category_group_icon = '👸' WHERE category_group = 'Caro';
+UPDATE categories SET category_group_icon = '🏎️' WHERE category_group = 'Carro';
+UPDATE categories SET category_group_icon = '🏦' WHERE category_group = 'Ahorros';
+UPDATE categories SET category_group_icon = '📈' WHERE category_group = 'Inversiones';
+UPDATE categories SET category_group_icon = '🎉' WHERE category_group = 'Diversión';
+UPDATE categories SET category_group_icon = '📦' WHERE category_group = 'Otros' OR category_group IS NULL;
+
 -- Show results
 SELECT 
   category_group, 
