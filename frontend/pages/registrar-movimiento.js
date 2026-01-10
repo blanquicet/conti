@@ -822,16 +822,21 @@ function getSimplifiedCategoryName(category, groupName) {
   // Try removing "GroupName - " prefix first (e.g., "Casa - Gastos fijos" -> "Gastos fijos")
   const prefixWithDash = `${groupName} - `;
   if (category.startsWith(prefixWithDash)) {
-    return category.substring(prefixWithDash.length);
+    const simplified = category.substring(prefixWithDash.length);
+    // Capitalize first letter
+    return simplified.charAt(0).toUpperCase() + simplified.slice(1);
   }
   
   // Try removing "GroupName " prefix (e.g., "Inversiones Jose" -> "Jose")
   const prefixWithSpace = `${groupName} `;
   if (category.startsWith(prefixWithSpace)) {
-    return category.substring(prefixWithSpace.length);
+    const simplified = category.substring(prefixWithSpace.length);
+    // Capitalize first letter
+    return simplified.charAt(0).toUpperCase() + simplified.slice(1);
   }
   
-  return category;
+  // Capitalize first letter of the original category
+  return category.charAt(0).toUpperCase() + category.slice(1);
 }
 
 /**
