@@ -3171,3 +3171,53 @@ button.loading::after {
   border-color: #3b82f6;
   color: #1e40af;
 }
+
+
+/* Budget-specific styles */
+.budget-group-section {
+  margin-bottom: 24px;
+}
+
+.group-header-budget {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.group-header-budget .group-name {
+  font-weight: 600;
+  color: #374151;
+}
+
+.group-header-budget .group-summary {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.group-header-budget .group-percentage {
+  margin-left: 8px;
+  font-weight: 500;
+}
+
+.group-budgets {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.total-sublabel {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.empty-hint {
+  margin-top: 8px;
+  font-size: 14px;
+  color: #9ca3af;
+}

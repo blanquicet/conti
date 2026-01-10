@@ -19,7 +19,7 @@ let incomeData = null;
 let movementsData = null; // Gastos data (filtered)
 let originalMovementsData = null; // Original unfiltered movements data from API
 let loansData = null; // Préstamos data (debts consolidation with movement details)
-let activeTab = 'gastos'; // 'gastos', 'ingresos', 'prestamos', 'tarjetas' - DEFAULT TO GASTOS
+let activeTab = 'gastos'; // 'gastos', 'ingresos', 'prestamos', 'presupuesto', 'tarjetas' - DEFAULT TO GASTOS
 let householdMembers = []; // List of household members for filtering
 let selectedMemberIds = []; // Array of selected member IDs (empty = all)
 let selectedIncomeTypes = []; // Array of selected income types (empty = all)
@@ -28,7 +28,8 @@ let selectedPaymentMethods = []; // Array of selected payment method IDs for gas
 let selectedLoanPeople = []; // Array of selected person IDs for loans filter (empty = all)
 let isFilterOpen = false; // Track if filter dropdown is open
 let isLoansFilterOpen = false; // Track if loans filter dropdown is open
-let tabsNeedingReload = new Set(); // Tabs that need to reload when activated ('gastos', 'ingresos', 'prestamos', 'tarjetas')
+let tabsNeedingReload = new Set(); // Tabs that need to reload when activated ('gastos', 'ingresos', 'prestamos', 'presupuesto', 'tarjetas')
+let budgetsData = null; // Presupuesto data
 
 /**
  * Format number as COP currency
@@ -216,6 +217,7 @@ function renderTabs() {
           <button class="tab-btn ${activeTab === 'gastos' ? 'active' : ''}" data-tab="gastos">Gastos</button>
           <button class="tab-btn ${activeTab === 'ingresos' ? 'active' : ''}" data-tab="ingresos">Ingresos</button>
           <button class="tab-btn ${activeTab === 'prestamos' ? 'active' : ''}" data-tab="prestamos">Préstamos</button>
+          <button class="tab-btn ${activeTab === 'presupuesto' ? 'active' : ''}" data-tab="presupuesto">Presupuesto</button>
           <button class="tab-btn ${activeTab === 'tarjetas' ? 'active' : ''}" data-tab="tarjetas">Tarjetas de crédito</button>
         </div>
       </div>
@@ -509,6 +511,148 @@ function renderIncomeCategories() {
       ${renderFilterDropdown()}
       <button id="add-income-btn" class="btn-add-floating">+</button>
     </div>
+  `;
+}
+
+/**
+ * Render budgets for presupuesto tab
+ */
+function renderBudgets() {
+  if (!budgetsData || !budgetsData.budgets) {
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">💰</div>
+        <p>No hay presupuestos configurados para este mes</p>
+        <p class="empty-hint">Los presupuestos te ayudan a controlar tus gastos mensuales</p>
+      </div>
+    `;
+  }
+
+  const { budgets, totals } = budgetsData;
+
+  if (budgets.length === 0) {
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">💰</div>
+        <p>No hay presupuestos configurados para este mes</p>
+        <p class="empty-hint">Configura presupuestos para cada categoría desde la gestión de categorías</p>
+      </div>
+    `;
+  }
+
+  // Group budgets by category_group
+  const grouped = {};
+  const ungrouped = [];
+
+  budgets.forEach(budget => {
+    if (budget.category_group) {
+      if (!grouped[budget.category_group]) {
+        grouped[budget.category_group] = [];
+      }
+      grouped[budget.category_group].push(budget);
+    } else {
+      ungrouped.push(budget);
+    }
+  });
+
+  // Helper to get status emoji
+  const getStatusEmoji = (status) => {
+    switch (status) {
+      case 'under_budget': return '🟢';
+      case 'on_track': return '🟡';
+      case 'exceeded': return '🔴';
+      default: return '⚪';
+    }
+  };
+
+  // Helper to calculate group totals
+  const calculateGroupTotals = (groupBudgets) => {
+    const total_budget = groupBudgets.reduce((sum, b) => sum + (b.amount || 0), 0);
+    const total_spent = groupBudgets.reduce((sum, b) => sum + (b.spent || 0), 0);
+    const percentage = total_budget > 0 ? (total_spent / total_budget) * 100 : 0;
+    
+    let status = 'under_budget';
+    if (percentage >= 100) status = 'exceeded';
+    else if (percentage >= 80) status = 'on_track';
+    
+    return { total_budget, total_spent, percentage, status };
+  };
+
+  // Render a budget card (similar to category card)
+  const renderBudgetCard = (budget) => {
+    const percentage = budget.amount > 0 ? ((budget.spent || 0) / budget.amount * 100).toFixed(1) : 0;
+    const emoji = getStatusEmoji(budget.status);
+    
+    return `
+      <div class="category-card">
+        <div class="category-header">
+          <div class="category-icon">${budget.icon || '💰'}</div>
+          <div class="category-info">
+            <div class="category-name">${budget.category_name || 'Sin nombre'}</div>
+            <div class="category-amount">
+              ${formatCurrency(budget.spent || 0)} / ${formatCurrency(budget.amount || 0)}
+            </div>
+          </div>
+          <div class="category-percentage">${percentage}% ${emoji}</div>
+        </div>
+      </div>
+    `;
+  };
+
+  // Render group section
+  const renderGroupSection = (groupName, groupBudgets) => {
+    const groupTotals = calculateGroupTotals(groupBudgets);
+    const groupEmoji = getStatusEmoji(groupTotals.status);
+    
+    return `
+      <div class="budget-group-section">
+        <div class="group-header-budget">
+          <span class="group-name">${groupName}</span>
+          <span class="group-summary">
+            ${formatCurrency(groupTotals.total_spent)} / ${formatCurrency(groupTotals.total_budget)}
+            <span class="group-percentage">${groupTotals.percentage.toFixed(0)}% ${groupEmoji}</span>
+          </span>
+        </div>
+        <div class="group-budgets">
+          ${groupBudgets.map(budget => renderBudgetCard(budget)).join('')}
+        </div>
+      </div>
+    `;
+  };
+
+  // Render all groups
+  const groupsHtml = Object.keys(grouped)
+    .sort()
+    .map(groupName => renderGroupSection(groupName, grouped[groupName]))
+    .join('');
+
+  // Render ungrouped
+  const ungroupedHtml = ungrouped.length > 0 
+    ? renderGroupSection('Otros', ungrouped)
+    : '';
+
+  // Calculate overall percentage
+  const overallPercentage = totals.total_budget > 0 
+    ? ((totals.total_spent / totals.total_budget) * 100).toFixed(1)
+    : 0;
+  const overallEmoji = getStatusEmoji(
+    totals.percentage >= 100 ? 'exceeded' : 
+    totals.percentage >= 80 ? 'on_track' : 
+    'under_budget'
+  );
+
+  return `
+    <!-- Total summary -->
+    <div class="total-display" style="margin-bottom: 24px;">
+      <div class="total-label">Total Presupuestado</div>
+      <div class="total-amount">${formatCurrency(totals.total_budget)}</div>
+      <div class="total-sublabel" style="margin-top: 8px; font-size: 14px; color: #6b7280;">
+        Gastado: ${formatCurrency(totals.total_spent)} (${overallPercentage}% ${overallEmoji})
+      </div>
+    </div>
+
+    ${groupsHtml}
+    ${ungroupedHtml}
   `;
 }
 
@@ -1005,6 +1149,15 @@ export function render(user) {
             <div class="loading-spinner"></div>
             <p>Cargando...</p>
           </div>
+        ` : activeTab === 'presupuesto' && budgetsData ? `
+          ${renderMonthSelector()}
+          
+          ${renderBudgets()}
+        ` : activeTab === 'presupuesto' ? `
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Cargando...</p>
+          </div>
         ` : `
           <div class="coming-soon">
             <div class="coming-soon-icon">💳</div>
@@ -1252,6 +1405,33 @@ async function loadLoansData() {
   } catch (error) {
     console.error('Error loading loans data:', error);
     loansData = null;
+  }
+}
+
+/**
+ * Load budgets data for the current month
+ */
+async function loadBudgetsData() {
+  try {
+    const response = await fetch(`${API_URL}/budgets/${currentMonth}`, {
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // No budgets for this month yet
+        budgetsData = { month: currentMonth, budgets: [], totals: { total_budget: 0, total_spent: 0, percentage: 0 } };
+        return;
+      }
+      console.error('Error loading budgets data');
+      budgetsData = null;
+      return;
+    }
+
+    budgetsData = await response.json();
+  } catch (error) {
+    console.error('Error loading budgets data:', error);
+    budgetsData = null;
   }
 }
 
@@ -2812,6 +2992,9 @@ export function clearTabData(tabsToReload = []) {
   if (tabsToReload.includes('prestamos')) {
     loansData = null;
   }
+  if (tabsToReload.includes('presupuesto')) {
+    budgetsData = null;
+  }
   // tarjetas will be added when implemented
 }
 
@@ -2829,7 +3012,7 @@ export async function setup() {
   // Check URL parameters for active tab
   const urlParams = new URLSearchParams(window.location.search);
   const tabParam = urlParams.get('tab');
-  if (tabParam && ['gastos', 'ingresos', 'prestamos', 'tarjetas'].includes(tabParam)) {
+  if (tabParam && ['gastos', 'ingresos', 'prestamos', 'presupuesto', 'tarjetas'].includes(tabParam)) {
     activeTab = tabParam;
   }
 
@@ -2843,6 +3026,8 @@ export async function setup() {
     await loadIncomeData();
   } else if (activeTab === 'prestamos') {
     await loadLoansData();
+  } else if (activeTab === 'presupuesto') {
+    await loadBudgetsData();
   }
   
   // Remove active tab from reload set since we just loaded it
@@ -2889,6 +3074,13 @@ export async function setup() {
       setupLoansListeners();
       setupLoanButtonListeners();
       setupLoansFilterListeners();
+    } else if (activeTab === 'presupuesto' && budgetsData) {
+      contentContainer.innerHTML = `
+        ${renderMonthSelector()}
+        
+        ${renderBudgets()}
+      `;
+      setupMonthNavigation();
     }
   }
 
@@ -2914,7 +3106,8 @@ export async function setup() {
       // Load data for the new tab only if not already loaded
       const needsLoad = (activeTab === 'gastos' && !movementsData) ||
                         (activeTab === 'ingresos' && !incomeData) ||
-                        (activeTab === 'prestamos' && !loansData);
+                        (activeTab === 'prestamos' && !loansData) ||
+                        (activeTab === 'presupuesto' && !budgetsData);
       
       if (needsLoad) {
         // Show loading state immediately
@@ -2935,6 +3128,8 @@ export async function setup() {
           await loadIncomeData();
         } else if (activeTab === 'prestamos') {
           await loadLoansData();
+        } else if (activeTab === 'presupuesto') {
+          await loadBudgetsData();
         }
       }
       
@@ -2994,6 +3189,13 @@ export async function setup() {
           setupLoansListeners();
           setupLoanButtonListeners();
           setupLoansFilterListeners();
+        } else if (activeTab === 'presupuesto') {
+          contentContainer.innerHTML = `
+            ${renderMonthSelector()}
+            
+            ${renderBudgets()}
+          `;
+          setupMonthNavigation();
         } else {
           contentContainer.innerHTML = `
             <div class="coming-soon">
@@ -3118,6 +3320,8 @@ function setupMonthNavigation() {
         await loadIncomeData();
       } else if (activeTab === 'prestamos') {
         await loadLoansData();
+      } else if (activeTab === 'presupuesto') {
+        await loadBudgetsData();
       }
       refreshDisplay();
     };
@@ -3133,6 +3337,8 @@ function setupMonthNavigation() {
         await loadIncomeData();
       } else if (activeTab === 'prestamos') {
         await loadLoansData();
+      } else if (activeTab === 'presupuesto') {
+        await loadBudgetsData();
       }
       refreshDisplay();
     };
