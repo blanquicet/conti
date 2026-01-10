@@ -1974,6 +1974,22 @@ async function onSubmit(e) {
           updatePayload.payment_method_id = payload.payment_method_id;
         }
         
+        // Add payer if provided (for SPLIT and DEBT_PAYMENT types)
+        if (payload.payer_user_id) {
+          updatePayload.payer_user_id = payload.payer_user_id;
+        }
+        if (payload.payer_contact_id) {
+          updatePayload.payer_contact_id = payload.payer_contact_id;
+        }
+        
+        // Add counterparty if provided (for DEBT_PAYMENT type)
+        if (payload.counterparty_user_id) {
+          updatePayload.counterparty_user_id = payload.counterparty_user_id;
+        }
+        if (payload.counterparty_contact_id) {
+          updatePayload.counterparty_contact_id = payload.counterparty_contact_id;
+        }
+        
         // Add participants for SPLIT movements
         if (payload.type === 'SPLIT' && payload.participants) {
           updatePayload.participants = payload.participants;

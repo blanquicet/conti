@@ -227,7 +227,16 @@ type UpdateMovementInput struct {
 	MovementDate    *time.Time          `json:"movement_date,omitempty"`
 	PaymentMethodID *string             `json:"payment_method_id,omitempty"`
 	Participants    *[]ParticipantInput `json:"participants,omitempty"`
-	// Note: Cannot update type, payer, or counterparty after creation
+	
+	// Payer (can be updated)
+	PayerUserID    *string `json:"payer_user_id,omitempty"`
+	PayerContactID *string `json:"payer_contact_id,omitempty"`
+	
+	// Counterparty (can be updated for DEBT_PAYMENT)
+	CounterpartyUserID    *string `json:"counterparty_user_id,omitempty"`
+	CounterpartyContactID *string `json:"counterparty_contact_id,omitempty"`
+	
+	// Note: Cannot update type after creation
 }
 
 // Validate validates the update movement input

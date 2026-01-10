@@ -526,6 +526,40 @@ func (s *service) Update(ctx context.Context, userID, id string, input *UpdateMo
 		return nil, ErrNotAuthorized
 	}
 
+	// Validate payer if being updated (must belong to household)
+	if input.PayerUserID != nil {
+		isMember, err := s.householdsRepo.IsUserMember(ctx, householdID, *input.PayerUserID)
+		if err != nil {
+			return nil, err
+		}
+		if !isMember {
+			return nil, ErrNotAuthorized
+		}
+	}
+	// Note: We don't validate contact ownership here - the FK constraint will handle it
+
+	// Validate counterparty if being updated (must belong to household for DEBT_PAYMENT)
+	if input.CounterpartyUserID != nil {
+		isMember, err := s.householdsRepo.IsUserMember(ctx, householdID, *input.CounterpartyUserID)
+		if err != nil {
+			return nil, err
+		}
+		if !isMember {
+			return nil, ErrNotAuthorized
+		}
+	}
+
+	// Validate payment method if being updated (must belong to household)
+	if input.PaymentMethodID != nil {
+		pm, err := s.paymentMethodRepo.GetByID(ctx, *input.PaymentMethodID)
+		if err != nil {
+			return nil, err
+		}
+		if pm.HouseholdID != householdID {
+			return nil, ErrNotAuthorized
+		}
+	}
+
 	// Update movement
 	updated, err := s.repo.Update(ctx, id, input)
 	if err != nil {

@@ -476,6 +476,38 @@ func (r *repository) Update(ctx context.Context, id string, input *UpdateMovemen
 		args = append(args, *input.PaymentMethodID)
 		argNum++
 	}
+	
+	// When updating payer, clear the other payer field (user vs contact are mutually exclusive)
+	if input.PayerUserID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("payer_user_id = $%d", argNum))
+		args = append(args, *input.PayerUserID)
+		argNum++
+		// Clear payer_contact_id when setting payer_user_id
+		setClauses = append(setClauses, "payer_contact_id = NULL")
+	}
+	if input.PayerContactID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("payer_contact_id = $%d", argNum))
+		args = append(args, *input.PayerContactID)
+		argNum++
+		// Clear payer_user_id when setting payer_contact_id
+		setClauses = append(setClauses, "payer_user_id = NULL")
+	}
+	
+	// When updating counterparty, clear the other counterparty field (user vs contact are mutually exclusive)
+	if input.CounterpartyUserID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("counterparty_user_id = $%d", argNum))
+		args = append(args, *input.CounterpartyUserID)
+		argNum++
+		// Clear counterparty_contact_id when setting counterparty_user_id
+		setClauses = append(setClauses, "counterparty_contact_id = NULL")
+	}
+	if input.CounterpartyContactID != nil {
+		setClauses = append(setClauses, fmt.Sprintf("counterparty_contact_id = $%d", argNum))
+		args = append(args, *input.CounterpartyContactID)
+		argNum++
+		// Clear counterparty_user_id when setting counterparty_contact_id
+		setClauses = append(setClauses, "counterparty_user_id = NULL")
+	}
 
 	if len(setClauses) > 0 {
 		// Always update updated_at
