@@ -555,53 +555,57 @@ function renderBudgets() {
     }
   });
 
-  // Helper to calculate group totals
-  const calculateGroupTotals = (groupBudgets) => {
-    const total_budget = groupBudgets.reduce((sum, b) => sum + (b.amount || 0), 0);
-    return { total_budget };
-  };
-
-  // Render a budget card (similar to category card)
-  const renderBudgetCard = (budget) => {
+  // Render budget item (reusing expense-category-item structure)
+  const renderBudgetItem = (budget) => {
     const hasBudget = budget.amount > 0;
     
     return `
-      <div class="category-card budget-card" data-category-id="${budget.category_id}">
-        <div class="category-header">
-          <div class="category-icon">${budget.icon || '💰'}</div>
-          <div class="category-info">
-            <div class="category-name">${budget.category_name || 'Sin nombre'}</div>
-            <div class="category-amount budget-amount-display">
-              ${hasBudget ? `
-                <span class="budget-amount-editable" data-category-id="${budget.category_id}" data-amount="${budget.amount || 0}">
-                  ${formatCurrency(budget.amount || 0)}
-                </span>
-                <button class="btn-edit-budget-inline" data-category-id="${budget.category_id}" data-amount="${budget.amount || 0}" title="Editar presupuesto">✏️</button>
-              ` : `
-                <span class="no-budget-text">Sin presupuesto</span>
-                <button class="btn-add-budget-inline" data-category-id="${budget.category_id}" title="Agregar presupuesto">➕</button>
-              `}
-            </div>
+      <div class="expense-category-item">
+        <div class="expense-category-icon">${budget.icon || '💰'}</div>
+        <div class="expense-category-info">
+          <div class="expense-category-name">${budget.category_name || 'Sin nombre'}</div>
+          <div class="expense-category-amount">
+            ${hasBudget ? `
+              <span class="budget-amount-editable" data-category-id="${budget.category_id}" data-amount="${budget.amount}">
+                ${formatCurrency(budget.amount)}
+              </span>
+              <button class="btn-edit-budget-inline" data-category-id="${budget.category_id}" data-amount="${budget.amount}" title="Editar presupuesto">✏️</button>
+            ` : `
+              <span class="no-budget-text">Sin presupuesto</span>
+              <button class="btn-add-budget-inline" data-category-id="${budget.category_id}" title="Agregar presupuesto">➕</button>
+            `}
           </div>
         </div>
       </div>
     `;
   };
 
-  // Render group section
-  const renderGroupSection = (groupName, groupBudgets) => {
-    const groupTotals = calculateGroupTotals(groupBudgets);
+  // Render group card (reusing expense-group-card structure)
+  const renderGroupCard = (groupName, groupBudgets) => {
+    const groupTotal = groupBudgets.reduce((sum, b) => sum + (b.amount || 0), 0);
+    const safeGroupId = groupName.replace(/\s+/g, '-').toLowerCase();
+    
+    // Get group icon (first budget's icon or default)
+    const groupIcon = groupBudgets[0]?.icon || '📁';
     
     return `
-      <div class="budget-group-section">
-        <div class="group-header-budget">
-          <span class="group-name">${groupName}</span>
-          <span class="group-summary">
-            ${formatCurrency(groupTotals.total_budget)}
-          </span>
+      <div class="expense-group-card" data-group="${groupName}">
+        <div class="expense-group-header">
+          <div class="expense-group-icon-container">
+            <span class="expense-group-icon">${groupIcon}</span>
+          </div>
+          <div class="expense-group-info">
+            <div class="expense-group-name">${groupName}</div>
+            <div class="expense-group-amount">${formatCurrency(groupTotal)}</div>
+          </div>
+          <div class="expense-group-actions">
+            <svg class="expense-group-chevron" width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
         </div>
-        <div class="group-budgets">
-          ${groupBudgets.map(budget => renderBudgetCard(budget)).join('')}
+        <div class="expense-group-details hidden" id="budget-group-details-${safeGroupId}">
+          ${groupBudgets.map(budget => renderBudgetItem(budget)).join('')}
         </div>
       </div>
     `;
@@ -610,12 +614,12 @@ function renderBudgets() {
   // Render all groups
   const groupsHtml = Object.keys(grouped)
     .sort()
-    .map(groupName => renderGroupSection(groupName, grouped[groupName]))
+    .map(groupName => renderGroupCard(groupName, grouped[groupName]))
     .join('');
 
   // Render ungrouped
   const ungroupedHtml = ungrouped.length > 0 
-    ? renderGroupSection('Otros', ungrouped)
+    ? renderGroupCard('Otros', ungrouped)
     : '';
 
   return `
@@ -635,8 +639,10 @@ function renderBudgets() {
       <div class="total-amount">${formatCurrency(totals.total_budget)}</div>
     </div>
 
-    ${groupsHtml}
-    ${ungroupedHtml}
+    <div class="categories-grid">
+      ${groupsHtml}
+      ${ungroupedHtml}
+    </div>
   `;
 }
 
@@ -2231,6 +2237,22 @@ function setupBudgetListeners() {
         showSuccess('Presupuesto actualizado', `El presupuesto ha sido actualizado a ${formatCurrency(amount)}`);
         await loadBudgetsData();
         refreshDisplay();
+      }
+    });
+  });
+  
+  // Group expand/collapse for budget groups
+  document.querySelectorAll('.expense-group-card[data-group]').forEach(card => {
+    const header = card.querySelector('.expense-group-header');
+    header?.addEventListener('click', () => {
+      const groupName = card.dataset.group;
+      const safeGroupId = groupName.replace(/\s+/g, '-').toLowerCase();
+      const details = document.getElementById(`budget-group-details-${safeGroupId}`);
+      const chevron = card.querySelector('.expense-group-chevron');
+      
+      if (details) {
+        details.classList.toggle('hidden');
+        chevron?.classList.toggle('rotated');
       }
     });
   });
