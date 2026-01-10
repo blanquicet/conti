@@ -16,6 +16,24 @@ const { Pool } = pg;
  * 8. Cleanup test data
  */
 
+/**
+ * Helper: Submit form and handle success modal
+ */
+async function submitFormAndConfirm(page) {
+  // Click submit button
+  const submitBtn = page.locator('#submitBtn');
+  await submitBtn.click();
+  
+  // Wait for success modal to appear
+  await page.waitForSelector('.modal-overlay', { timeout: 5000 });
+  
+  // Click OK button in modal
+  await page.locator('#modal-ok').click();
+  
+  // Wait for modal to close
+  await page.waitForSelector('.modal-overlay', { state: 'detached', timeout: 5000 });
+}
+
 async function testMovementCompartido() {
   const headless = process.env.CI === 'true' || process.env.HEADLESS === 'true';
   const appUrl = process.env.APP_URL || 'http://localhost:8080';
@@ -203,12 +221,11 @@ async function testMovementCompartido() {
       throw new Error('Equitable checkbox should be checked by default');
     }
     
-    // Submit form
-    await page.locator('#submitBtn').click();
+    // Submit form and confirm modal
+    await submitFormAndConfirm(page);
     
-    // SPLIT movements now navigate back to home after success (1.5s delay)
-    // Wait for navigation instead of checking status
-    await page.waitForURL('**/');
+    // Wait for navigation back to home
+    await page.waitForURL('**/', { timeout: 5000 });
     await page.waitForTimeout(1000);
     
     console.log('✅ SPLIT movement created successfully');
@@ -315,11 +332,11 @@ async function testMovementCompartido() {
       await page.waitForTimeout(500);
     }
     
-    // Submit form
-    await page.locator('#submitBtn').click();
+    // Submit form and confirm modal
+    await submitFormAndConfirm(page);
     
     // Wait for navigation back to home
-    await page.waitForURL('**/');
+    await page.waitForURL('**/', { timeout: 5000 });
     await page.waitForTimeout(1000);
     
     console.log('✅ Custom percentage movement created');

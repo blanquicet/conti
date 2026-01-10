@@ -20,6 +20,24 @@ const { Pool } = pg;
  * 12. Cleanup test data
  */
 
+/**
+ * Helper: Submit form and handle success modal
+ */
+async function submitFormAndConfirm(page) {
+  // Click submit button
+  const submitBtn = page.locator('#submitBtn');
+  await submitBtn.click();
+  
+  // Wait for success modal to appear
+  await page.waitForSelector('.modal-overlay', { timeout: 5000 });
+  
+  // Click OK button in modal
+  await page.locator('#modal-ok').click();
+  
+  // Wait for modal to close
+  await page.waitForSelector('.modal-overlay', { state: 'detached', timeout: 5000 });
+}
+
 async function testMovementFamiliar() {
   const headless = process.env.CI === 'true' || process.env.HEADLESS === 'true';
   const appUrl = process.env.APP_URL || 'http://localhost:8080';
@@ -187,16 +205,11 @@ async function testMovementFamiliar() {
     await page.selectOption('#categoria', 'Mercado');
     await page.selectOption('#metodo', 'Tarjeta Test');
     
-    // Submit form
-    await submitBtn.click();
-    await page.waitForTimeout(3000);
+    // Submit form and confirm success modal
+    await submitFormAndConfirm(page);
     
-    // Check success message
-    const successStatus = await page.locator('#status').textContent();
-    if (!successStatus.includes('correctamente')) {
-      console.error('❌ Expected success message, got:', successStatus);
-      throw new Error('Movement creation failed');
-    }
+    // Verify we're back on home page
+    await page.waitForURL('/', { timeout: 5000 });
     
     console.log('✅ Movement created successfully');
 
@@ -252,13 +265,8 @@ async function testMovementFamiliar() {
     await page.selectOption('#categoria', 'Mercado');
     await page.selectOption('#metodo', 'Tarjeta Test');
     
-    await submitBtn.click();
-    await page.waitForTimeout(3000);
-    
-    const successStatus2 = await page.locator('#status').textContent();
-    if (!successStatus2.includes('correctamente')) {
-      throw new Error('Second movement creation failed');
-    }
+    await submitFormAndConfirm(page);
+    await page.waitForURL('/', { timeout: 5000 });
     
     console.log('✅ Second movement created successfully');
 
@@ -570,35 +578,11 @@ async function testMovementFamiliar() {
     }
     console.log('   ✅ Submit button says "Actualizar"');
     
-    // Submit the update
-    await updateBtn.click();
-    
-    // Wait for redirect back to dashboard OR check for error
-    // We use Promise.race to handle both cases: successful redirect or error
-    try {
-      await Promise.race([
-        page.waitForURL(`${appUrl}/`, { timeout: 10000 }),
-        page.waitForSelector('#status:has-text("Error")', { timeout: 10000 })
-      ]);
-      
-      // If we're still on the form page, check for error
-      if (page.url().includes('registrar-movimiento')) {
-        const statusText = await page.locator('#status').textContent();
-        if (statusText && statusText.includes('Error')) {
-          throw new Error(`Update failed with error: ${statusText}`);
-        }
-      }
-    } catch (error) {
-      // If timeout, check current URL
-      if (!page.url().includes('registrar-movimiento')) {
-        // Successfully redirected, continue
-      } else {
-        throw error;
-      }
-    }
+    // Submit the update and confirm modal
+    await submitFormAndConfirm(page);
     
     // Ensure we're on the dashboard
-    await page.waitForURL(`${appUrl}/`, { timeout: 60000 });
+    await page.waitForURL(`${appUrl}/`, { timeout: 5000 });
     await page.waitForTimeout(1000);
     
     console.log('   ✅ Movement updated successfully');

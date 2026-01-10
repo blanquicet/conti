@@ -16,6 +16,24 @@ const { Pool } = pg;
  * 8. Cleanup test data
  */
 
+/**
+ * Helper: Submit form and handle success modal
+ */
+async function submitFormAndConfirm(page) {
+  // Click submit button
+  const submitBtn = page.locator('#submitBtn');
+  await submitBtn.click();
+  
+  // Wait for success modal to appear
+  await page.waitForSelector('.modal-overlay', { timeout: 5000 });
+  
+  // Click OK button in modal
+  await page.locator('#modal-ok').click();
+  
+  // Wait for modal to close
+  await page.waitForSelector('.modal-overlay', { state: 'detached', timeout: 5000 });
+}
+
 async function testMovementPagoDeuda() {
   const headless = process.env.CI === 'true' || process.env.HEADLESS === 'true';
   const appUrl = process.env.APP_URL || 'http://localhost:8080';
@@ -284,11 +302,11 @@ async function testMovementPagoDeuda() {
     await page1.selectOption('#tomador', 'User Two Debt');
     
     // Category is NOT required for LOAN type (neither LEND nor REPAY)
-    // Submit form
-    await page1.locator('#submitBtn').click();
+    // Submit form and confirm modal
+    await submitFormAndConfirm(page1);
     
-    // LOAN movements now navigate back to home after success (1.5s delay)
-    await page1.waitForURL('**/');
+    // Wait for navigation
+    await page1.waitForURL('**/', { timeout: 5000 });
     await page1.waitForTimeout(1000);
     
     console.log('✅ DEBT_PAYMENT movement created (member to member)');
@@ -352,10 +370,10 @@ async function testMovementPagoDeuda() {
     
     
     // Category is NOT required for LOAN type
-    await page1.locator('#submitBtn').click();
+    await submitFormAndConfirm(page1);
     
     // Wait for navigation
-    await page1.waitForURL('**/');
+    await page1.waitForURL('**/', { timeout: 5000 });
     await page1.waitForTimeout(1000);
     
     console.log('✅ DEBT_PAYMENT movement created (member to contact)');
@@ -437,11 +455,10 @@ async function testMovementPagoDeuda() {
     
     await page1.selectOption('#tomador', 'User One Debt');
     
-    await page1.locator('#submitBtn').click();
-    await page1.waitForTimeout(3000);
+    await submitFormAndConfirm(page1);
     
     // Wait for navigation
-    await page1.waitForURL('**/');
+    await page1.waitForURL('**/', { timeout: 5000 });
     await page1.waitForTimeout(1000);
     
     console.log('✅ DEBT_PAYMENT from contact created successfully');
