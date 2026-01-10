@@ -31,7 +31,7 @@ func (r *PostgresRepository) GetByMonth(ctx context.Context, householdID, month 
 			c.id as category_id,
 			c.name as category_name,
 			c.category_group,
-			c.icon,
+			c.category_group_icon,
 			COALESCE(mb.amount, 0) as amount,
 			COALESCE(mb.currency, 'COP') as currency,
 			COALESCE(SUM(m.amount), 0) as spent,
@@ -46,7 +46,7 @@ func (r *PostgresRepository) GetByMonth(ctx context.Context, householdID, month 
 			AND DATE_TRUNC('month', m.movement_date) = $2
 		WHERE c.household_id = $1
 			AND c.is_active = true
-		GROUP BY mb.id, c.id, c.name, c.category_group, c.icon, c.display_order, mb.amount, mb.currency, mb.created_at, mb.updated_at
+		GROUP BY mb.id, c.id, c.name, c.category_group, c.category_group_icon, c.display_order, mb.amount, mb.currency, mb.created_at, mb.updated_at
 		ORDER BY c.category_group NULLS LAST, c.display_order ASC, c.name ASC
 	`
 
@@ -64,7 +64,7 @@ func (r *PostgresRepository) GetByMonth(ctx context.Context, householdID, month 
 			&budget.CategoryID,
 			&budget.CategoryName,
 			&budget.CategoryGroup,
-			&budget.Icon,
+			&budget.CategoryGroupIcon,
 			&budget.Amount,
 			&budget.Currency,
 			&budget.Spent,

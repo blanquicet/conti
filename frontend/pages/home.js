@@ -561,7 +561,7 @@ function renderBudgets() {
     
     return `
       <div class="expense-category-item">
-        <div class="expense-category-icon">${budget.icon || '💰'}</div>
+        <div class="expense-category-icon">${budget.category_group_icon || '💰'}</div>
         <div class="expense-category-info">
           <div class="expense-category-name">${budget.category_name || 'Sin nombre'}</div>
           <div class="expense-category-amount">
@@ -585,8 +585,8 @@ function renderBudgets() {
     const groupTotal = groupBudgets.reduce((sum, b) => sum + (b.amount || 0), 0);
     const safeGroupId = groupName.replace(/\s+/g, '-').toLowerCase();
     
-    // Get group icon (first budget's icon or default)
-    const groupIcon = groupBudgets[0]?.icon || '📁';
+    // Get group icon from first budget's category_group_icon
+    const groupIcon = groupBudgets[0]?.category_group_icon || '📁';
     
     return `
       <div class="expense-group-card" data-group="${groupName}">
