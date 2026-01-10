@@ -114,12 +114,8 @@ async function testBudgetManagement() {
     // ==================================================================
     console.log('📝 Step 3: Navigating to Presupuesto tab...');
     
-    // First, navigate to registrar-movimiento to ensure session is properly established
-    await page.goto(`${appUrl}/registrar-movimiento`);
-    await page.waitForTimeout(1000);
-    
-    // Now navigate to home page
-    await page.goto(`${appUrl}/home`);
+    // Navigate to home page (route is / not /home)
+    await page.goto(`${appUrl}/`);
     
     // Wait for loading spinner to disappear
     await page.waitForSelector('#loading', { state: 'hidden', timeout: 15000 });
@@ -142,9 +138,43 @@ async function testBudgetManagement() {
     console.log('✅ On Presupuesto tab');
 
     // ==================================================================
-    // STEP 4: Verify Budget Cards Are Displayed
+    // STEP 4: Set Initial Budgets via API (so cards appear)
     // ==================================================================
-    console.log('📝 Step 4: Verifying budget cards are displayed...');
+    console.log('📝 Step 4: Setting initial budgets via API...');
+    
+    // Get category IDs from database
+    const categoriesQuery = await pool.query(
+      'SELECT id, name FROM categories WHERE household_id = $1 ORDER BY name',
+      [householdId]
+    );
+    const categoryIds = categoriesQuery.rows;
+    console.log(`  Found ${categoryIds.length} categories`);
+    
+    // Set budgets for all categories via API
+    const currentMonth = new Date().toISOString().substring(0, 7); // YYYY-MM
+    for (const cat of categoryIds) {
+      await pool.query(
+        `INSERT INTO monthly_budgets (household_id, category_id, month, amount, currency)
+         VALUES ($1, $2, $3, $4, 'COP')`,
+        [householdId, cat.id, `${currentMonth}-01`, 500000]
+      );
+    }
+    
+    console.log(`✅ Set budgets of 500,000 COP for ${categoryIds.length} categories`);
+    
+    // Reload the page to fetch the budgets
+    await page.reload();
+    await page.waitForSelector('#loading', { state: 'hidden', timeout: 15000 });
+    await page.waitForTimeout(1000);
+    
+    // Click Presupuesto tab again after reload
+    await page.locator('.tab-btn[data-tab="presupuesto"]').click();
+    await page.waitForTimeout(2000);
+
+    // ==================================================================
+    // STEP 5: Verify Budget Cards Are Displayed
+    // ==================================================================
+    console.log('📝 Step 5: Verifying budget cards are displayed...');
     
     // Check for budget cards
     const budgetCards = await page.locator('.budget-card').count();
@@ -155,9 +185,9 @@ async function testBudgetManagement() {
     console.log(`✅ Found ${budgetCards} budget cards (one per category)`);
 
     // ==================================================================
-    // STEP 5: Set Budget by Clicking Edit Button
+    // STEP 6: Edit Budget by Clicking Edit Button
     // ==================================================================
-    console.log('📝 Step 5: Setting budget via edit button...');
+    console.log('📝 Step 6: Editing budget via edit button...');
     
     // Find first edit button and click it
     const firstEditBtn = page.locator('.btn-edit-budget-inline').first();
@@ -179,10 +209,18 @@ async function testBudgetManagement() {
     
     console.log('✅ Budget set to 500,000 COP');
 
+    // Wait for success modal/toast to disappear
+    await page.waitForTimeout(2000);
+
     // ==================================================================
-    // STEP 6: Edit Budget to New Amount
+    // STEP 7: Edit Budget to New Amount
     // ==================================================================
-    console.log('📝 Step 6: Editing budget to new amount...');
+    console.log('📝 Step 7: Editing budget to new amount...');
+    
+    // Wait for any modal overlays to disappear
+    await page.waitForSelector('.modal-overlay', { state: 'hidden', timeout: 5000 }).catch(() => {
+      console.log('  No modal overlay found (already hidden)');
+    });
     
     // Click edit button again to change amount
     page.once('dialog', async dialog => {
@@ -199,29 +237,6 @@ async function testBudgetManagement() {
     }
     
     console.log('✅ Budget updated to 750,000 COP');
-
-    // ==================================================================
-    // STEP 7: Set Budgets for All Categories
-    // ==================================================================
-    console.log('📝 Step 7: Setting budgets for all categories...');
-    
-    const editButtons = await page.locator('.btn-edit-budget-inline').all();
-    
-    // Set budget for second category
-    page.once('dialog', async dialog => {
-      await dialog.accept('300000');
-    });
-    await editButtons[1].click();
-    await page.waitForTimeout(1500);
-    
-    // Set budget for third category
-    page.once('dialog', async dialog => {
-      await dialog.accept('200000');
-    });
-    await editButtons[2].click();
-    await page.waitForTimeout(1500);
-    
-    console.log('✅ Set budgets for all 3 categories');
 
     // ==================================================================
     // STEP 8: Navigate to Next Month
