@@ -208,8 +208,8 @@ async function testMovementFamiliar() {
     // Submit form and confirm success modal
     await submitFormAndConfirm(page);
     
-    // Verify we're back on home page
-    await page.waitForURL('/', { timeout: 5000 });
+    // Verify we're back on home page (ignore query params)
+    await page.waitForURL(url => url.pathname === '/', { timeout: 5000 });
     
     console.log('✅ Movement created successfully');
 
@@ -266,7 +266,7 @@ async function testMovementFamiliar() {
     await page.selectOption('#metodo', 'Tarjeta Test');
     
     await submitFormAndConfirm(page);
-    await page.waitForURL('/', { timeout: 5000 });
+    await page.waitForURL(url => url.pathname === '/', { timeout: 5000 });
     
     console.log('✅ Second movement created successfully');
 
