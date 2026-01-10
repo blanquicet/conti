@@ -1355,7 +1355,7 @@ function getSimplifiedCategoryName(category, groupName) {
   if (category.startsWith(prefixWithDash)) {
     const simplified = category.substring(prefixWithDash.length);
     // Capitalize first letter
-    return simplified.charAt(0).toUpperCase() + simplified.slice(1);
+    return simplified.length > 0 ? simplified.charAt(0).toUpperCase() + simplified.slice(1) : simplified;
   }
   
   // Try removing "GroupName " prefix (e.g., "Inversiones Jose" -> "Jose")
@@ -1363,11 +1363,11 @@ function getSimplifiedCategoryName(category, groupName) {
   if (category.startsWith(prefixWithSpace)) {
     const simplified = category.substring(prefixWithSpace.length);
     // Capitalize first letter
-    return simplified.charAt(0).toUpperCase() + simplified.slice(1);
+    return simplified.length > 0 ? simplified.charAt(0).toUpperCase() + simplified.slice(1) : simplified;
   }
   
   // Capitalize first letter of the original category
-  return category.charAt(0).toUpperCase() + category.slice(1);
+  return category.length > 0 ? category.charAt(0).toUpperCase() + category.slice(1) : category;
 }
 
 /**
