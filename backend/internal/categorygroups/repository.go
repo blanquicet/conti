@@ -23,7 +23,7 @@ func (r *repository) ListByHousehold(ctx context.Context, householdID string) ([
 		SELECT 
 			cg.id, cg.household_id, cg.name, cg.icon, cg.display_order,
 			cg.is_active, cg.created_at, cg.updated_at,
-			c.id as category_id, c.name as category_name, c.icon as category_icon
+			c.id as category_id, c.name as category_name
 		FROM category_groups cg
 		LEFT JOIN categories c ON c.category_group_id = cg.id AND c.is_active = true
 		WHERE cg.household_id = $1 AND cg.is_active = true
@@ -52,7 +52,6 @@ func (r *repository) ListByHousehold(ctx context.Context, householdID string) ([
 			groupUpdatedAt   time.Time
 			categoryID       *string
 			categoryName     *string
-			categoryIcon     *string
 		)
 
 		err := rows.Scan(
@@ -66,7 +65,6 @@ func (r *repository) ListByHousehold(ctx context.Context, householdID string) ([
 			&groupUpdatedAt,
 			&categoryID,
 			&categoryName,
-			&categoryIcon,
 		)
 		if err != nil {
 			return nil, err
@@ -93,7 +91,6 @@ func (r *repository) ListByHousehold(ctx context.Context, householdID string) ([
 			groupsMap[groupID].Categories = append(groupsMap[groupID].Categories, Category{
 				ID:   *categoryID,
 				Name: *categoryName,
-				Icon: categoryIcon,
 			})
 		}
 	}

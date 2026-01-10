@@ -11,7 +11,7 @@ var (
 
 // UserFetcher defines interface for fetching user household info
 type UserFetcher interface {
-	GetHouseholdID(ctx context.Context, userID string) (string, error)
+	GetUserHouseholdID(ctx context.Context, userID string) (string, error)
 }
 
 // service implements Service
@@ -31,7 +31,7 @@ func NewService(repo Repository, userFetcher UserFetcher) Service {
 // ListByHousehold returns all category groups with their categories for the current user's household
 func (s *service) ListByHousehold(ctx context.Context, userID string) ([]*CategoryGroup, error) {
 	// Get user's household
-	householdID, err := s.userFetcher.GetHouseholdID(ctx, userID)
+	householdID, err := s.userFetcher.GetUserHouseholdID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}

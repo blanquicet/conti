@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/blanquicet/gastos/backend/internal/auth"
+	"github.com/blanquicet/gastos/backend/internal/categorygroups"
 	"github.com/blanquicet/gastos/backend/internal/households"
 	"github.com/blanquicet/gastos/backend/internal/n8nclient"
 	"github.com/blanquicet/gastos/backend/internal/paymentmethods"
@@ -439,11 +440,12 @@ func (r *CreateMovementRequest) ToInput() (*CreateMovementInput, error) {
 
 // FormConfigHandler handles requests for movement form configuration data
 type FormConfigHandler struct {
-	authSvc           *auth.Service
-	householdRepo     households.HouseholdRepository
-	paymentMethodRepo paymentmethods.Repository
-	cookieName        string
-	logger            *slog.Logger
+	authSvc            *auth.Service
+	householdRepo      households.HouseholdRepository
+	paymentMethodRepo  paymentmethods.Repository
+	categoryGroupsRepo categorygroups.Repository
+	cookieName         string
+	logger             *slog.Logger
 }
 
 // NewFormConfigHandler creates a new form config handler
@@ -451,15 +453,17 @@ func NewFormConfigHandler(
 	authSvc *auth.Service,
 	householdRepo households.HouseholdRepository,
 	paymentMethodRepo paymentmethods.Repository,
+	categoryGroupsRepo categorygroups.Repository,
 	cookieName string,
 	logger *slog.Logger,
 ) *FormConfigHandler {
 	return &FormConfigHandler{
-		authSvc:           authSvc,
-		householdRepo:     householdRepo,
-		paymentMethodRepo: paymentMethodRepo,
-		cookieName:        cookieName,
-		logger:            logger,
+		authSvc:            authSvc,
+		householdRepo:      householdRepo,
+		paymentMethodRepo:  paymentMethodRepo,
+		categoryGroupsRepo: categoryGroupsRepo,
+		cookieName:         cookieName,
+		logger:             logger,
 	}
 }
 
@@ -484,42 +488,9 @@ type PaymentMethod struct {
 
 // FormConfigResponse is the response for movement form configuration
 type FormConfigResponse struct {
-	Users          []User          `json:"users"`
-	PaymentMethods []PaymentMethod `json:"payment_methods"`
-	Categories     []string        `json:"categories"`
-	CategoryGroups []CategoryGroup `json:"category_groups"`
-}
-
-// Hardcoded categories (Phase 3 - will be customizable in Phase 4)
-var defaultCategories = []string{
-	"Pago de SOAT/impuestos/mantenimiento",
-	"Carro - Seguro",
-	"Uber/Gasolina/Peajes/Parqueaderos",
-	"Casa - Gastos fijos",
-	"Casa - Cositas para casa",
-	"Casa - Provisionar mes entrante",
-	"Kellys",
-	"Mercado",
-	"Ahorros para SOAT/impuestos/mantenimiento",
-	"Ahorros para cosas de la casa",
-	"Ahorros para vacaciones",
-	"Ahorros para regalos",
-	"Salidas juntos",
-	"Vacaciones",
-	"Inversiones Caro",
-	"Inversiones Jose",
-	"Inversiones Juntos",
-	"Regalos",
-	"Caro - Gastos fijos",
-	"Caro - Vida cotidiana",
-	"Jose - Gastos fijos",
-	"Jose - Vida cotidiana",
-	"Gastos médicos",
-	"Caro - Imprevistos",
-	"Jose - Imprevistos",
-	"Casa - Imprevistos",
-	"Carro - Imprevistos",
-	"Préstamo",
+	Users          []User                         `json:"users"`
+	PaymentMethods []PaymentMethod                `json:"payment_methods"`
+	CategoryGroups []*categorygroups.CategoryGroup `json:"category_groups"`
 }
 
 // GetFormConfig handles GET /api/movement-form-config
@@ -623,11 +594,18 @@ func (h *FormConfigHandler) GetFormConfig(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	// Get category groups from database
+	categoryGroups, err := h.categoryGroupsRepo.ListByHousehold(r.Context(), household.ID)
+	if err != nil {
+		h.logger.Error("failed to list category groups", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	response := FormConfigResponse{
 		Users:          users,
 		PaymentMethods: paymentMethods,
-		Categories:     defaultCategories,
-		CategoryGroups: GetDefaultCategoryGroups(),
+		CategoryGroups: categoryGroups,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

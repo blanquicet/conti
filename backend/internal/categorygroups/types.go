@@ -20,9 +20,8 @@ type CategoryGroup struct {
 
 // Category represents a simplified category (for listing within groups)
 type Category struct {
-	ID   string  `json:"id"`
-	Name string  `json:"name"`
-	Icon *string `json:"icon,omitempty"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // Repository defines the interface for category_groups data access

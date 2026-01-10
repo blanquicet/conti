@@ -274,82 +274,6 @@ type MovementTotals struct {
 	ByPaymentMethod    map[string]float64        `json:"by_payment_method"`
 }
 
-// CategoryGroup represents a logical grouping of categories for UI display
-type CategoryGroup struct {
-	Name       string   `json:"name"`
-	Categories []string `json:"categories"`
-}
-
-// GetDefaultCategoryGroups returns the default category groupings
-// TODO: Move to database per-household when implementing category management UI
-func GetDefaultCategoryGroups() []CategoryGroup {
-	return []CategoryGroup{
-		{
-			Name: "Casa",
-			Categories: []string{
-				"Casa - Gastos fijos",
-				"Casa - Provisionar mes entrante",
-				"Casa - Cositas para casa",
-				"Casa - Imprevistos",
-				"Kellys",
-				"Mercado",
-				"Regalos",
-			},
-		},
-		{
-			Name: "Jose",
-			Categories: []string{
-				"Jose - Vida cotidiana",
-				"Jose - Gastos fijos",
-				"Jose - Imprevistos",
-			},
-		},
-		{
-			Name: "Caro",
-			Categories: []string{
-				"Caro - Vida cotidiana",
-				"Caro - Gastos fijos",
-				"Caro - Imprevistos",
-			},
-		},
-		{
-			Name: "Carro",
-			Categories: []string{
-				"Uber/Gasolina/Peajes/Parqueaderos",
-				"Pago de SOAT/impuestos/mantenimiento",
-				"Carro - Seguro",
-				"Carro - Imprevistos",
-			},
-		},
-		{
-			Name: "Ahorros",
-			Categories: []string{
-				"Ahorros para SOAT/impuestos/mantenimiento",
-				"Ahorros para cosas de la casa",
-				"Ahorros para vacaciones",
-				"Ahorros para regalos",
-			},
-		},
-		{
-			Name: "Inversiones",
-			Categories: []string{
-				"Inversiones Caro",
-				"Inversiones Jose",
-				"Inversiones Juntos",
-			},
-		},
-		{
-			Name: "Diversión",
-			Categories: []string{
-				"Vacaciones",
-				"Salidas juntos",
-			},
-		},
-		// Note: "Préstamo", "Regalos", and "Gastos médicos" are intentionally ungrouped
-		// "Préstamo" will be displayed elsewhere in the UI
-	}
-}
-
 // DebtMovementDetail represents a single movement contributing to a debt
 type DebtMovementDetail struct {
 	MovementID   string  `json:"movement_id"`
@@ -387,9 +311,8 @@ type DebtSummary struct {
 
 // ListMovementsResponse represents the response for listing movements
 type ListMovementsResponse struct {
-	Movements      []*Movement     `json:"movements"`
-	Totals         *MovementTotals `json:"totals"`
-	CategoryGroups []CategoryGroup `json:"category_groups"`
+	Movements []*Movement     `json:"movements"`
+	Totals    *MovementTotals `json:"totals"`
 }
 
 // Repository defines the interface for movement data access
