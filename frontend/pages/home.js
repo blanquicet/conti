@@ -986,17 +986,15 @@ export function render(user) {
           ${renderMonthSelector()}
           
           <div class="loans-summary">
-            ${loansData.summary ? `
-              <div class="summary-item">
-                <div class="summary-label">Nos deben</div>
-                <div class="summary-amount">${formatCurrency(loansData.summary.they_owe_us)}</div>
-              </div>
-              <div class="summary-divider"></div>
-              <div class="summary-item">
-                <div class="summary-label">Debemos</div>
-                <div class="summary-amount">${formatCurrency(loansData.summary.we_owe)}</div>
-              </div>
-            ` : ''}
+            <div class="summary-item">
+              <div class="summary-label">Nos deben</div>
+              <div class="summary-amount">${formatCurrency(loansData?.summary?.they_owe_us || 0)}</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+              <div class="summary-label">Debemos</div>
+              <div class="summary-amount">${formatCurrency(loansData?.summary?.we_owe || 0)}</div>
+            </div>
           </div>
 
           <div id="loans-container">
@@ -1619,17 +1617,17 @@ function refreshDisplay() {
     
     // Update loans summary
     const loansSummary = document.querySelector('.loans-summary');
-    if (loansSummary && loansData?.summary) {
-      const summaryToDisplay = window.__filteredLoansSummary || loansData.summary;
+    if (loansSummary) {
+      const summaryToDisplay = window.__filteredLoansSummary || loansData?.summary || { they_owe_us: 0, we_owe: 0 };
       loansSummary.innerHTML = `
         <div class="summary-item">
           <div class="summary-label">Nos deben</div>
-          <div class="summary-amount">${formatCurrency(summaryToDisplay.they_owe_us)}</div>
+          <div class="summary-amount">${formatCurrency(summaryToDisplay.they_owe_us || 0)}</div>
         </div>
         <div class="summary-divider"></div>
         <div class="summary-item">
           <div class="summary-label">Debemos</div>
-          <div class="summary-amount">${formatCurrency(summaryToDisplay.we_owe)}</div>
+          <div class="summary-amount">${formatCurrency(summaryToDisplay.we_owe || 0)}</div>
         </div>
       `;
     }
@@ -2976,19 +2974,17 @@ export async function setup() {
           contentContainer.innerHTML = `
             ${renderMonthSelector()}
             
-            ${loansData?.summary ? `
-              <div class="loans-summary">
-                <div class="summary-item">
-                  <div class="summary-label">Nos deben</div>
-                  <div class="summary-amount">${formatCurrency(loansData.summary.they_owe_us)}</div>
-                </div>
-                <div class="summary-divider"></div>
-                <div class="summary-item">
-                  <div class="summary-label">Debemos</div>
-                  <div class="summary-amount">${formatCurrency(loansData.summary.we_owe)}</div>
-                </div>
+            <div class="loans-summary">
+              <div class="summary-item">
+                <div class="summary-label">Nos deben</div>
+                <div class="summary-amount">${formatCurrency(loansData?.summary?.they_owe_us || 0)}</div>
               </div>
-            ` : ''}
+              <div class="summary-divider"></div>
+              <div class="summary-item">
+                <div class="summary-label">Debemos</div>
+                <div class="summary-amount">${formatCurrency(loansData?.summary?.we_owe || 0)}</div>
+              </div>
+            </div>
             
             <div id="loans-container">
               ${renderLoansCards()}
