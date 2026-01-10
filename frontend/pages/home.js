@@ -584,13 +584,17 @@ function renderBudgets() {
     const emoji = getStatusEmoji(budget.status);
     
     return `
-      <div class="category-card">
+      <div class="category-card budget-card" data-category-id="${budget.category_id}">
         <div class="category-header">
           <div class="category-icon">${budget.icon || '💰'}</div>
           <div class="category-info">
             <div class="category-name">${budget.category_name || 'Sin nombre'}</div>
-            <div class="category-amount">
-              ${formatCurrency(budget.spent || 0)} / ${formatCurrency(budget.amount || 0)}
+            <div class="category-amount budget-amount-display">
+              ${formatCurrency(budget.spent || 0)} / 
+              <span class="budget-amount-editable" data-category-id="${budget.category_id}" data-amount="${budget.amount || 0}">
+                ${formatCurrency(budget.amount || 0)}
+              </span>
+              <button class="btn-edit-budget-inline" data-category-id="${budget.category_id}" data-amount="${budget.amount || 0}">✏️</button>
             </div>
           </div>
           <div class="category-percentage">${percentage}% ${emoji}</div>
@@ -642,6 +646,16 @@ function renderBudgets() {
   );
 
   return `
+    <!-- Action buttons -->
+    <div class="budget-actions" style="margin-bottom: 16px; display: flex; gap: 8px; justify-content: flex-end;">
+      <button class="btn-secondary btn-small" id="copy-prev-month-budget">
+        📋 Copiar del mes anterior
+      </button>
+      <button class="btn-primary btn-small" id="manage-categories-btn">
+        ⚙️ Gestionar categorías
+      </button>
+    </div>
+
     <!-- Total summary -->
     <div class="total-display" style="margin-bottom: 24px;">
       <div class="total-label">Total Presupuestado</div>
@@ -1436,6 +1450,74 @@ async function loadBudgetsData() {
 }
 
 /**
+ * Set/update budget for a category
+ */
+async function setBudget(categoryId, month, amount) {
+  try {
+    const response = await fetch(`${API_URL}/budgets`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        category_id: categoryId,
+        month: month,
+        amount: parseFloat(amount)
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al guardar presupuesto');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error setting budget:', error);
+    showError(error.message);
+    return null;
+  }
+}
+
+/**
+ * Copy budgets from previous month to current month
+ */
+async function copyBudgetsFromPrevMonth() {
+  const [year, month] = currentMonth.split('-');
+  const prevMonthDate = new Date(year, month - 2, 1); // month - 1 for 0-indexed, -1 more for previous
+  const prevMonth = `${prevMonthDate.getFullYear()}-${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}`;
+  
+  try {
+    const response = await fetch(`${API_URL}/budgets/copy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        from_month: prevMonth,
+        to_month: currentMonth
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al copiar presupuestos');
+    }
+
+    const result = await response.json();
+    showSuccess(`✅ ${result.count} presupuestos copiados exitosamente`);
+    
+    // Reload budgets data
+    await loadBudgetsData();
+    refreshDisplay();
+    
+    return result;
+  } catch (error) {
+    console.error('Error copying budgets:', error);
+    showError(error.message);
+    return null;
+  }
+}
+
+/**
  * Get category groups from API response or build from available categories
  */
 function getCategoryGroups() {
@@ -2122,6 +2204,62 @@ function setupCategoryListeners() {
 
   // Setup filter event listeners
   setupFilterListeners();
+}
+
+/**
+ * Setup budget listeners (for presupuesto tab)
+ */
+function setupBudgetListeners() {
+  // Edit budget button
+  document.querySelectorAll('.btn-edit-budget-inline').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const categoryId = btn.dataset.categoryId;
+      const currentAmount = btn.dataset.amount;
+      
+      // Show prompt to edit
+      const newAmount = prompt('Ingresa el nuevo presupuesto:', currentAmount);
+      if (newAmount === null || newAmount === '') return;
+      
+      const amount = parseFloat(newAmount);
+      if (isNaN(amount) || amount < 0) {
+        showError('Monto inválido');
+        return;
+      }
+      
+      // Save budget
+      const result = await setBudget(categoryId, currentMonth, amount);
+      if (result) {
+        showSuccess('✅ Presupuesto actualizado');
+        await loadBudgetsData();
+        refreshDisplay();
+      }
+    });
+  });
+  
+  // Copy from previous month button
+  const copyBtn = document.getElementById('copy-prev-month-budget');
+  if (copyBtn) {
+    copyBtn.addEventListener('click', async () => {
+      const confirmed = await showConfirmation(
+        '¿Copiar presupuestos del mes anterior?',
+        'Esto copiará todos los presupuestos del mes anterior al mes actual. Si ya existen presupuestos configurados, se mantendrán.'
+      );
+      
+      if (confirmed) {
+        await copyBudgetsFromPrevMonth();
+      }
+    });
+  }
+  
+  // Manage categories button
+  const manageCategoriesBtn = document.getElementById('manage-categories-btn');
+  if (manageCategoriesBtn) {
+    manageCategoriesBtn.addEventListener('click', () => {
+      router.navigate('/hogar');
+    });
+  }
 }
 
 /**
@@ -3081,6 +3219,7 @@ export async function setup() {
         ${renderBudgets()}
       `;
       setupMonthNavigation();
+      setupBudgetListeners();
     }
   }
 
@@ -3196,6 +3335,7 @@ export async function setup() {
             ${renderBudgets()}
           `;
           setupMonthNavigation();
+          setupBudgetListeners();
         } else {
           contentContainer.innerHTML = `
             <div class="coming-soon">
