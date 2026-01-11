@@ -20,24 +20,22 @@ var (
 
 // Category represents an expense category
 type Category struct {
-	ID            string    `json:"id"`
-	HouseholdID   string    `json:"household_id"`
-	Name          string    `json:"name"`
-	CategoryGroup *string   `json:"category_group,omitempty"`
-	Icon          *string   `json:"icon,omitempty"`
-	Color         *string   `json:"color,omitempty"`
-	DisplayOrder  int       `json:"display_order"`
-	IsActive      bool      `json:"is_active"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID              string    `json:"id"`
+	HouseholdID     string    `json:"household_id"`
+	Name            string    `json:"name"`
+	Color           *string   `json:"color,omitempty"`
+	DisplayOrder    int       `json:"display_order"`
+	IsActive        bool      `json:"is_active"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+	CategoryGroupID *string   `json:"category_group_id,omitempty"`
 }
 
 // CreateCategoryInput represents input for creating a category
 type CreateCategoryInput struct {
-	Name          string  `json:"name"`
-	CategoryGroup *string `json:"category_group,omitempty"`
-	Icon          *string `json:"icon,omitempty"`
-	Color         *string `json:"color,omitempty"`
+	Name            string  `json:"name"`
+	CategoryGroupID *string `json:"category_group_id,omitempty"`
+	Color           *string `json:"color,omitempty"`
 }
 
 // Validate validates the create category input
@@ -48,26 +46,19 @@ func (i *CreateCategoryInput) Validate() error {
 	if len(i.Name) > 100 {
 		return ErrCategoryNameTooLong
 	}
-	if i.Icon != nil && len(*i.Icon) > 10 {
-		return errors.New("icon must be at most 10 characters")
-	}
 	if i.Color != nil && len(*i.Color) > 20 {
 		return errors.New("color must be at most 20 characters")
-	}
-	if i.CategoryGroup != nil && len(*i.CategoryGroup) > 100 {
-		return errors.New("category group must be at most 100 characters")
 	}
 	return nil
 }
 
 // UpdateCategoryInput represents input for updating a category
 type UpdateCategoryInput struct {
-	Name          *string `json:"name,omitempty"`
-	CategoryGroup *string `json:"category_group,omitempty"`
-	Icon          *string `json:"icon,omitempty"`
-	Color         *string `json:"color,omitempty"`
-	DisplayOrder  *int    `json:"display_order,omitempty"`
-	IsActive      *bool   `json:"is_active,omitempty"`
+	Name            *string `json:"name,omitempty"`
+	CategoryGroupID *string `json:"category_group_id,omitempty"`
+	Color           *string `json:"color,omitempty"`
+	DisplayOrder    *int    `json:"display_order,omitempty"`
+	IsActive        *bool   `json:"is_active,omitempty"`
 }
 
 // Validate validates the update category input
@@ -80,14 +71,8 @@ func (i *UpdateCategoryInput) Validate() error {
 			return ErrCategoryNameTooLong
 		}
 	}
-	if i.Icon != nil && len(*i.Icon) > 10 {
-		return errors.New("icon must be at most 10 characters")
-	}
 	if i.Color != nil && len(*i.Color) > 20 {
 		return errors.New("color must be at most 20 characters")
-	}
-	if i.CategoryGroup != nil && len(*i.CategoryGroup) > 100 {
-		return errors.New("category group must be at most 100 characters")
 	}
 	if i.DisplayOrder != nil && *i.DisplayOrder < 0 {
 		return ErrInvalidDisplayOrder

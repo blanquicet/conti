@@ -71,19 +71,11 @@ func (s *CategoryService) ListByHousehold(ctx context.Context, userID string, in
 		return nil, err
 	}
 
-	// Group categories
-	grouped := make(map[string][]*Category)
-	for _, cat := range categories {
-		group := ""
-		if cat.CategoryGroup != nil {
-			group = *cat.CategoryGroup
-		}
-		grouped[group] = append(grouped[group], cat)
-	}
-
+	// Note: Grouping is now done via category_groups table in the database
+	// The "grouped" field is deprecated and left empty for backwards compatibility
 	return &ListCategoriesResponse{
 		Categories: categories,
-		Grouped:    grouped,
+		Grouped:    make(map[string][]*Category),
 	}, nil
 }
 

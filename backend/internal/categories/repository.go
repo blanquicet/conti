@@ -45,15 +45,14 @@ func (r *PostgresRepository) Create(ctx context.Context, householdID string, inp
 	// Create category
 	var category Category
 	err = r.pool.QueryRow(ctx, `
-		INSERT INTO categories (household_id, name, category_group, icon, color, display_order)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id, household_id, name, category_group, icon, color, display_order, is_active, created_at, updated_at
-	`, householdID, input.Name, input.CategoryGroup, input.Icon, input.Color, maxOrder+1).Scan(
+		INSERT INTO categories (household_id, name, category_group_id, color, display_order)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, household_id, name, category_group_id, color, display_order, is_active, created_at, updated_at
+	`, householdID, input.Name, input.CategoryGroupID, input.Color, maxOrder+1).Scan(
 		&category.ID,
 		&category.HouseholdID,
 		&category.Name,
-		&category.CategoryGroup,
-		&category.Icon,
+		&category.CategoryGroupID,
 		&category.Color,
 		&category.DisplayOrder,
 		&category.IsActive,
@@ -100,7 +99,7 @@ func (r *PostgresRepository) GetByID(ctx context.Context, id string) (*Category,
 // ListByHousehold retrieves all categories for a household
 func (r *PostgresRepository) ListByHousehold(ctx context.Context, householdID string, includeInactive bool) ([]*Category, error) {
 	query := `
-		SELECT id, household_id, name, category_group, icon, color, display_order, is_active, created_at, updated_at
+		SELECT id, household_id, name, category_group_id, color, display_order, is_active, created_at, updated_at
 		FROM categories
 		WHERE household_id = $1
 	`
@@ -122,8 +121,7 @@ func (r *PostgresRepository) ListByHousehold(ctx context.Context, householdID st
 			&category.ID,
 			&category.HouseholdID,
 			&category.Name,
-			&category.CategoryGroup,
-			&category.Icon,
+			&category.CategoryGroupID,
 			&category.Color,
 			&category.DisplayOrder,
 			&category.IsActive,
@@ -178,15 +176,10 @@ func (r *PostgresRepository) Update(ctx context.Context, id string, input *Updat
 		query += fmt.Sprintf(", name = $%d", argPos)
 		args = append(args, *input.Name)
 	}
-	if input.CategoryGroup != nil {
+	if input.CategoryGroupID != nil {
 		argPos++
-		query += fmt.Sprintf(", category_group = $%d", argPos)
-		args = append(args, *input.CategoryGroup)
-	}
-	if input.Icon != nil {
-		argPos++
-		query += fmt.Sprintf(", icon = $%d", argPos)
-		args = append(args, *input.Icon)
+		query += fmt.Sprintf(", category_group_id = $%d", argPos)
+		args = append(args, *input.CategoryGroupID)
 	}
 	if input.Color != nil {
 		argPos++
@@ -204,7 +197,7 @@ func (r *PostgresRepository) Update(ctx context.Context, id string, input *Updat
 		args = append(args, *input.IsActive)
 	}
 
-	query += " WHERE id = $1 RETURNING id, household_id, name, category_group, icon, color, display_order, is_active, created_at, updated_at"
+	query += " WHERE id = $1 RETURNING id, household_id, name, category_group_id, color, display_order, is_active, created_at, updated_at"
 	args = append([]interface{}{id}, args...)
 
 	var category Category
@@ -212,8 +205,7 @@ func (r *PostgresRepository) Update(ctx context.Context, id string, input *Updat
 		&category.ID,
 		&category.HouseholdID,
 		&category.Name,
-		&category.CategoryGroup,
-		&category.Icon,
+		&category.CategoryGroupID,
 		&category.Color,
 		&category.DisplayOrder,
 		&category.IsActive,
@@ -319,6 +311,8 @@ func (r *PostgresRepository) Reorder(ctx context.Context, householdID string, ca
 }
 
 // CreateDefaultCategories creates the default categories for a new household
+// Note: This function creates categories without category groups.
+// Category groups should be created separately and then categories assigned to them.
 func (r *PostgresRepository) CreateDefaultCategories(ctx context.Context, householdID string) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -328,15 +322,10 @@ func (r *PostgresRepository) CreateDefaultCategories(ctx context.Context, househ
 
 	defaults := GetDefaultCategories()
 	for _, def := range defaults {
-		var group *string
-		if def.CategoryGroup != "" {
-			group = &def.CategoryGroup
-		}
-
 		_, err := tx.Exec(ctx, `
-			INSERT INTO categories (household_id, name, category_group, display_order)
-			VALUES ($1, $2, $3, $4)
-		`, householdID, def.Name, group, def.DisplayOrder)
+			INSERT INTO categories (household_id, name, display_order)
+			VALUES ($1, $2, $3)
+		`, householdID, def.Name, def.DisplayOrder)
 		if err != nil {
 			return err
 		}

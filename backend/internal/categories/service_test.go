@@ -32,8 +32,8 @@ cat := &Category{
 ID:            generateID(m.nextID),
 HouseholdID:   householdID,
 Name:          input.Name,
-CategoryGroup: input.CategoryGroup,
-Icon:          input.Icon,
+CategoryGroupID: input.CategoryGroupID,
+
 Color:         input.Color,
 DisplayOrder:  m.nextID,
 IsActive:      true,
@@ -66,11 +66,8 @@ return nil, ErrCategoryNameExists
 cat.Name = *input.Name
 }
 
-if input.CategoryGroup != nil {
-cat.CategoryGroup = input.CategoryGroup
-}
-if input.Icon != nil {
-cat.Icon = input.Icon
+if input.CategoryGroupID != nil {
+cat.CategoryGroupID = input.CategoryGroupID
 }
 if input.Color != nil {
 cat.Color = input.Color
@@ -222,8 +219,7 @@ svc := NewService(repo, householdRepo)
 
 cat, err := svc.Create(context.Background(), "user1", &CreateCategoryInput{
 Name:          "Groceries",
-CategoryGroup: strPtr("Casa"),
-Icon:          strPtr("🛒"),
+CategoryGroupID: nil,
 })
 
 if err != nil {
@@ -241,7 +237,7 @@ householdRepo.AddTestMember("household1", "user1", households.RoleOwner)
 
 cat, _ := repo.Create(context.Background(), "household1", &CreateCategoryInput{
 Name:          "Groceries",
-CategoryGroup: strPtr("Casa"),
+CategoryGroupID: nil,
 })
 
 svc := NewService(repo, householdRepo)
@@ -265,11 +261,11 @@ householdRepo.AddTestMember("household1", "user1", households.RoleOwner)
 
 repo.Create(context.Background(), "household1", &CreateCategoryInput{
 Name:          "Groceries",
-CategoryGroup: strPtr("Casa"),
+CategoryGroupID: nil,
 })
 repo.Create(context.Background(), "household1", &CreateCategoryInput{
 Name:          "Utilities",
-CategoryGroup: strPtr("Casa"),
+CategoryGroupID: nil,
 })
 
 svc := NewService(repo, householdRepo)
