@@ -1414,14 +1414,21 @@ async function setBudget(categoryId, month, amount) {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al guardar presupuesto');
+      let errorMsg = 'Error al guardar presupuesto';
+      try {
+        const error = await response.json();
+        errorMsg = error.error || errorMsg;
+      } catch (e) {
+        // Response is not JSON, use status text
+        errorMsg = `${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMsg);
     }
 
     return await response.json();
   } catch (error) {
     console.error('Error setting budget:', error);
-    showError(error.message);
+    showError('Error al guardar', error.message);
     return null;
   }
 }
@@ -2129,10 +2136,10 @@ function setupBudgetListeners() {
       const input = document.createElement('input');
       input.type = 'number';
       input.min = '0';
-      input.step = '0.01';
+      input.step = '1';
       input.className = 'budget-inline-input';
-      input.placeholder = '0';
-      input.style.cssText = 'width: 120px; padding: 4px 8px; border: 2px solid var(--primary-color); border-radius: 4px; font-size: 14px;';
+      input.placeholder = 'Ingresa monto';
+      input.style.cssText = 'width: 150px; padding: 6px 10px; border: 2px solid var(--primary-color); border-radius: 6px; font-size: 15px; background: white; color: var(--text-color); outline: none;';
       
       // Replace content
       parent.innerHTML = '';
@@ -2193,10 +2200,10 @@ function setupBudgetListeners() {
       const input = document.createElement('input');
       input.type = 'number';
       input.min = '0';
-      input.step = '0.01';
+      input.step = '1';
       input.className = 'budget-inline-input';
       input.value = currentAmount;
-      input.style.cssText = 'width: 120px; padding: 4px 8px; border: 2px solid var(--primary-color); border-radius: 4px; font-size: 14px;';
+      input.style.cssText = 'width: 150px; padding: 6px 10px; border: 2px solid var(--primary-color); border-radius: 6px; font-size: 15px; background: white; color: var(--text-color); outline: none;';
       
       // Replace the span
       amountSpan.replaceWith(input);
