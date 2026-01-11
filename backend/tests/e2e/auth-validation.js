@@ -22,7 +22,7 @@ async function testAuthValidation() {
   const browser = await chromium.launch({ headless });
   const context = await browser.newContext();
   const page = await context.newPage();
-  
+
   // Database connection
   const pool = new Pool({
     connectionString: dbUrl
