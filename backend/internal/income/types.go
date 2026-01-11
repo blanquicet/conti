@@ -28,7 +28,7 @@ const (
 	TypeReimbursement IncomeType = "reimbursement"  // Reembolso de gastos
 	TypeGift          IncomeType = "gift"           // Regalo en dinero
 	TypeSale          IncomeType = "sale"           // Venta de algo (carro, mueble)
-	TypeOtherIncome   IncomeType = "other_income"   // Otro ingreso real
+	TypeOtherIncome   IncomeType = "other_income"   // Otros ingresos reales
 )
 
 // Internal Movements - doesn't increase net worth

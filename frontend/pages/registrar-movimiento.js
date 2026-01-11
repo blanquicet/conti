@@ -186,7 +186,7 @@ export function render(user) {
                 <option value="salary">Sueldo</option>
                 <option value="bonus">Bono / Prima</option>
                 <option value="reimbursement">Reembolso de Gastos</option>
-                <option value="other_income">Otro Ingreso</option>
+                <option value="other_income">Otros Ingresos</option>
               </optgroup>
               <optgroup label="MOVIMIENTO INTERNO">
                 <option value="savings_withdrawal">Retiro de Ahorros</option>
@@ -368,7 +368,7 @@ export function render(user) {
                 <option value="salary">Sueldo</option>
                 <option value="bonus">Bono / Prima</option>
                 <option value="reimbursement">Reembolso de Gastos</option>
-                <option value="other_income">Otro Ingreso</option>
+                <option value="other_income">Otros Ingresos</option>
               </optgroup>
               <optgroup label="MOVIMIENTO INTERNO">
                 <option value="savings_withdrawal">Retiro de Ahorros</option>

@@ -7,7 +7,7 @@ CREATE TYPE income_type AS ENUM (
     'reimbursement',       -- Reembolso de gastos
     'gift',                -- Regalo en dinero
     'sale',                -- Venta de algo (carro, mueble)
-    'other_income',        -- Otro ingreso real
+    'other_income',        -- Otros ingresos reales
     
     -- Internal Movements (doesn't increase net worth)
     'savings_withdrawal',  -- Retiro de ahorros previos (bolsillos, CDT)

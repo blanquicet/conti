@@ -218,7 +218,7 @@ function getIncomeTypeLabel(type) {
     'salary': 'Sueldo',
     'bonus': 'Bono / Prima',
     'reimbursement': 'Reembolsos',
-    'other_income': 'Otro Ingreso',
+    'other_income': 'Otros Ingresos',
     'savings_withdrawal': 'Retiro de Ahorros',
     'previous_balance': 'Sobrante Mes Anterior',
     'adjustment': 'Ajustes'
@@ -396,7 +396,7 @@ function renderIncomeCategories() {
     'salary': 'Sueldo',
     'bonus': 'Bono / Prima',
     'reimbursement': 'Reembolsos',
-    'other_income': 'Otro Ingreso',
+    'other_income': 'Otros Ingresos',
     'savings_withdrawal': 'Retiro de Ahorros',
     'previous_balance': 'Sobrante Mes Anterior',
     'adjustment': 'Ajustes'
