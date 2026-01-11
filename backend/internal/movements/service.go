@@ -169,8 +169,8 @@ func (s *service) convertToN8NMovement(m *Movement) *n8nclient.Movement {
 	}
 
 	// Set category
-	if m.Category != nil {
-		n8nMov.Categoria = *m.Category
+	if m.CategoryName != nil {
+		n8nMov.Categoria = *m.CategoryName
 	}
 
 	// Set payment method

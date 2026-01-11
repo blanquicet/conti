@@ -157,10 +157,6 @@ func (r *repository) GetByID(ctx context.Context, id string) (*Movement, error) 
 		return nil, err
 	}
 
-	// For backwards compatibility: populate Category field with CategoryName value
-	if movement.CategoryName != nil {
-		movement.Category = movement.CategoryName
-	}
 
 	// Get participants if SPLIT type
 	if movement.Type == TypeSplit {
@@ -337,10 +333,6 @@ func (r *repository) ListByHousehold(ctx context.Context, householdID string, fi
 			return nil, err
 		}
 
-		// For backwards compatibility: populate Category field from CategoryName
-		if m.CategoryName != nil {
-			m.Category = m.CategoryName
-		}
 
 		// Load participants if SPLIT
 		if m.Type == TypeSplit {

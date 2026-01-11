@@ -49,7 +49,6 @@ type Movement struct {
 	Type          MovementType `json:"type"`
 	Description   string       `json:"description"`
 	Amount        float64      `json:"amount"`
-	Category      *string      `json:"category,omitempty"` // Legacy field (deprecated, use CategoryName)
 	MovementDate  time.Time    `json:"movement_date"`
 	Currency      string       `json:"currency"`
 	
