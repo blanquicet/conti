@@ -511,7 +511,6 @@ function renderBudgets() {
     
     return `
       <div class="expense-category-item">
-        <div class="expense-category-icon">${budget.category_group_icon || '💰'}</div>
         <div class="expense-category-info">
           <div class="expense-category-name">${simplifiedName}</div>
           <div class="expense-category-amount">
