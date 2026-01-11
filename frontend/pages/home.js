@@ -151,58 +151,6 @@ function getIncomeTypeIcon(type) {
 }
 
 /**
- * Get icon for movement category
- */
-function getCategoryIcon(category) {
-  const icons = {
-    // Casa
-    'Casa - Gastos fijos': '🏠',
-    'Casa - Provisionar mes entrante': '💰',
-    'Casa - Cositas para casa': '🏡',
-    'Casa - Imprevistos': '⚡',
-    'Kellys': '🧹',
-    'Mercado': '🛒',
-    'Regalos': '🎁',
-    
-    // Jose
-    'Jose - Vida cotidiana': '🤴🏾',
-    'Jose - Gastos fijos': '👨‍💼',
-    'Jose - Imprevistos': '⚡',
-    
-    // Caro
-    'Caro - Vida cotidiana': '👸',
-    'Caro - Gastos fijos': '👩‍💼',
-    'Caro - Imprevistos': '⚡',
-    
-    // Carro
-    'Uber/Gasolina/Peajes/Parqueaderos': '🏎️',
-    'Pago de SOAT/impuestos/mantenimiento': '📋',
-    'Carro - Seguro': '🏎️',
-    'Carro - Imprevistos': '⚡',
-    
-    // Ahorros
-    'Ahorros para SOAT/impuestos/mantenimiento': '🏦',
-    'Ahorros para cosas de la casa': '🏦',
-    'Ahorros para vacaciones': '🏦',
-    'Ahorros para regalos': '🏦',
-    
-    // Inversiones
-    'Inversiones Caro': '📈',
-    'Inversiones Jose': '📈',
-    'Inversiones Juntos': '📈',
-    
-    // Diversión
-    'Vacaciones': '✈️',
-    'Salidas juntos': '🍽️',
-    
-    // Ungrouped
-    'Gastos médicos': '⚕️',
-    'Préstamo': '💸'
-  };
-  return icons[category] || '💵';
-}
-
-/**
  * Render tab navigation
  */
 function renderTabs() {
