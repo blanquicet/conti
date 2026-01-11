@@ -424,10 +424,11 @@ func (r *repository) GetTotals(ctx context.Context, householdID string, filters 
 
 	// Get totals by category
 	rows, err = r.pool.Query(ctx, fmt.Sprintf(`
-		SELECT category, SUM(amount) 
+		SELECT c.name, SUM(m.amount) 
 		FROM movements m 
-		%s AND category IS NOT NULL 
-		GROUP BY category
+		LEFT JOIN categories c ON m.category_id = c.id
+		%s AND m.category_id IS NOT NULL 
+		GROUP BY c.name
 	`, whereClause), args...)
 	if err != nil {
 		return nil, err
