@@ -103,10 +103,10 @@ func (r *repository) Create(ctx context.Context, input *CreateMovementInput, hou
 func (r *repository) GetByID(ctx context.Context, id string) (*Movement, error) {
 	var movement Movement
 	
-	// Get movement with payer, counterparty, and payment method names
+	// Get movement with payer, counterparty, payment method, and category names
 	query := `
 		SELECT 
-			m.id, m.household_id, m.type, m.description, m.amount, m.category,
+			m.id, m.household_id, m.type, m.description, m.amount,
 			m.movement_date, m.currency,
 			m.payer_user_id, m.payer_contact_id,
 			m.counterparty_user_id, m.counterparty_contact_id,
@@ -117,13 +117,16 @@ func (r *repository) GetByID(ctx context.Context, id string) (*Movement, error) 
 			-- Counterparty name (user or contact, if exists)
 			COALESCE(counterparty_user.name, counterparty_contact.name) as counterparty_name,
 			-- Payment method name (if exists)
-			pm.name as payment_method_name
+			pm.name as payment_method_name,
+			-- Category name via JOIN
+			c.name as category_name
 		FROM movements m
 		LEFT JOIN users payer_user ON m.payer_user_id = payer_user.id
 		LEFT JOIN contacts payer_contact ON m.payer_contact_id = payer_contact.id
 		LEFT JOIN users counterparty_user ON m.counterparty_user_id = counterparty_user.id
 		LEFT JOIN contacts counterparty_contact ON m.counterparty_contact_id = counterparty_contact.id
 		LEFT JOIN payment_methods pm ON m.payment_method_id = pm.id
+		LEFT JOIN categories c ON m.category_id = c.id
 		WHERE m.id = $1
 	`
 
@@ -133,7 +136,6 @@ func (r *repository) GetByID(ctx context.Context, id string) (*Movement, error) 
 		&movement.Type,
 		&movement.Description,
 		&movement.Amount,
-		&movement.Category,
 		&movement.MovementDate,
 		&movement.Currency,
 		&movement.PayerUserID,
@@ -146,12 +148,18 @@ func (r *repository) GetByID(ctx context.Context, id string) (*Movement, error) 
 		&movement.PayerName,
 		&movement.CounterpartyName,
 		&movement.PaymentMethodName,
+		&movement.CategoryName,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrMovementNotFound
 		}
 		return nil, err
+	}
+
+	// For backwards compatibility: populate Category field with CategoryName value
+	if movement.CategoryName != nil {
+		movement.Category = movement.CategoryName
 	}
 
 	// Get participants if SPLIT type
