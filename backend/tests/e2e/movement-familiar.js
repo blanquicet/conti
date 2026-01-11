@@ -240,7 +240,10 @@ async function testMovementFamiliar() {
     console.log('📝 Step 6: Verifying movement in PostgreSQL...');
     
     const movementResult = await pool.query(
-      'SELECT * FROM movements WHERE household_id = $1 AND description = $2',
+      `SELECT m.*, c.name as category_name 
+       FROM movements m 
+       LEFT JOIN categories c ON m.category_id = c.id 
+       WHERE m.household_id = $1 AND m.description = $2`,
       [householdId, 'Mercado del mes']
     );
     
@@ -257,8 +260,8 @@ async function testMovementFamiliar() {
     if (parseFloat(movement.amount) !== 4131.94) {
       throw new Error(`Expected amount 4131.94, got ${movement.amount}`);
     }
-    if (movement.category !== 'Mercado') {
-      throw new Error(`Expected category Mercado, got ${movement.category}`);
+    if (movement.category_name !== 'Mercado') {
+      throw new Error(`Expected category Mercado, got ${movement.category_name}`);
     }
     if (movement.payer_user_id !== userId) {
       throw new Error(`Expected payer ${userId}, got ${movement.payer_user_id}`);
@@ -267,7 +270,7 @@ async function testMovementFamiliar() {
     console.log('✅ Movement verified in PostgreSQL');
     console.log('   Type:', movement.type);
     console.log('   Amount:', movement.amount);
-    console.log('   Category:', movement.category);
+    console.log('   Category:', movement.category_name);
     console.log('   Description:', movement.description);
 
     // ==================================================================
