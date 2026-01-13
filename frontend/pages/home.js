@@ -1620,7 +1620,7 @@ function renderMovementCategories() {
       <div class="floating-actions">
         <button id="group-toggle-btn" class="btn-group-toggle" title="Vista cronológica">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 11a1 1 0 011-1h3a1 1 0 011 1v5a1 1 0 01-1 1H4a1 1 0 01-1-1v-5zM10 5a1 1 0 000 2h6a1 1 0 100-2h-6zM9 13a1 1 0 011-1h6a1 1 0 110 2h-6a1 1 0 01-1-1z"/>
+            <path d="M3 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2z"/>
           </svg>
         </button>
         <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
@@ -1764,7 +1764,7 @@ function renderMovementCategories() {
     <div class="floating-actions">
       <button id="group-toggle-btn" class="btn-group-toggle" title="Vista cronológica">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 11a1 1 0 011-1h3a1 1 0 011 1v5a1 1 0 01-1 1H4a1 1 0 01-1-1v-5zM10 5a1 1 0 000 2h6a1 1 0 100-2h-6zM9 13a1 1 0 011-1h6a1 1 0 110 2h-6a1 1 0 01-1-1z"/>
+          <path d="M3 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2z"/>
         </svg>
       </button>
       <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
@@ -1797,7 +1797,7 @@ function renderChronologicalMovements() {
       <div class="floating-actions">
         <button id="group-toggle-btn" class="btn-group-toggle" title="Agrupar">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M3 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2z"/>
+            <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
           </svg>
         </button>
         <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
@@ -1863,7 +1863,7 @@ function renderChronologicalMovements() {
     <div class="floating-actions">
       <button id="group-toggle-btn" class="btn-group-toggle" title="Agrupar">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-          <path d="M3 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2z"/>
+          <path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"/>
         </svg>
       </button>
       <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
