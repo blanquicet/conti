@@ -1825,8 +1825,8 @@ function renderChronologicalMovements() {
     <div class="chronological-movement-card">
       <div class="movement-main-info">
         <div class="movement-left">
-          <div class="movement-category-name">${movement.category_name || movement.category || 'Sin categoría'}</div>
           <div class="movement-description">${movement.description || 'Sin descripción'}</div>
+          <div class="movement-category-name">${movement.category_name || movement.category || 'Sin categoría'}</div>
           <div class="movement-date">${formatDate(movement.movement_date)}</div>
         </div>
         <div class="movement-right">

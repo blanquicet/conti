@@ -3127,15 +3127,16 @@ button.loading::after {
 }
 
 .movement-category-name {
-  font-size: 16px;
-  font-weight: 600;
-  color: #111827;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
   margin-bottom: 4px;
 }
 
 .movement-description {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
   margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
@@ -3246,11 +3247,11 @@ button.loading::after {
   }
   
   .movement-category-name {
-    font-size: 15px;
+    font-size: 13px;
   }
   
   .movement-description {
-    font-size: 13px;
+    font-size: 15px;
   }
   
   /* Loans summary mobile */
