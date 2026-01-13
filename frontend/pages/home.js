@@ -791,7 +791,7 @@ function renderLoansCards() {
             ${debtorInitials}
           </div>
           <div class="expense-group-info loan-center-info">
-            <div class="expense-group-name">${isSettled ? `${balance.debtor_name} y ${balance.creditor_name} a paz y salvo` : `${balance.debtor_name} a ${balance.creditor_name}`}</div>
+            <div class="expense-group-name">${isSettled ? `${balance.debtor_name} y ${balance.creditor_name} a paz y salvo` : `${balance.debtor_name} debe a ${balance.creditor_name}`}</div>
             <div class="expense-group-amount ${isSettled ? 'settled-amount' : ''}">${isSettled ? '✓' : formatCurrency(balance.amount)}</div>
           </div>
           <div class="loan-avatar" style="background-color: ${creditorColor}">
@@ -874,7 +874,7 @@ function renderLoanDetails(debtorId, creditorId) {
       <div class="expense-category-item" data-direction="debtor-owes-split" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
         <div class="expense-category-header">
           <div class="expense-category-info">
-            <span class="expense-category-name">${debtorName} a ${creditorName}</span>
+            <span class="expense-category-name">${debtorName} debe a ${creditorName}</span>
             <span class="expense-category-amount">${formatCurrency(totalDebtorOwes)}</span>
           </div>
         </div>
@@ -908,7 +908,7 @@ function renderLoanDetails(debtorId, creditorId) {
       <div class="expense-category-item" data-direction="creditor-owes-split" data-debtor-id="${debtorId}" data-creditor-id="${creditorId}">
         <div class="expense-category-header">
           <div class="expense-category-info">
-            <span class="expense-category-name">${creditorName} a ${debtorName}</span>
+            <span class="expense-category-name">${creditorName} debe a ${debtorName}</span>
             <span class="expense-category-amount">${formatCurrency(totalCreditorOwes)}</span>
           </div>
         </div>
