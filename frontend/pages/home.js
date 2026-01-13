@@ -31,6 +31,7 @@ let isLoansFilterOpen = false; // Track if loans filter dropdown is open
 let tabsNeedingReload = new Set(); // Tabs that need to reload when activated ('gastos', 'ingresos', 'prestamos', 'presupuesto', 'tarjetas')
 let budgetsData = null; // Presupuesto data
 let categoryGroupsData = null; // Category groups with categories (from /api/category-groups)
+let showChronological = false; // Track if showing chronological view (true) or grouped view (false)
 
 /**
  * Format number as COP currency
@@ -1617,6 +1618,11 @@ function renderMovementCategories() {
         ${!hasActiveFilters ? '<button id="add-expense-btn-empty" class="btn-primary">+ Agregar gasto</button>' : ''}
       </div>
       <div class="floating-actions">
+        <button id="group-toggle-btn" class="btn-group-toggle" title="Vista cronológica">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"/>
+          </svg>
+        </button>
         <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
           <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
             <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
@@ -1756,6 +1762,110 @@ function renderMovementCategories() {
       ${groupsHtml}
     </div>
     <div class="floating-actions">
+      <button id="group-toggle-btn" class="btn-group-toggle" title="Vista cronológica">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z"/>
+        </svg>
+      </button>
+      <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
+        </svg>
+      </button>
+      ${renderMovementsFilterDropdown()}
+      <button id="add-expense-btn" class="btn-add-floating">+</button>
+    </div>
+  `;
+}
+
+/**
+ * Render chronological view of movements (no grouping)
+ */
+function renderChronologicalMovements() {
+  if (!movementsData || !movementsData.movements || movementsData.movements.length === 0) {
+    const hasActiveFilters = selectedCategories.length > 0 || selectedPaymentMethods.length > 0 || selectedMemberIds.length > 0;
+    const message = hasActiveFilters 
+      ? 'No hay gastos con los filtros seleccionados'
+      : 'No hay gastos registrados para este mes';
+    
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">🛒</div>
+        <p>${message}</p>
+        ${!hasActiveFilters ? '<button id="add-expense-btn-empty" class="btn-primary">+ Agregar gasto</button>' : ''}
+      </div>
+      <div class="floating-actions">
+        <button id="group-toggle-btn" class="btn-group-toggle" title="Agrupar">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M3 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2z"/>
+          </svg>
+        </button>
+        <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
+          </svg>
+        </button>
+        ${renderMovementsFilterDropdown()}
+        <button id="add-expense-btn" class="btn-add-floating">+</button>
+      </div>
+    `;
+  }
+
+  const movements = movementsData.movements;
+
+  // Filter out "Préstamo" category from the view
+  const filteredMovements = movements.filter(m => m.category !== 'Préstamo');
+
+  // Sort movements by date (most recent first)
+  const sortedMovements = filteredMovements.sort((a, b) => 
+    new Date(b.movement_date) - new Date(a.movement_date)
+  );
+
+  const movementsHtml = sortedMovements.map(movement => `
+    <div class="chronological-movement-card">
+      <div class="movement-main-info">
+        <div class="movement-left">
+          <div class="movement-category-name">${movement.category_name || movement.category || 'Sin categoría'}</div>
+          <div class="movement-description">${movement.description || 'Sin descripción'}</div>
+          <div class="movement-date">${formatDate(movement.movement_date)}</div>
+        </div>
+        <div class="movement-right">
+          <div class="movement-amount">${formatCurrency(movement.amount)}</div>
+          <div class="movement-badges">
+            ${movement.is_split 
+              ? `<span class="entry-split-badge">🤝 Compartido</span>` 
+              : movement.payment_method_name 
+                ? `<span class="entry-payment-badge">${movement.payment_method_name}</span>` 
+                : ''
+            }
+          </div>
+        </div>
+      </div>
+      <div class="movement-actions">
+        <button class="three-dots-btn" data-movement-id="${movement.id}">⋮</button>
+        <div class="three-dots-menu" id="movement-menu-${movement.id}">
+          <button class="menu-item" data-action="edit" data-id="${movement.id}">Editar</button>
+          <button class="menu-item" data-action="delete" data-id="${movement.id}">Eliminar</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  return `
+    <!-- Filter loading overlay -->
+    <div class="filter-loading-overlay" id="filter-loading" style="display: none;">
+      <div class="spinner"></div>
+      <p>Filtrando...</p>
+    </div>
+    <div class="chronological-movements-list">
+      ${movementsHtml}
+    </div>
+    <div class="floating-actions">
+      <button id="group-toggle-btn" class="btn-group-toggle" title="Agrupar">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M3 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 5h14a1 1 0 010 2H3a1 1 0 010-2z"/>
+        </svg>
+      </button>
       <button id="filter-btn" class="btn-filter-floating" title="Filtrar">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
           <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
@@ -1776,7 +1886,7 @@ function refreshDisplay() {
   
   if (container) {
     if (activeTab === 'gastos') {
-      container.innerHTML = renderMovementCategories();
+      container.innerHTML = showChronological ? renderChronologicalMovements() : renderMovementCategories();
     } else if (activeTab === 'ingresos') {
       container.innerHTML = renderIncomeCategories();
     }
@@ -2112,6 +2222,16 @@ function setupCategoryListeners() {
       if (dropdown) {
         dropdown.style.display = isFilterOpen ? 'block' : 'none';
       }
+    });
+  }
+
+  // Group toggle button (chronological vs grouped view)
+  const groupToggleBtn = document.getElementById('group-toggle-btn');
+  if (groupToggleBtn) {
+    groupToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showChronological = !showChronological;
+      refreshDisplay();
     });
   }
 

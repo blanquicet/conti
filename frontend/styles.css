@@ -2400,6 +2400,26 @@ button.loading::after {
   box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
 }
 
+.btn-group-toggle {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: white;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-group-toggle:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
+}
+
 /* Filter dropdown */
 .filter-dropdown {
   position: fixed;
@@ -2659,7 +2679,8 @@ button.loading::after {
   }
   
   .btn-filter-floating,
-  .btn-add-floating {
+  .btn-add-floating,
+  .btn-group-toggle {
     width: 56px;
     height: 56px;
   }
@@ -3069,6 +3090,89 @@ button.loading::after {
   display: none;
 }
 
+/* Chronological view styles */
+.chronological-movements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 100px;
+}
+
+.chronological-movement-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chronological-movement-card:hover {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.movement-main-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 16px;
+}
+
+.movement-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.movement-category-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.movement-description {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.movement-date {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.movement-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.movement-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.movement-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.movement-actions {
+  margin-left: 12px;
+  position: relative;
+}
+
 /* Movement detail entries within categories */
 .expense-category-details .movement-detail-entry {
   padding: 14px 12px;
@@ -3118,6 +3222,35 @@ button.loading::after {
     width: 48px;
     height: 48px;
     font-size: 16px;
+  }
+  
+  /* Chronological view mobile */
+  .chronological-movement-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  
+  .movement-main-info {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .movement-right {
+    align-items: flex-start;
+    width: 100%;
+  }
+  
+  .movement-amount {
+    font-size: 16px;
+  }
+  
+  .movement-category-name {
+    font-size: 15px;
+  }
+  
+  .movement-description {
+    font-size: 13px;
   }
   
   /* Loans summary mobile */
