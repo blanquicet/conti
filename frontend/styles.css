@@ -3240,6 +3240,13 @@ button.loading::after {
   .movement-right {
     align-items: flex-start;
     width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .movement-badges {
+    flex-shrink: 0;
   }
   
   .movement-amount {
