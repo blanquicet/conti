@@ -218,6 +218,27 @@ async function testPaymentMethods() {
     console.log('✅ User 2 joined household');
 
     // ==================================================================
+    // STEP 6.5: User 2 - Add Account (for DEBT_PAYMENT receiver)
+    // ==================================================================
+    console.log('📝 Step 6.5: User 2 adding account...');
+    
+    await page2.goto(`${appUrl}/perfil`);
+    await page2.waitForTimeout(2000);
+    
+    await page2.locator('#add-account-btn').waitFor({ state: 'visible', timeout: 10000 });
+    await page2.locator('#add-account-btn').click();
+    await page2.waitForTimeout(500);
+    
+    await page2.selectOption('select#account-type', 'cash');
+    await page2.locator('#account-name').fill('User2 Cash');
+    await page2.locator('#account-balance').fill('0');
+    
+    await page2.locator('#account-form button[type="submit"]').click();
+    await page2.waitForTimeout(1500);
+    
+    console.log('✅ User 2 account added');
+
+    // ==================================================================
     // STEP 7: User 2 - Verify Sees Shared Payment Methods
     // ==================================================================
     console.log('📝 Step 7: User 2 checking household shared payment methods...');
@@ -406,6 +427,10 @@ async function testPaymentMethods() {
     
     // Select User 2 as tomador (receiver)
     await page2.selectOption('select#tomador', 'Test Member PM');
+    await page2.waitForTimeout(500);
+    
+    // Select receiver account (required for member-to-member DEBT_PAYMENT)
+    await page2.selectOption('select#cuentaReceptora', 'User2 Cash');
     await page2.waitForTimeout(500);
     
     // Manually inject User2's payment method into the select (simulating form manipulation)

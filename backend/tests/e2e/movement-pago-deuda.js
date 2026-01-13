@@ -270,16 +270,12 @@ async function testMovementPagoDeuda() {
     await page2.locator('#add-account-btn').click();
     await page2.waitForTimeout(500);
     
-    await page2.locator('#account-name').fill('Cash Test');
     await page2.selectOption('select#account-type', 'cash');
-    await page2.locator('#account-initial-balance').fill('0');
+    await page2.locator('#account-name').fill('Cash Test');
+    await page2.locator('#account-balance').fill('0');
     
-    await page2.getByRole('button', { name: 'Agregar', exact: true }).click();
+    await page2.locator('#account-form button[type="submit"]').click();
     await page2.waitForTimeout(1500);
-    
-    // Close modal
-    await page2.keyboard.press('Escape');
-    await page2.waitForTimeout(500);
     
     console.log('✅ Account added for User 2');
 
