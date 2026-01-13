@@ -1839,13 +1839,13 @@ function renderChronologicalMovements() {
                 : ''
             }
           </div>
-        </div>
-      </div>
-      <div class="movement-actions">
-        <button class="three-dots-btn" data-movement-id="${movement.id}">⋮</button>
-        <div class="three-dots-menu" id="movement-menu-${movement.id}">
-          <button class="menu-item" data-action="edit" data-id="${movement.id}">Editar</button>
-          <button class="menu-item" data-action="delete" data-id="${movement.id}">Eliminar</button>
+          <div class="movement-actions">
+            <button class="three-dots-btn" data-movement-id="${movement.id}">⋮</button>
+            <div class="three-dots-menu" id="movement-menu-${movement.id}">
+              <button class="menu-item" data-action="edit" data-id="${movement.id}">Editar</button>
+              <button class="menu-item" data-action="delete" data-id="${movement.id}">Eliminar</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

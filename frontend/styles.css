@@ -3169,8 +3169,7 @@ button.loading::after {
   justify-content: flex-end;
 }
 
-.movement-actions {
-  margin-left: 12px;
+.chronological-movement-card .movement-actions {
   position: relative;
 }
 
@@ -3238,19 +3237,24 @@ button.loading::after {
   }
   
   .movement-right {
-    align-items: flex-start;
+    align-items: center;
     width: 100%;
     flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
   }
   
   .movement-badges {
     flex-shrink: 0;
   }
   
+  .chronological-movement-card .movement-actions {
+    flex-shrink: 0;
+  }
+  
   .movement-amount {
     font-size: 16px;
+    margin-right: auto;
   }
   
   .movement-category-name {
