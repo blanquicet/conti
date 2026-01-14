@@ -188,9 +188,20 @@ async function testBudgetManagement() {
     await page.waitForTimeout(2000);
 
     // ==================================================================
-    // STEP 5: Verify Budget Cards Are Displayed
+    // STEP 5: Expand Groups and Verify Budget Cards Are Displayed
     // ==================================================================
-    console.log('📝 Step 5: Verifying budget cards are displayed...');
+    console.log('📝 Step 5: Expanding groups and verifying budget cards...');
+    
+    // Expand all category groups (they're collapsed by default)
+    const groupHeaders = await page.locator('.expense-group-header').all();
+    console.log(`  Found ${groupHeaders.length} category groups`);
+    
+    for (const header of groupHeaders) {
+      await header.click();
+      await page.waitForTimeout(300);
+    }
+    
+    console.log('✅ Expanded all groups');
     
     // Check for budget cards (using expense-category-item structure)
     const budgetCards = await page.locator('.expense-category-item').count();
@@ -209,15 +220,30 @@ async function testBudgetManagement() {
     await page.locator('#next-month-btn').click();
     await page.waitForTimeout(2000);
     
+    // Expand all groups again in the new month
+    const nextMonthGroups = await page.locator('.expense-group-header').all();
+    for (const header of nextMonthGroups) {
+      await header.click();
+      await page.waitForTimeout(300);
+    }
+    
     // Verify budgets are empty for next month
     const nextMonthCards = await page.locator('.expense-category-item').count();
     if (nextMonthCards !== 3) {
       throw new Error(`Expected 3 budget cards in next month, found ${nextMonthCards}`);
     }
     
-    // Check that amounts are 0 or empty (no budgets set yet)
-    const firstCardAmount = await page.locator('.expense-category-item').first().locator('.budget-amount-editable').textContent();
-    console.log('  First card amount in next month:', firstCardAmount.trim());
+    // Check that amounts are 0 or show "Sin presupuesto" (no budgets set yet)
+    const firstCard = page.locator('.expense-category-item').first();
+    const hasNoBudget = await firstCard.locator('.no-budget-text').count();
+    const hasBudget = await firstCard.locator('.budget-amount-editable').count();
+    
+    if (hasNoBudget > 0) {
+      console.log('  First card shows: Sin presupuesto');
+    } else if (hasBudget > 0) {
+      const amount = await firstCard.locator('.budget-amount-editable').textContent();
+      console.log('  First card amount:', amount.trim());
+    }
     
     console.log('✅ Navigated to next month (budgets should be empty)');
 
@@ -251,6 +277,13 @@ async function testBudgetManagement() {
     // STEP 8: Verify Budgets Were Copied
     // ==================================================================
     console.log('📝 Step 8: Verifying budgets were copied...');
+    
+    // Expand all groups to see categories
+    const copiedMonthGroups = await page.locator('.expense-group-header').all();
+    for (const header of copiedMonthGroups) {
+      await header.click();
+      await page.waitForTimeout(300);
+    }
     
     // Check that amounts are now populated
     const copiedCards = await page.locator('.expense-category-item').all();
