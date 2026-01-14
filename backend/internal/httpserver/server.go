@@ -133,6 +133,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		paymentMethodsRepo,
 		accountsRepo,
 		n8nClient, // Can be nil
+		auditService,
 		logger,
 	)
 	movementsHandler := movements.NewHandler(

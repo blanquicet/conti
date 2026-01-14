@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/blanquicet/gastos/backend/internal/accounts"
+	"github.com/blanquicet/gastos/backend/internal/audit"
 	"github.com/blanquicet/gastos/backend/internal/households"
 	"github.com/blanquicet/gastos/backend/internal/n8nclient"
 	"github.com/blanquicet/gastos/backend/internal/paymentmethods"
@@ -18,6 +19,7 @@ type service struct {
 	paymentMethodRepo paymentmethods.Repository
 	accountsRepo      accounts.Repository
 	n8nClient         *n8nclient.Client
+	auditService      audit.Service
 	logger            *slog.Logger
 }
 
@@ -28,6 +30,7 @@ func NewService(
 	paymentMethodRepo paymentmethods.Repository,
 	accountsRepo accounts.Repository,
 	n8nClient *n8nclient.Client,
+	auditService audit.Service,
 	logger *slog.Logger,
 ) Service {
 	return &service{
@@ -36,6 +39,7 @@ func NewService(
 		paymentMethodRepo: paymentMethodRepo,
 		accountsRepo:      accountsRepo,
 		n8nClient:         n8nClient,
+		auditService:      auditService,
 		logger:            logger,
 	}
 }
@@ -143,8 +147,28 @@ func (s *service) Create(ctx context.Context, userID string, input *CreateMoveme
 	// Create movement
 	movement, err := s.repo.Create(ctx, input, householdID)
 	if err != nil {
+		// Log failed creation attempt
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			UserID:       audit.StringPtr(userID),
+			Action:       audit.ActionMovementCreated,
+			ResourceType: "movement",
+			HouseholdID:  audit.StringPtr(householdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
 		return nil, err
 	}
+
+	// Log successful creation
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		UserID:       audit.StringPtr(userID),
+		Action:       audit.ActionMovementCreated,
+		ResourceType: "movement",
+		ResourceID:   audit.StringPtr(movement.ID),
+		HouseholdID:  audit.StringPtr(householdID),
+		NewValues:    audit.StructToMap(movement),
+		Success:      true,
+	})
 
 	// Dual write to n8n (Google Sheets) if configured
 	if s.n8nClient != nil {
@@ -656,8 +680,31 @@ func (s *service) Update(ctx context.Context, userID, id string, input *UpdateMo
 	// Update movement
 	updated, err := s.repo.Update(ctx, id, input)
 	if err != nil {
+		// Log failed update attempt
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			UserID:       audit.StringPtr(userID),
+			Action:       audit.ActionMovementUpdated,
+			ResourceType: "movement",
+			ResourceID:   audit.StringPtr(id),
+			HouseholdID:  audit.StringPtr(householdID),
+			OldValues:    audit.StructToMap(existing),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
 		return nil, err
 	}
+
+	// Log successful update
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		UserID:       audit.StringPtr(userID),
+		Action:       audit.ActionMovementUpdated,
+		ResourceType: "movement",
+		ResourceID:   audit.StringPtr(id),
+		HouseholdID:  audit.StringPtr(householdID),
+		OldValues:    audit.StructToMap(existing),
+		NewValues:    audit.StructToMap(updated),
+		Success:      true,
+	})
 
 	// Note: We don't dual-write updates to n8n for now
 	// Google Sheets will have the original data until migration
@@ -688,8 +735,30 @@ func (s *service) Delete(ctx context.Context, userID, id string) error {
 
 	// Delete movement
 	if err := s.repo.Delete(ctx, id); err != nil {
+		// Log failed deletion attempt
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			UserID:       audit.StringPtr(userID),
+			Action:       audit.ActionMovementDeleted,
+			ResourceType: "movement",
+			ResourceID:   audit.StringPtr(id),
+			HouseholdID:  audit.StringPtr(householdID),
+			OldValues:    audit.StructToMap(existing),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
 		return err
 	}
+
+	// Log successful deletion
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		UserID:       audit.StringPtr(userID),
+		Action:       audit.ActionMovementDeleted,
+		ResourceType: "movement",
+		ResourceID:   audit.StringPtr(id),
+		HouseholdID:  audit.StringPtr(householdID),
+		OldValues:    audit.StructToMap(existing),
+		Success:      true,
+	})
 
 	// Note: We don't dual-write deletes to n8n for now
 	// Google Sheets will keep the data until manual cleanup
