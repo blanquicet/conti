@@ -13,6 +13,7 @@ CARO_EMAIL="caro+$(date +%s%N)@test.com"
 PASSWORD="Test1234!"
 CLEANUP="${CLEANUP:-false}"
 DEBUG="${DEBUG:-false}"
+DATABASE_URL="${DATABASE_URL:-postgresql://gastos:gastos@localhost:5432/gastos?sslmode=disable}"
 
 # Curl flags based on debug mode
 CURL_FLAGS="-s"
@@ -687,6 +688,162 @@ BALANCE_ACCOUNT=$(api_call $CURL_FLAGS -X GET $BASE_URL/accounts/$ACCOUNT_ID -b 
 # Initial balance 5500000 + income (5200000 + 800000) = 11500000
 echo "$BALANCE_ACCOUNT" | jq -e '.current_balance == 11500000' > /dev/null
 echo -e "${GREEN}✓ Account balance updated correctly after income${NC}\n"
+
+# ═══════════════════════════════════════════════════════════
+# AUDIT LOGGING VERIFICATION
+# ═══════════════════════════════════════════════════════════
+
+run_test "Verify audit logs for user registration (AUTH)"
+AUTH_REGISTER_COUNT=$(psql $DATABASE_URL -t -c "
+  SELECT COUNT(*) 
+  FROM audit_logs 
+  WHERE action = 'AUTH_LOGIN' 
+    AND user_id = '$JOSE_ID'
+    AND success = true
+")
+AUTH_REGISTER_COUNT=$(echo "$AUTH_REGISTER_COUNT" | xargs)
+[ "$AUTH_REGISTER_COUNT" -ge "1" ]
+echo -e "${GREEN}✓ Found $AUTH_REGISTER_COUNT audit log(s) for Jose's login${NC}\n"
+
+run_test "Verify audit logs for household creation"
+HOUSEHOLD_AUDIT_COUNT=$(psql $DATABASE_URL -t -c "
+  SELECT COUNT(*) 
+  FROM audit_logs 
+  WHERE action = 'HOUSEHOLD_CREATED' 
+    AND resource_id = '$HOUSEHOLD1_ID'
+    AND success = true
+")
+HOUSEHOLD_AUDIT_COUNT=$(echo "$HOUSEHOLD_AUDIT_COUNT" | xargs)
+[ "$HOUSEHOLD_AUDIT_COUNT" -ge "1" ]
+echo -e "${GREEN}✓ Found audit log for household creation${NC}\n"
+
+run_test "Verify audit log has full household snapshot"
+HOUSEHOLD_SNAPSHOT=$(psql $DATABASE_URL -t -c "
+  SELECT new_values::text 
+  FROM audit_logs 
+  WHERE action = 'HOUSEHOLD_CREATED' 
+    AND resource_id = '$HOUSEHOLD1_ID' 
+  LIMIT 1
+")
+echo "$HOUSEHOLD_SNAPSHOT" | grep -q "Household 1"
+echo -e "${GREEN}✓ Audit log contains household snapshot${NC}\n"
+
+run_test "Verify audit logs for household member addition"
+MEMBER_AUDIT_COUNT=$(psql $DATABASE_URL -t -c "
+  SELECT COUNT(*) 
+  FROM audit_logs 
+  WHERE action = 'HOUSEHOLD_MEMBER_ADDED'
+    AND household_id = '$HOUSEHOLD1_ID'
+    AND success = true
+")
+MEMBER_AUDIT_COUNT=$(echo "$MEMBER_AUDIT_COUNT" | xargs)
+[ "$MEMBER_AUDIT_COUNT" -ge "1" ]
+echo -e "${GREEN}✓ Found $MEMBER_AUDIT_COUNT audit log(s) for member additions${NC}\n"
+
+run_test "Verify audit logs for account creation"
+ACCOUNT_AUDIT_COUNT=$(psql $DATABASE_URL -t -c "
+  SELECT COUNT(*) 
+  FROM audit_logs 
+  WHERE action = 'ACCOUNT_CREATED'
+    AND resource_id = '$ACCOUNT_ID'
+    AND success = true
+")
+ACCOUNT_AUDIT_COUNT=$(echo "$ACCOUNT_AUDIT_COUNT" | xargs)
+[ "$ACCOUNT_AUDIT_COUNT" = "1" ]
+echo -e "${GREEN}✓ Found audit log for account creation${NC}\n"
+
+run_test "Verify audit log contains account snapshot with initial balance"
+ACCOUNT_SNAPSHOT=$(psql $DATABASE_URL -t -c "
+  SELECT new_values::text 
+  FROM audit_logs 
+  WHERE action = 'ACCOUNT_CREATED' 
+    AND resource_id = '$ACCOUNT_ID'
+  LIMIT 1
+")
+echo "$ACCOUNT_SNAPSHOT" | grep -q "5500000"  # Initial balance
+echo "$ACCOUNT_SNAPSHOT" | grep -q "BBVA"     # Institution
+echo -e "${GREEN}✓ Account audit log contains full snapshot${NC}\n"
+
+run_test "Verify audit logs for income creation"
+INCOME_AUDIT_COUNT=$(psql $DATABASE_URL -t -c "
+  SELECT COUNT(*) 
+  FROM audit_logs 
+  WHERE action = 'INCOME_CREATED'
+    AND household_id = '$HOUSEHOLD1_ID'
+    AND success = true
+")
+INCOME_AUDIT_COUNT=$(echo "$INCOME_AUDIT_COUNT" | xargs)
+[ "$INCOME_AUDIT_COUNT" -ge "2" ]  # We created 2 income entries
+echo -e "${GREEN}✓ Found $INCOME_AUDIT_COUNT audit log(s) for income creation${NC}\n"
+
+run_test "Verify audit logs for income deletion"
+INCOME_DELETE_COUNT=$(psql $DATABASE_URL -t -c "
+  SELECT COUNT(*) 
+  FROM audit_logs 
+  WHERE action = 'INCOME_DELETED'
+    AND resource_id = '$WITHDRAWAL_ID'
+    AND success = true
+")
+INCOME_DELETE_COUNT=$(echo "$INCOME_DELETE_COUNT" | xargs)
+[ "$INCOME_DELETE_COUNT" = "1" ]
+echo -e "${GREEN}✓ Found audit log for income deletion${NC}\n"
+
+run_test "Verify income deletion audit has old values"
+INCOME_DELETE_SNAPSHOT=$(psql $DATABASE_URL -t -c "
+  SELECT old_values::text 
+  FROM audit_logs 
+  WHERE action = 'INCOME_DELETED' 
+    AND resource_id = '$WITHDRAWAL_ID'
+  LIMIT 1
+")
+echo "$INCOME_DELETE_SNAPSHOT" | grep -q "$WITHDRAWAL_ID"
+echo -e "${GREEN}✓ Income deletion audit log contains old values${NC}\n"
+
+run_test "Verify audit logs for category creation"
+CATEGORY_AUDIT_COUNT=$(psql $DATABASE_URL -t -c "
+  SELECT COUNT(*) 
+  FROM audit_logs 
+  WHERE action = 'CATEGORY_CREATED'
+    AND household_id = '$HOUSEHOLD1_ID'
+    AND success = true
+")
+CATEGORY_AUDIT_COUNT=$(echo "$CATEGORY_AUDIT_COUNT" | xargs)
+[ "$CATEGORY_AUDIT_COUNT" -ge "1" ]
+echo -e "${GREEN}✓ Found $CATEGORY_AUDIT_COUNT audit log(s) for category creation${NC}\n"
+
+run_test "Verify audit logs for budget creation"
+BUDGET_AUDIT_COUNT=$(psql $DATABASE_URL -t -c "
+  SELECT COUNT(*) 
+  FROM audit_logs 
+  WHERE action = 'BUDGET_CREATED'
+    AND household_id = '$HOUSEHOLD1_ID'
+    AND success = true
+")
+BUDGET_AUDIT_COUNT=$(echo "$BUDGET_AUDIT_COUNT" | xargs)
+[ "$BUDGET_AUDIT_COUNT" -ge "1" ]
+echo -e "${GREEN}✓ Found $BUDGET_AUDIT_COUNT audit log(s) for budget creation${NC}\n"
+
+run_test "List all audit logs via admin API"
+AUDIT_LIST=$(api_call $CURL_FLAGS "$BASE_URL/admin/audit-logs?household_id=$HOUSEHOLD1_ID&limit=50")
+AUDIT_LIST_COUNT=$(echo "$AUDIT_LIST" | jq '.logs | length')
+[ "$AUDIT_LIST_COUNT" -ge "10" ]
+echo -e "${GREEN}✓ Admin API returned $AUDIT_LIST_COUNT audit logs for household${NC}\n"
+
+run_test "Verify audit logs can be filtered by action"
+HOUSEHOLD_CREATE_LOGS=$(api_call $CURL_FLAGS "$BASE_URL/admin/audit-logs?action=HOUSEHOLD_CREATED&limit=10")
+HOUSEHOLD_CREATE_COUNT=$(echo "$HOUSEHOLD_CREATE_LOGS" | jq '.logs | length')
+[ "$HOUSEHOLD_CREATE_COUNT" -ge "1" ]
+echo -e "${GREEN}✓ Found $HOUSEHOLD_CREATE_COUNT filtered audit log(s)${NC}\n"
+
+run_test "Verify audit logs contain user_id tracking"
+USER_LOGS=$(psql $DATABASE_URL -t -c "
+  SELECT COUNT(*) 
+  FROM audit_logs 
+  WHERE user_id = '$JOSE_ID'
+")
+USER_LOGS=$(echo "$USER_LOGS" | xargs)
+[ "$USER_LOGS" -ge "10" ]
+echo -e "${GREEN}✓ Found $USER_LOGS audit logs for Jose's user ID${NC}\n"
 
 # ═══════════════════════════════════════════════════════════
 # CLEANUP (if requested)
