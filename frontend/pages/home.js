@@ -1467,8 +1467,19 @@ async function copyBudgetsFromPrevMonth() {
     });
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al copiar presupuestos');
+      let errorMessage = 'Error al copiar presupuestos';
+      try {
+        const error = await response.json();
+        errorMessage = error.error || error.message || errorMessage;
+      } catch (e) {
+        // If response is not JSON, try to get text
+        try {
+          errorMessage = await response.text();
+        } catch (textError) {
+          // Use default message
+        }
+      }
+      throw new Error(errorMessage);
     }
 
     const result = await response.json();

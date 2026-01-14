@@ -169,19 +169,24 @@ func (h *Handler) CopyBudgets(w http.ResponseWriter, r *http.Request) {
 	count, err := h.service.CopyBudgets(r.Context(), user.ID, &input)
 	if err != nil {
 		h.logger.Error("failed to copy budgets", "error", err, "user_id", user.ID)
+		w.Header().Set("Content-Type", "application/json")
 		if err == ErrInvalidMonth || strings.Contains(err.Error(), "must be after") {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
 			return
 		}
 		if err == ErrBudgetsExist {
-			http.Error(w, "budgets already exist for target month", http.StatusConflict)
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]string{"error": "budgets already exist for target month"})
 			return
 		}
 		if err == ErrNoHousehold {
-			http.Error(w, "user has no household", http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"error": "user has no household"})
 			return
 		}
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]string{"error": "internal server error"})
 		return
 	}
 
