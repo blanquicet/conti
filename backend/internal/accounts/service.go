@@ -4,16 +4,22 @@ import (
 	"context"
 	"errors"
 	"strings"
+
+	"github.com/blanquicet/gastos/backend/internal/audit"
 )
 
 // Service handles account business logic
 type Service struct {
-	repo Repository
+	repo         Repository
+	auditService audit.Service
 }
 
 // NewService creates a new account service
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, auditService audit.Service) *Service {
+	return &Service{
+		repo:         repo,
+		auditService: auditService,
+	}
 }
 
 // CreateInput contains the data needed to create an account
@@ -93,7 +99,28 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Account, erro
 		Notes:          input.Notes,
 	}
 
-	return s.repo.Create(ctx, account)
+	created, err := s.repo.Create(ctx, account)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionAccountCreated,
+			ResourceType: "account",
+			HouseholdID:  audit.StringPtr(input.HouseholdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return nil, err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionAccountCreated,
+		ResourceType: "account",
+		ResourceID:   audit.StringPtr(created.ID),
+		HouseholdID:  audit.StringPtr(input.HouseholdID),
+		Success:      true,
+		NewValues:    audit.StructToMap(created),
+	})
+
+	return created, nil
 }
 
 // UpdateInput contains the data needed to update an account
@@ -152,6 +179,9 @@ func (s *Service) Update(ctx context.Context, householdID string, input UpdateIn
 		return nil, ErrNotAuthorized
 	}
 
+	// Store old values for audit
+	oldValues := audit.StructToMap(existing)
+
 	// Update fields if provided
 	if input.Name != nil {
 		// Check if new name conflicts with another account in household
@@ -176,7 +206,30 @@ func (s *Service) Update(ctx context.Context, householdID string, input UpdateIn
 		existing.Notes = input.Notes
 	}
 
-	return s.repo.Update(ctx, existing)
+	updated, err := s.repo.Update(ctx, existing)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionAccountUpdated,
+			ResourceType: "account",
+			ResourceID:   audit.StringPtr(input.ID),
+			HouseholdID:  audit.StringPtr(householdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return nil, err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionAccountUpdated,
+		ResourceType: "account",
+		ResourceID:   audit.StringPtr(input.ID),
+		HouseholdID:  audit.StringPtr(householdID),
+		Success:      true,
+		OldValues:    oldValues,
+		NewValues:    audit.StructToMap(updated),
+	})
+
+	return updated, nil
 }
 
 // GetByID retrieves an account by ID
@@ -212,5 +265,27 @@ func (s *Service) Delete(ctx context.Context, id, householdID string) error {
 		return ErrNotAuthorized
 	}
 
-	return s.repo.Delete(ctx, id)
+	err = s.repo.Delete(ctx, id)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionAccountDeleted,
+			ResourceType: "account",
+			ResourceID:   audit.StringPtr(id),
+			HouseholdID:  audit.StringPtr(householdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionAccountDeleted,
+		ResourceType: "account",
+		ResourceID:   audit.StringPtr(id),
+		HouseholdID:  audit.StringPtr(householdID),
+		Success:      true,
+		OldValues:    audit.StructToMap(existing),
+	})
+
+	return nil
 }

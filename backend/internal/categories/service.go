@@ -3,20 +3,23 @@ package categories
 import (
 	"context"
 
+	"github.com/blanquicet/gastos/backend/internal/audit"
 	"github.com/blanquicet/gastos/backend/internal/households"
 )
 
 // CategoryService implements Service
 type CategoryService struct {
-	repo         Repository
+	repo          Repository
 	householdRepo households.HouseholdRepository
+	auditService  audit.Service
 }
 
 // NewService creates a new category service
-func NewService(repo Repository, householdRepo households.HouseholdRepository) *CategoryService {
+func NewService(repo Repository, householdRepo households.HouseholdRepository, auditService audit.Service) *CategoryService {
 	return &CategoryService{
-		repo:         repo,
+		repo:          repo,
 		householdRepo: householdRepo,
+		auditService:  auditService,
 	}
 }
 
@@ -34,7 +37,30 @@ func (s *CategoryService) Create(ctx context.Context, userID string, input *Crea
 	}
 
 	// Create category
-	return s.repo.Create(ctx, householdID, input)
+	category, err := s.repo.Create(ctx, householdID, input)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionCategoryCreated,
+			ResourceType: "category",
+			UserID:       audit.StringPtr(userID),
+			HouseholdID:  audit.StringPtr(householdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return nil, err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionCategoryCreated,
+		ResourceType: "category",
+		ResourceID:   audit.StringPtr(category.ID),
+		UserID:       audit.StringPtr(userID),
+		HouseholdID:  audit.StringPtr(householdID),
+		Success:      true,
+		NewValues:    audit.StructToMap(category),
+	})
+
+	return category, nil
 }
 
 // GetByID retrieves a category if user has access to it
@@ -101,8 +127,36 @@ func (s *CategoryService) Update(ctx context.Context, userID, id string, input *
 		return nil, err
 	}
 
+	// Store old values for audit
+	oldValues := audit.StructToMap(category)
+
 	// Update category
-	return s.repo.Update(ctx, id, input)
+	updated, err := s.repo.Update(ctx, id, input)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionCategoryUpdated,
+			ResourceType: "category",
+			ResourceID:   audit.StringPtr(id),
+			UserID:       audit.StringPtr(userID),
+			HouseholdID:  audit.StringPtr(category.HouseholdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return nil, err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionCategoryUpdated,
+		ResourceType: "category",
+		ResourceID:   audit.StringPtr(id),
+		UserID:       audit.StringPtr(userID),
+		HouseholdID:  audit.StringPtr(category.HouseholdID),
+		Success:      true,
+		OldValues:    oldValues,
+		NewValues:    audit.StructToMap(updated),
+	})
+
+	return updated, nil
 }
 
 // Delete deletes a category
@@ -122,8 +176,35 @@ func (s *CategoryService) Delete(ctx context.Context, userID, id string) error {
 		return err
 	}
 
+	// Store old values for audit
+	oldValues := audit.StructToMap(category)
+
 	// Delete category (repository checks if it's used in movements)
-	return s.repo.Delete(ctx, id)
+	err = s.repo.Delete(ctx, id)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionCategoryDeleted,
+			ResourceType: "category",
+			ResourceID:   audit.StringPtr(id),
+			UserID:       audit.StringPtr(userID),
+			HouseholdID:  audit.StringPtr(category.HouseholdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionCategoryDeleted,
+		ResourceType: "category",
+		ResourceID:   audit.StringPtr(id),
+		UserID:       audit.StringPtr(userID),
+		HouseholdID:  audit.StringPtr(category.HouseholdID),
+		Success:      true,
+		OldValues:    oldValues,
+	})
+
+	return nil
 }
 
 // Reorder reorders categories

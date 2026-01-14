@@ -89,7 +89,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	)
 
 	// Create household service
-	householdService := households.NewService(householdRepo, userRepo)
+	householdService := households.NewService(householdRepo, userRepo, auditService)
 
 	// Create auth handler
 	authHandler := auth.NewHandler(
@@ -101,11 +101,11 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Create payment methods service and handler
 	paymentMethodsRepo := paymentmethods.NewRepository(pool)
-	paymentMethodsService := paymentmethods.NewService(paymentMethodsRepo)
+	paymentMethodsService := paymentmethods.NewService(paymentMethodsRepo, auditService)
 	
 	// Create accounts service and handler
 	accountsRepo := accounts.NewRepository(pool)
-	accountsService := accounts.NewService(accountsRepo)
+	accountsService := accounts.NewService(accountsRepo, auditService)
 	
 	accountsHandler := accounts.NewHandler(
 		accountsService,
@@ -192,7 +192,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Create categories service and handler
 	categoriesRepo := categories.NewPostgresRepository(pool)
-	categoriesService := categories.NewService(categoriesRepo, householdRepo)
+	categoriesService := categories.NewService(categoriesRepo, householdRepo, auditService)
 	categoriesHandler := categories.NewHandler(
 		categoriesService,
 		authService,
@@ -202,7 +202,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Create budgets service and handler
 	budgetsRepo := budgets.NewPostgresRepository(pool)
-	budgetsService := budgets.NewService(budgetsRepo, categoriesRepo, householdRepo)
+	budgetsService := budgets.NewService(budgetsRepo, categoriesRepo, householdRepo, auditService)
 	budgetsHandler := budgets.NewHandler(
 		budgetsService,
 		authService,

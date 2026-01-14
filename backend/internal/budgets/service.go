@@ -3,6 +3,7 @@ package budgets
 import (
 	"context"
 
+	"github.com/blanquicet/gastos/backend/internal/audit"
 	"github.com/blanquicet/gastos/backend/internal/categories"
 	"github.com/blanquicet/gastos/backend/internal/households"
 )
@@ -12,14 +13,16 @@ type BudgetService struct {
 	repo          Repository
 	categoryRepo  categories.Repository
 	householdRepo households.HouseholdRepository
+	auditService  audit.Service
 }
 
 // NewService creates a new budget service
-func NewService(repo Repository, categoryRepo categories.Repository, householdRepo households.HouseholdRepository) *BudgetService {
+func NewService(repo Repository, categoryRepo categories.Repository, householdRepo households.HouseholdRepository, auditService audit.Service) *BudgetService {
 	return &BudgetService{
 		repo:          repo,
 		categoryRepo:  categoryRepo,
 		householdRepo: householdRepo,
+		auditService:  auditService,
 	}
 }
 
@@ -91,8 +94,31 @@ func (s *BudgetService) Set(ctx context.Context, userID string, input *SetBudget
 		return nil, ErrNotAuthorized
 	}
 
-	// Set budget
-	return s.repo.Set(ctx, householdID, input)
+	// Set budget (upsert operation)
+	budget, err := s.repo.Set(ctx, householdID, input)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionBudgetCreated,
+			ResourceType: "budget",
+			UserID:       audit.StringPtr(userID),
+			HouseholdID:  audit.StringPtr(householdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return nil, err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionBudgetCreated,
+		ResourceType: "budget",
+		ResourceID:   audit.StringPtr(budget.ID),
+		UserID:       audit.StringPtr(userID),
+		HouseholdID:  audit.StringPtr(householdID),
+		Success:      true,
+		NewValues:    audit.StructToMap(budget),
+	})
+
+	return budget, nil
 }
 
 // Delete deletes a budget
@@ -112,8 +138,35 @@ func (s *BudgetService) Delete(ctx context.Context, userID, budgetID string) err
 		return err
 	}
 
+	// Store old values for audit
+	oldValues := audit.StructToMap(budget)
+
 	// Delete budget
-	return s.repo.Delete(ctx, budgetID)
+	err = s.repo.Delete(ctx, budgetID)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionBudgetDeleted,
+			ResourceType: "budget",
+			ResourceID:   audit.StringPtr(budgetID),
+			UserID:       audit.StringPtr(userID),
+			HouseholdID:  audit.StringPtr(budget.HouseholdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionBudgetDeleted,
+		ResourceType: "budget",
+		ResourceID:   audit.StringPtr(budgetID),
+		UserID:       audit.StringPtr(userID),
+		HouseholdID:  audit.StringPtr(budget.HouseholdID),
+		Success:      true,
+		OldValues:    oldValues,
+	})
+
+	return nil
 }
 
 // CopyBudgets copies budgets from one month to another

@@ -7,20 +7,23 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/blanquicet/gastos/backend/internal/audit"
 	"github.com/blanquicet/gastos/backend/internal/auth"
 )
 
 // Service handles household business logic
 type Service struct {
-	repo      HouseholdRepository
-	userRepo  auth.UserRepository
+	repo         HouseholdRepository
+	userRepo     auth.UserRepository
+	auditService audit.Service
 }
 
 // NewService creates a new household service
-func NewService(repo HouseholdRepository, userRepo auth.UserRepository) *Service {
+func NewService(repo HouseholdRepository, userRepo auth.UserRepository, auditService audit.Service) *Service {
 	return &Service{
-		repo:     repo,
-		userRepo: userRepo,
+		repo:         repo,
+		userRepo:     userRepo,
+		auditService: auditService,
 	}
 }
 
@@ -61,7 +64,29 @@ func (s *Service) CreateHousehold(ctx context.Context, input *CreateHouseholdInp
 	}
 
 	// Create household (repository handles adding creator as owner)
-	return s.repo.Create(ctx, input.Name, input.UserID)
+	household, err := s.repo.Create(ctx, input.Name, input.UserID)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionHouseholdCreated,
+			ResourceType: "household",
+			UserID:       audit.StringPtr(input.UserID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return nil, err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionHouseholdCreated,
+		ResourceType: "household",
+		ResourceID:   audit.StringPtr(household.ID),
+		UserID:       audit.StringPtr(input.UserID),
+		HouseholdID:  audit.StringPtr(household.ID),
+		Success:      true,
+		NewValues:    audit.StructToMap(household),
+	})
+
+	return household, nil
 }
 
 // GetHousehold retrieves a household if the user is a member
@@ -118,7 +143,39 @@ func (s *Service) UpdateHousehold(ctx context.Context, input *UpdateHouseholdInp
 		return nil, err
 	}
 
-	return s.repo.Update(ctx, input.HouseholdID, input.Name)
+	// Get old values for audit
+	oldHousehold, err := s.repo.GetByID(ctx, input.HouseholdID)
+	if err != nil {
+		return nil, err
+	}
+	oldValues := audit.StructToMap(oldHousehold)
+
+	updated, err := s.repo.Update(ctx, input.HouseholdID, input.Name)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionHouseholdUpdated,
+			ResourceType: "household",
+			ResourceID:   audit.StringPtr(input.HouseholdID),
+			UserID:       audit.StringPtr(input.UserID),
+			HouseholdID:  audit.StringPtr(input.HouseholdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return nil, err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionHouseholdUpdated,
+		ResourceType: "household",
+		ResourceID:   audit.StringPtr(input.HouseholdID),
+		UserID:       audit.StringPtr(input.UserID),
+		HouseholdID:  audit.StringPtr(input.HouseholdID),
+		Success:      true,
+		OldValues:    oldValues,
+		NewValues:    audit.StructToMap(updated),
+	})
+
+	return updated, nil
 }
 
 // DeleteHousehold deletes a household (owner only)
@@ -135,7 +192,37 @@ func (s *Service) DeleteHousehold(ctx context.Context, householdID, userID strin
 		return ErrNotAuthorized
 	}
 
-	return s.repo.Delete(ctx, householdID)
+	// Get household for audit log before deletion
+	household, err := s.repo.GetByID(ctx, householdID)
+	if err != nil {
+		return err
+	}
+
+	err = s.repo.Delete(ctx, householdID)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionHouseholdDeleted,
+			ResourceType: "household",
+			ResourceID:   audit.StringPtr(householdID),
+			UserID:       audit.StringPtr(userID),
+			HouseholdID:  audit.StringPtr(householdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionHouseholdDeleted,
+		ResourceType: "household",
+		ResourceID:   audit.StringPtr(householdID),
+		UserID:       audit.StringPtr(userID),
+		HouseholdID:  audit.StringPtr(householdID),
+		Success:      true,
+		OldValues:    audit.StructToMap(household),
+	})
+
+	return nil
 }
 
 // ListUserHouseholds retrieves all households where the user is a member
@@ -193,7 +280,34 @@ func (s *Service) AddMember(ctx context.Context, input *AddMemberInput) (*Househ
 	}
 
 	// Add as member
-	return s.repo.AddMember(ctx, input.HouseholdID, user.ID, RoleMember)
+	member, err := s.repo.AddMember(ctx, input.HouseholdID, user.ID, RoleMember)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionHouseholdMemberAdded,
+			ResourceType: "household_member",
+			UserID:       audit.StringPtr(input.UserID),
+			HouseholdID:  audit.StringPtr(input.HouseholdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+			Metadata: map[string]interface{}{
+				"target_user_email": input.Email,
+				"target_user_id":    user.ID,
+			},
+		})
+		return nil, err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionHouseholdMemberAdded,
+		ResourceType: "household_member",
+		ResourceID:   audit.StringPtr(member.ID),
+		UserID:       audit.StringPtr(input.UserID),
+		HouseholdID:  audit.StringPtr(input.HouseholdID),
+		Success:      true,
+		NewValues:    audit.StructToMap(member),
+	})
+
+	return member, nil
 }
 
 // RemoveMemberInput contains the data needed to remove a member
@@ -242,7 +356,34 @@ func (s *Service) RemoveMember(ctx context.Context, input *RemoveMemberInput) er
 		}
 	}
 
-	return s.repo.RemoveMember(ctx, input.HouseholdID, input.MemberID)
+	// Store old values for audit
+	oldValues := audit.StructToMap(member)
+
+	err = s.repo.RemoveMember(ctx, input.HouseholdID, input.MemberID)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionHouseholdMemberRemoved,
+			ResourceType: "household_member",
+			ResourceID:   audit.StringPtr(member.ID),
+			UserID:       audit.StringPtr(input.UserID),
+			HouseholdID:  audit.StringPtr(input.HouseholdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionHouseholdMemberRemoved,
+		ResourceType: "household_member",
+		ResourceID:   audit.StringPtr(member.ID),
+		UserID:       audit.StringPtr(input.UserID),
+		HouseholdID:  audit.StringPtr(input.HouseholdID),
+		Success:      true,
+		OldValues:    oldValues,
+	})
+
+	return nil
 }
 
 // UpdateMemberRoleInput contains the data needed to update a member's role

@@ -4,16 +4,21 @@ import (
 "context"
 "errors"
 "strings"
+	"github.com/blanquicet/gastos/backend/internal/audit"
 )
 
 // Service handles payment method business logic
 type Service struct {
+	auditService audit.Service
 repo Repository
 }
 
 // NewService creates a new payment method service
-func NewService(repo Repository) *Service {
-return &Service{repo: repo}
+func NewService(repo Repository, auditService audit.Service) *Service {
+return &Service{
+		repo:         repo,
+		auditService: auditService,
+	}
 }
 
 // CreateInput contains the data needed to create a payment method
@@ -86,7 +91,30 @@ func (s *Service) Create(ctx context.Context, input *CreateInput) (*PaymentMetho
 		IsActive:              isActive,
 	}
 
-	return s.repo.Create(ctx, pm)
+	created, err := s.repo.Create(ctx, pm)
+	if err != nil {
+		s.auditService.LogAsync(ctx, &audit.LogInput{
+			Action:       audit.ActionPaymentMethodCreated,
+			ResourceType: "payment_method",
+			UserID:       audit.StringPtr(input.OwnerID),
+			HouseholdID:  audit.StringPtr(input.HouseholdID),
+			Success:      false,
+			ErrorMessage: audit.StringPtr(err.Error()),
+		})
+		return nil, err
+	}
+
+	s.auditService.LogAsync(ctx, &audit.LogInput{
+		Action:       audit.ActionPaymentMethodCreated,
+		ResourceType: "payment_method",
+		ResourceID:   audit.StringPtr(created.ID),
+		UserID:       audit.StringPtr(input.OwnerID),
+		HouseholdID:  audit.StringPtr(input.HouseholdID),
+		Success:      true,
+		NewValues:    audit.StructToMap(created),
+	})
+
+	return created, nil
 }
 
 // UpdateInput contains the data needed to update a payment method
@@ -150,6 +178,9 @@ if existing.OwnerID != input.OwnerID {
 return nil, ErrNotAuthorized
 }
 
+// Store old values for audit
+oldValues := audit.StructToMap(existing)
+
 // Apply updates
 if input.Name != nil {
 existing.Name = *input.Name
@@ -170,7 +201,32 @@ if input.IsActive != nil {
 existing.IsActive = *input.IsActive
 }
 
-return s.repo.Update(ctx, existing)
+updated, err := s.repo.Update(ctx, existing)
+if err != nil {
+s.auditService.LogAsync(ctx, &audit.LogInput{
+Action:       audit.ActionPaymentMethodUpdated,
+ResourceType: "payment_method",
+ResourceID:   audit.StringPtr(input.ID),
+UserID:       audit.StringPtr(input.OwnerID),
+HouseholdID:  audit.StringPtr(existing.HouseholdID),
+Success:      false,
+ErrorMessage: audit.StringPtr(err.Error()),
+})
+return nil, err
+}
+
+s.auditService.LogAsync(ctx, &audit.LogInput{
+Action:       audit.ActionPaymentMethodUpdated,
+ResourceType: "payment_method",
+ResourceID:   audit.StringPtr(input.ID),
+UserID:       audit.StringPtr(input.OwnerID),
+HouseholdID:  audit.StringPtr(existing.HouseholdID),
+Success:      true,
+OldValues:    oldValues,
+NewValues:    audit.StructToMap(updated),
+})
+
+return updated, nil
 }
 
 // Delete deletes a payment method
@@ -186,7 +242,31 @@ if existing.OwnerID != ownerID {
 return ErrNotAuthorized
 }
 
-return s.repo.Delete(ctx, id)
+err = s.repo.Delete(ctx, id)
+if err != nil {
+s.auditService.LogAsync(ctx, &audit.LogInput{
+Action:       audit.ActionPaymentMethodDeleted,
+ResourceType: "payment_method",
+ResourceID:   audit.StringPtr(id),
+UserID:       audit.StringPtr(ownerID),
+HouseholdID:  audit.StringPtr(existing.HouseholdID),
+Success:      false,
+ErrorMessage: audit.StringPtr(err.Error()),
+})
+return err
+}
+
+s.auditService.LogAsync(ctx, &audit.LogInput{
+Action:       audit.ActionPaymentMethodDeleted,
+ResourceType: "payment_method",
+ResourceID:   audit.StringPtr(id),
+UserID:       audit.StringPtr(ownerID),
+HouseholdID:  audit.StringPtr(existing.HouseholdID),
+Success:      true,
+OldValues:    audit.StructToMap(existing),
+})
+
+return nil
 }
 
 // ListByHousehold lists all payment methods for a household that the user can see
