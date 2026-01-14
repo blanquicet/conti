@@ -1737,10 +1737,10 @@ function renderMovementCategories() {
             if (hasCategoryBudget) {
               const budgetPercentage = ((categoryData.total / categoryBudget) * 100).toFixed(0);
               let budgetColor = '#10b981'; // Green - under budget
-              if (budgetPercentage >= 100) {
+              if (budgetPercentage > 100) {
                 budgetColor = '#ef4444'; // Red - exceeded
               } else if (budgetPercentage >= 80) {
-                budgetColor = '#f59e0b'; // Yellow - on track
+                budgetColor = '#f59e0b'; // Yellow - on track (80-100%)
               }
               
               categoryBudgetIndicator = `
@@ -1930,11 +1930,37 @@ function renderChronologicalMovements() {
 }
 
 /**
- * Refresh display (handles gastos, ingresos, and prestamos tabs)
+ * Refresh display (handles gastos, ingresos, prestamos, and presupuesto tabs)
  */
 function refreshDisplay() {
   const container = document.getElementById('categories-container');
   const loansContainer = document.getElementById('loans-container');
+  const dashboardContent = document.querySelector('.dashboard-content');
+  
+  // For presupuesto tab, we need to re-render the entire dashboard content
+  if (activeTab === 'presupuesto') {
+    if (dashboardContent) {
+      if (budgetsData) {
+        dashboardContent.innerHTML = `
+          ${renderMonthSelector()}
+          
+          ${renderBudgets()}
+        `;
+        setupMonthNavigation();
+        setupBudgetListeners();
+      } else {
+        dashboardContent.innerHTML = `
+          ${renderMonthSelector()}
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Cargando...</p>
+          </div>
+        `;
+        setupMonthNavigation();
+      }
+    }
+    return;
+  }
   
   if (container) {
     if (activeTab === 'gastos') {
@@ -3628,6 +3654,20 @@ export async function setup() {
 function showLoadingState() {
   const container = document.getElementById('categories-container');
   const loansContainer = document.getElementById('loans-container');
+  const dashboardContent = document.querySelector('.dashboard-content');
+  
+  // For presupuesto tab, show loading in the entire dashboard content
+  if (activeTab === 'presupuesto' && dashboardContent) {
+    dashboardContent.innerHTML = `
+      ${renderMonthSelector()}
+      <div class="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Cargando...</p>
+      </div>
+    `;
+    setupMonthNavigation();
+    return;
+  }
   
   if (container) {
     container.innerHTML = `
