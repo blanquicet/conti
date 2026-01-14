@@ -201,9 +201,18 @@ jobs:
 
       - name: Run API integration tests
         working-directory: backend/tests/api-integration
+        env:
+          DATABASE_URL: postgres://gastos:gastos_test_password@localhost:5432/gastos_test?sslmode=disable
         run: |
-          chmod +x test-api.sh
+          chmod +x test-api.sh test-movements.sh test-categories-budgets.sh
+          echo "Running households tests..."
           ./test-api.sh
+          echo ""
+          echo "Running movements tests..."
+          ./test-movements.sh
+          echo ""
+          echo "Running categories and budgets tests..."
+          ./test-categories-budgets.sh
 
       - name: Show API logs on failure
         if: failure()

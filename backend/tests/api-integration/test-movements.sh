@@ -125,7 +125,14 @@ echo -e "${GREEN}✓ Created payment method: $PM_ID${NC}\n"
 
 run_test "Create Jose's Savings Account (for receiving debt payments)"
 # Manually create account using direct DB insert since there's no accounts API yet
-JOSE_ACCOUNT_ID=$(docker compose exec -T postgres psql -U gastos -d gastos -t -c "INSERT INTO accounts (household_id, owner_id, name, type, initial_balance) VALUES ('$HOUSEHOLD_ID', '$JOSE_ID', 'Cuenta Jose', 'savings', 0) RETURNING id;" 2>/dev/null | tr -d ' ' | grep -v '^$' | head -1)
+# Use psql directly in CI, docker compose exec locally
+if [ -n "$CI" ] || command -v psql &> /dev/null && psql "$DATABASE_URL" -c "SELECT 1" &> /dev/null; then
+  # CI environment or psql available - use psql directly
+  JOSE_ACCOUNT_ID=$(psql "$DATABASE_URL" -t -c "INSERT INTO accounts (household_id, owner_id, name, type, initial_balance) VALUES ('$HOUSEHOLD_ID', '$JOSE_ID', 'Cuenta Jose', 'savings', 0) RETURNING id;" 2>/dev/null | tr -d ' ' | grep -v '^$' | head -1)
+else
+  # Local development - use docker compose
+  JOSE_ACCOUNT_ID=$(docker compose exec -T postgres psql -U gastos -d gastos -t -c "INSERT INTO accounts (household_id, owner_id, name, type, initial_balance) VALUES ('$HOUSEHOLD_ID', '$JOSE_ID', 'Cuenta Jose', 'savings', 0) RETURNING id;" 2>/dev/null | tr -d ' ' | grep -v '^$' | head -1)
+fi
 [ "$JOSE_ACCOUNT_ID" != "" ] && [ -n "$JOSE_ACCOUNT_ID" ]
 echo -e "${GREEN}✓ Created Jose's account: $JOSE_ACCOUNT_ID${NC}\n"
 
