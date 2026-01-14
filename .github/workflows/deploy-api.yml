@@ -108,10 +108,29 @@ jobs:
           path: /tmp/gastos-api.tar
           retention-days: 1
 
+  generate-api-integration-matrix:
+    runs-on: ubuntu-latest
+    name: Generate API Integration Test Matrix
+    needs: build-docker-image
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Generate test file matrix
+        id: set-matrix
+        run: |
+          files=$(ls backend/tests/api-integration/test-*.sh | xargs -n1 basename | jq -R -s -c 'split("\n")[:-1]')
+          echo "matrix={\"test-file\":$files}" >> $GITHUB_OUTPUT
+          echo "Generated matrix: {\"test-file\":$files}"
+
   api-integration-test:
     runs-on: ubuntu-latest
-    name: API Integration Tests
-    needs: build-docker-image
+    name: API Integration - ${{ matrix.test-file }}
+    needs: generate-api-integration-matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.generate-api-integration-matrix.outputs.matrix) }}
 
     steps:
       - uses: actions/checkout@v4
@@ -199,20 +218,14 @@ jobs:
           migrate -path ./migrations -database "$DATABASE_URL" up
           echo "✅ Migrations applied successfully"
 
-      - name: Run API integration tests
+      - name: Run API integration test
         working-directory: backend/tests/api-integration
         env:
           DATABASE_URL: postgres://gastos:gastos_test_password@localhost:5432/gastos_test?sslmode=disable
+          CI: 'true'
         run: |
-          chmod +x test-api.sh test-movements.sh test-categories-budgets.sh
-          echo "Running households tests..."
-          ./test-api.sh
-          echo ""
-          echo "Running movements tests..."
-          ./test-movements.sh
-          echo ""
-          echo "Running categories and budgets tests..."
-          ./test-categories-budgets.sh
+          chmod +x ${{ matrix.test-file }}
+          ./${{ matrix.test-file }}
 
       - name: Show API logs on failure
         if: failure()
