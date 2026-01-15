@@ -1018,6 +1018,13 @@ export function render(user) {
     currentMonth = getCurrentMonth();
   }
 
+  // Check URL parameters for active tab (before rendering)
+  const urlParams = new URLSearchParams(window.location.search);
+  const tabParam = urlParams.get('tab');
+  if (tabParam && ['gastos', 'ingresos', 'prestamos', 'presupuesto', 'tarjetas'].includes(tabParam)) {
+    activeTab = tabParam;
+  }
+
   const totalAmount = activeTab === 'gastos'
     ? (movementsData?.totals?.total_amount || 0)
     : (incomeData?.totals?.total_amount || 0);
