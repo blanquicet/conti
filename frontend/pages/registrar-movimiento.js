@@ -1057,6 +1057,16 @@ function onTipoChange() {
     categoriaWrap.classList.toggle('hidden', shouldHideCategoria);
   }
 
+  // Show/hide payment method field
+  // Hidden for INGRESO (payment method is not needed for income)
+  const metodoWrap = document.getElementById('metodoWrap');
+  const metodoEl = document.getElementById('metodo');
+  if (isIngreso) {
+    metodoWrap.classList.add('hidden');
+    metodoEl.required = false;
+    metodoEl.value = '';
+  }
+
   updateSubmitButton(isCompartido);
 
   if (isFamiliar) {
