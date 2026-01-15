@@ -799,17 +799,7 @@ INCOME_DELETE_SNAPSHOT=$(PAGER=cat psql $DATABASE_URL -t -c "
 echo "$INCOME_DELETE_SNAPSHOT" | grep -q "$WITHDRAWAL_ID"
 echo -e "${GREEN}✓ Income deletion audit log contains old values${NC}\n"
 
-run_test "Verify audit logs for category creation"
-CATEGORY_AUDIT_COUNT=$(PAGER=cat psql $DATABASE_URL -t -c "
-  SELECT COUNT(*) 
-  FROM audit_logs 
-  WHERE action = 'CATEGORY_CREATED'
-    AND success = true
-    AND created_at > NOW() - INTERVAL '5 minutes'
-")
-CATEGORY_AUDIT_COUNT=$(echo "$CATEGORY_AUDIT_COUNT" | xargs)
-[ "$CATEGORY_AUDIT_COUNT" -ge "1" ]
-echo -e "${GREEN}✓ Found $CATEGORY_AUDIT_COUNT audit log(s) for category creation${NC}\n"
+# NOTE: Category audit logs are tested in test-categories-budgets.sh
 
 run_test "Verify audit logs for payment method creation"
 PM_CREATE_AUDIT_COUNT=$(PAGER=cat psql $DATABASE_URL -t -c "
@@ -887,17 +877,7 @@ PM_DELETE_SNAPSHOT=$(PAGER=cat psql $DATABASE_URL -t -c "
 echo "$PM_DELETE_SNAPSHOT" | grep -q "Efectivo"
 echo -e "${GREEN}✓ Payment method deletion audit log contains old values${NC}\n"
 
-run_test "Verify audit logs for budget creation"
-BUDGET_AUDIT_COUNT=$(PAGER=cat psql $DATABASE_URL -t -c "
-  SELECT COUNT(*) 
-  FROM audit_logs 
-  WHERE action = 'BUDGET_CREATED'
-    AND success = true
-    AND created_at > NOW() - INTERVAL '5 minutes'
-")
-BUDGET_AUDIT_COUNT=$(echo "$BUDGET_AUDIT_COUNT" | xargs)
-[ "$BUDGET_AUDIT_COUNT" -ge "1" ]
-echo -e "${GREEN}✓ Found $BUDGET_AUDIT_COUNT audit log(s) for budget creation${NC}\n"
+# NOTE: Budget audit logs are tested in test-categories-budgets.sh
 
 run_test "List all audit logs via admin API"
 AUDIT_LIST=$(api_call $CURL_FLAGS "$BASE_URL/admin/audit-logs?limit=50")
