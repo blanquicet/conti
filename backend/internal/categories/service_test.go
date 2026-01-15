@@ -2,9 +2,11 @@ package categories
 
 import (
 "context"
+"net/http"
 "testing"
 "time"
 
+"github.com/blanquicet/gastos/backend/internal/audit"
 "github.com/blanquicet/gastos/backend/internal/households"
 )
 
@@ -209,13 +211,23 @@ func strPtr(s string) *string {
 return &s
 }
 
+// MockAuditService implements audit.Service for testing
+type MockAuditService struct{}
+
+func (m *MockAuditService) Log(ctx context.Context, input *audit.LogInput) error { return nil }
+func (m *MockAuditService) LogAsync(ctx context.Context, input *audit.LogInput) {}
+func (m *MockAuditService) LogFromRequest(r *http.Request, input *audit.LogInput) error { return nil }
+func (m *MockAuditService) Query(ctx context.Context, filters *audit.ListFilters) ([]*audit.AuditLog, int, error) { return nil, 0, nil }
+func (m *MockAuditService) Cleanup(ctx context.Context, retentionDays int) (int64, error) { return 0, nil }
+
 // Tests
 func TestCreateCategory(t *testing.T) {
 repo := NewMockRepository()
 householdRepo := NewMockHouseholdRepository()
 householdRepo.AddTestMember("household1", "user1", households.RoleOwner)
+auditSvc := &MockAuditService{}
 
-svc := NewService(repo, householdRepo)
+svc := NewService(repo, householdRepo, auditSvc)
 
 cat, err := svc.Create(context.Background(), "user1", &CreateCategoryInput{
 Name:          "Groceries",
@@ -234,13 +246,14 @@ func TestUpdateCategoryRename(t *testing.T) {
 repo := NewMockRepository()
 householdRepo := NewMockHouseholdRepository()
 householdRepo.AddTestMember("household1", "user1", households.RoleOwner)
+auditSvc := &MockAuditService{}
 
 cat, _ := repo.Create(context.Background(), "household1", &CreateCategoryInput{
 Name:          "Groceries",
 CategoryGroupID: nil,
 })
 
-svc := NewService(repo, householdRepo)
+svc := NewService(repo, householdRepo, auditSvc)
 
 updated, err := svc.Update(context.Background(), "user1", cat.ID, &UpdateCategoryInput{
 Name: strPtr("Supermarket"),
@@ -258,6 +271,7 @@ func TestListCategories(t *testing.T) {
 repo := NewMockRepository()
 householdRepo := NewMockHouseholdRepository()
 householdRepo.AddTestMember("household1", "user1", households.RoleOwner)
+auditSvc := &MockAuditService{}
 
 repo.Create(context.Background(), "household1", &CreateCategoryInput{
 Name:          "Groceries",
@@ -268,7 +282,7 @@ Name:          "Utilities",
 CategoryGroupID: nil,
 })
 
-svc := NewService(repo, householdRepo)
+svc := NewService(repo, householdRepo, auditSvc)
 response, err := svc.ListByHousehold(context.Background(), "user1", false)
 
 if err != nil {

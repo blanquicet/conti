@@ -63,7 +63,8 @@ func TestCreateHousehold(t *testing.T) {
 			// Create fresh instances for each test
 			repo := NewMockRepository()
 			userRepo := NewMockUserRepository()
-			svc := NewService(repo, userRepo)
+			auditSvc := &MockAuditService{}
+			svc := NewService(repo, userRepo, auditSvc)
 			userRepo.AddTestUser("user-1", "test@example.com", "Test User")
 
 			household, err := svc.CreateHousehold(context.Background(), tt.input)
@@ -117,7 +118,8 @@ func TestCreateHousehold(t *testing.T) {
 func TestGetHousehold(t *testing.T) {
 	repo := NewMockRepository()
 	userRepo := NewMockUserRepository()
-	svc := NewService(repo, userRepo)
+	auditSvc := &MockAuditService{}
+	svc := NewService(repo, userRepo, auditSvc)
 
 	userRepo.AddTestUser("user-1", "test@example.com", "Test User")
 	household, _ := svc.CreateHousehold(context.Background(), &CreateHouseholdInput{
@@ -172,7 +174,8 @@ func TestGetHousehold(t *testing.T) {
 func TestRemoveMember(t *testing.T) {
 	repo := NewMockRepository()
 	userRepo := NewMockUserRepository()
-	svc := NewService(repo, userRepo)
+	auditSvc := &MockAuditService{}
+	svc := NewService(repo, userRepo, auditSvc)
 
 	user1 := userRepo.AddTestUser("user-1", "user1@example.com", "User 1")
 	user2 := userRepo.AddTestUser("user-2", "user2@example.com", "User 2")
@@ -388,7 +391,8 @@ func TestUpdateMemberRole(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := NewMockRepository()
 			userRepo := NewMockUserRepository()
-			svc := NewService(repo, userRepo)
+			auditSvc := &MockAuditService{}
+			svc := NewService(repo, userRepo, auditSvc)
 
 			householdID, user1ID, user2ID := tt.setup(repo, userRepo)
 			input := tt.input(householdID, user1ID, user2ID)
@@ -420,7 +424,8 @@ func TestUpdateMemberRole(t *testing.T) {
 func TestCreateContact(t *testing.T) {
 	repo := NewMockRepository()
 	userRepo := NewMockUserRepository()
-	svc := NewService(repo, userRepo)
+	auditSvc := &MockAuditService{}
+	svc := NewService(repo, userRepo, auditSvc)
 
 	user1 := userRepo.AddTestUser("user-1", "user1@example.com", "User 1")
 	user2 := userRepo.AddTestUser("user-2", "user2@example.com", "User 2")
@@ -523,7 +528,8 @@ func TestCreateContact(t *testing.T) {
 func TestPromoteContactToMember(t *testing.T) {
 	repo := NewMockRepository()
 	userRepo := NewMockUserRepository()
-	svc := NewService(repo, userRepo)
+	auditSvc := &MockAuditService{}
+	svc := NewService(repo, userRepo, auditSvc)
 
 	owner := userRepo.AddTestUser("owner", "owner@example.com", "Owner")
 	member := userRepo.AddTestUser("member", "member@example.com", "Member")
@@ -638,7 +644,8 @@ func TestGenerateInvitationToken(t *testing.T) {
 func TestDeleteHousehold(t *testing.T) {
 	repo := NewMockRepository()
 	userRepo := NewMockUserRepository()
-	svc := NewService(repo, userRepo)
+	auditSvc := &MockAuditService{}
+	svc := NewService(repo, userRepo, auditSvc)
 
 	owner := userRepo.AddTestUser("owner", "owner@example.com", "Owner")
 	member := userRepo.AddTestUser("member", "member@example.com", "Member")

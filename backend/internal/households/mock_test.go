@@ -2,8 +2,10 @@ package households
 
 import (
 	"context"
+	"net/http"
 	"time"
 
+	"github.com/blanquicet/gastos/backend/internal/audit"
 	"github.com/blanquicet/gastos/backend/internal/auth"
 )
 
@@ -366,3 +368,12 @@ func (m *MockUserRepository) AddTestUser(id, email, name string) *auth.User {
 	m.users[id] = user
 	return user
 }
+
+// MockAuditService implements audit.Service for testing
+type MockAuditService struct{}
+
+func (m *MockAuditService) Log(ctx context.Context, input *audit.LogInput) error { return nil }
+func (m *MockAuditService) LogAsync(ctx context.Context, input *audit.LogInput) {}
+func (m *MockAuditService) LogFromRequest(r *http.Request, input *audit.LogInput) error { return nil }
+func (m *MockAuditService) Query(ctx context.Context, filters *audit.ListFilters) ([]*audit.AuditLog, int, error) { return nil, 0, nil }
+func (m *MockAuditService) Cleanup(ctx context.Context, retentionDays int) (int64, error) { return 0, nil }
