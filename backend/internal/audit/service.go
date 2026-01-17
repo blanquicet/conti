@@ -42,20 +42,22 @@ return nil
 }
 
 // LogAsync creates an audit log entry asynchronously (non-blocking)
-// Extract IP and User Agent from context if not provided in input
-if input.IPAddress == nil {
-input.IPAddress = getIPAddressFromContext(ctx)
-}
-if input.UserAgent == nil {
-input.UserAgent = getUserAgentFromContext(ctx)
 func (s *service) LogAsync(ctx context.Context, input *LogInput) {
-select {
-case s.asyncChan <- input:
-// Successfully queued
-default:
-// Channel full - log warning but don't block
-s.logger.Warn("Audit log channel full, dropping log entry", "action", input.Action)
-}
+	// Extract IP and User Agent from context if not provided in input
+	if input.IPAddress == nil {
+		input.IPAddress = getIPAddressFromContext(ctx)
+	}
+	if input.UserAgent == nil {
+		input.UserAgent = getUserAgentFromContext(ctx)
+	}
+	
+	select {
+	case s.asyncChan <- input:
+		// Successfully queued
+	default:
+		// Channel full - log warning but don't block
+		s.logger.Warn("Audit log channel full, dropping log entry", "action", input.Action)
+	}
 }
 
 // asyncWorker processes audit logs from channel

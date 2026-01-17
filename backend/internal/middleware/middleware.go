@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"runtime/debug"
 	"time"
+	
+	"github.com/blanquicet/gastos/backend/internal/audit"
 )
 
 // responseWriter wraps http.ResponseWriter to capture status code.
@@ -101,6 +103,17 @@ func NoCache() func(http.Handler) http.Handler {
 			w.Header().Set("Expires", "0")
 
 			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// AuditContext returns a middleware that adds request metadata to context for audit logging
+func AuditContext() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Add IP and User Agent to context for audit logging
+			ctx := audit.WithRequestMetadata(r.Context(), r)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
