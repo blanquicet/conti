@@ -17,6 +17,9 @@ let currentRoute = '/';
 export function render(user, activeRoute = '/') {
   currentRoute = activeRoute;
   
+  // Check if user is admin (hardcoded for now)
+  const isAdmin = user && user.email === 'blanquicet@gmail.com';
+  
   return `
     <button id="hamburger-btn" class="hamburger-btn" aria-label="Menú">
       ☰
@@ -32,6 +35,11 @@ export function render(user, activeRoute = '/') {
       <a href="/perfil" class="dropdown-item ${activeRoute === '/perfil' ? 'active' : ''}" data-route="/perfil">
         Perfil
       </a>
+      ${isAdmin ? `
+      <a href="/admin/audit-logs" class="dropdown-item ${activeRoute === '/admin/audit-logs' ? 'active' : ''}" data-route="/admin/audit-logs">
+        🔒 Audit Logs
+      </a>
+      ` : ''}
       <button id="dropdown-logout-btn" class="dropdown-item dropdown-logout">
         Salir
       </button>

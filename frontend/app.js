@@ -15,6 +15,7 @@ import * as RegistrarMovimientoPage from './pages/registrar-movimiento.js';
 import * as ProfilePage from './pages/profile.js';
 import * as HouseholdCreatePage from './pages/household-create.js';
 import * as HouseholdPage from './pages/household.js';
+import * as AdminAuditLogsPage from './pages/admin-audit-logs.js';
 
 // Store current user globally
 let currentUser = null;
@@ -149,6 +150,29 @@ function initRouter() {
     const appEl = document.getElementById('app');
     appEl.innerHTML = HouseholdPage.render(user);
     await HouseholdPage.setup();
+    const loadingEl = document.getElementById('loading');
+    if (loadingEl) loadingEl.style.display = 'none';
+  });
+
+  router.route('/admin/audit-logs', async () => {
+    // Check if user is authenticated
+    const { authenticated, user } = await checkAuth();
+    
+    if (!authenticated) {
+      router.navigate('/login');
+      return;
+    }
+
+    // Check if user is admin (hardcoded for now)
+    if (user.email !== 'blanquicet@gmail.com') {
+      router.navigate('/');
+      return;
+    }
+
+    currentUser = user;
+    const appEl = document.getElementById('app');
+    appEl.innerHTML = AdminAuditLogsPage.render(user);
+    await AdminAuditLogsPage.setup();
     const loadingEl = document.getElementById('loading');
     if (loadingEl) loadingEl.style.display = 'none';
   });
