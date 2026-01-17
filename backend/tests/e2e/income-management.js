@@ -408,35 +408,25 @@ async function testIncomeManagement() {
     // Submit
     console.log('  → Clicking submit button');
     await page.locator('#submitBtn').click();
-    await page.waitForTimeout(2000);
     
-    // Check for errors after submit (optional)
+    // Wait for navigation OR modal (whichever comes first)
+    await page.waitForTimeout(1000);
+    
+    // Try to click modal OK button if present (should show before navigation completes)
     try {
-      const statusAfter = await page.locator('#status').textContent({ timeout: 2000 });
-      if (statusAfter && statusAfter.trim()) {
-        console.log(`  → Status after submit: "${statusAfter}"`);
-      }
-    } catch (e) {
-      // No status shown, that's fine
-    }
-    
-    // Check current URL
-    const currentURL = page.url();
-    console.log(`  → Current URL after submit: ${currentURL}`);
-    
-    // Try to click modal OK button if present
-    try {
-      await page.waitForSelector('.modal-overlay', { state: 'visible', timeout: 3000 });
+      await page.waitForSelector('.modal-overlay', { state: 'visible', timeout: 5000 });
       const editModalTitle = await page.locator('.modal-title').textContent({ timeout: 1000 });
       console.log(`✓ Edit modal shown: "${editModalTitle}"`);
       await page.locator('#modal-ok').click();
       await page.waitForTimeout(500);
+      console.log('✓ Clicked modal OK button');
     } catch (e) {
       console.log('ℹ️ Edit modal not shown or already dismissed');
     }
     
     // Should navigate back to Ingresos tab
     await page.waitForURL('**/?tab=ingresos*', { timeout: 10000 });
+    console.log('✓ Navigated back to Ingresos tab');
     await page.waitForTimeout(2000);
     
     await page.waitForTimeout(1000);
