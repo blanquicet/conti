@@ -512,7 +512,7 @@ function renderBudgets() {
     const simplifiedName = getSimplifiedCategoryName(budget.category_name || 'Sin nombre', groupName);
     
     return `
-      <div class="expense-category-item">
+      <div class="budget-category-item">
         <div class="expense-category-info">
           <div class="expense-category-name">${simplifiedName}</div>
           <div class="expense-category-amount">

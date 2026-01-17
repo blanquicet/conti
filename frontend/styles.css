@@ -3087,7 +3087,22 @@ button.loading::after {
   transition: all 0.2s ease;
 }
 
+/* Budget category item - no expand/collapse behavior */
+.budget-category-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid #f3f4f6;
+  transition: all 0.2s ease;
+}
+
 .expense-category-item:last-child {
+  border-bottom: none;
+}
+
+.budget-category-item:last-child {
   border-bottom: none;
 }
 
