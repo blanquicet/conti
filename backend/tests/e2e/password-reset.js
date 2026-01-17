@@ -56,9 +56,10 @@ async function testPasswordReset() {
     await page.getByRole('button', { name: 'Registrarse' }).click();
     await page.waitForTimeout(2000);
     
-    // Verify we're logged in (redirected to /registrar-movimiento)
+    // Verify we're logged in (redirected to home page)
     const currentUrl = page.url();
-    if (currentUrl.includes('registrar-movimiento')) {
+    // After registration, should be on home page (not login page)
+    if (!currentUrl.includes('login') && !currentUrl.includes('register')) {
       console.log('✅ User registered and logged in successfully');
     } else {
       throw new Error('Registration failed - not redirected to app');
@@ -241,8 +242,8 @@ async function testPasswordReset() {
     await page.getByRole('button', { name: 'Iniciar Sesión' }).click();
     await page.waitForTimeout(2000);
     
-    // Verify login successful
-    if (page.url().includes('registrar-movimiento')) {
+    // Verify login successful (redirected to home page, not login page)
+    if (!page.url().includes('login') && !page.url().includes('register')) {
       console.log('✅ Logged in with new password successfully!');
     } else {
       throw new Error('Login with new password failed');

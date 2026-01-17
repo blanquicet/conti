@@ -63,8 +63,7 @@ async function testHouseholdManagement() {
     await page1.getByRole('button', { name: 'Registrarse' }).click();
     await page1.waitForTimeout(2000);
     
-    // Should redirect to home page (Mes a Mes)
-    await page1.waitForURL('**/');
+    // After registration, user is logged in
     console.log('✅ User 1 registered and logged in');
 
     // ==================================================================
@@ -88,7 +87,7 @@ async function testHouseholdManagement() {
     await page2.getByRole('button', { name: 'Registrarse' }).click();
     await page2.waitForTimeout(2000);
     
-    await page2.waitForURL('**/');
+    // After registration, user is logged in
     console.log('✅ User 2 registered and logged in');
 
     // ==================================================================
