@@ -366,11 +366,41 @@ async function testIncomeManagement() {
     }
     
     // Edit amount and description
+    console.log('  → Filling amount: 5500000');
+    // Clear the field first by selecting all and replacing
+    await page.locator('#valor').click();
+    await page.locator('#valor').press('Control+A');
     await page.locator('#valor').fill('5500000');
+    
+    console.log('  → Filling description: Salario Enero + Bono');
+    await page.locator('#descripcion').click();
+    await page.locator('#descripcion').press('Control+A');
     await page.locator('#descripcion').fill('Salario Enero + Bono');
     
+    // Check button text
+    const buttonText = await page.locator('#submitBtn').textContent();
+    console.log(`  → Submit button text: "${buttonText}"`);
+    
+    // Check if form has any validation errors
+    const statusEl = await page.locator('#status').textContent();
+    if (statusEl) {
+      console.log(`  → Status before submit: "${statusEl}"`);
+    }
+    
     // Submit
+    console.log('  → Clicking submit button');
     await page.locator('#submitBtn').click();
+    await page.waitForTimeout(2000);
+    
+    // Check for errors after submit
+    const statusAfter = await page.locator('#status').textContent();
+    if (statusAfter) {
+      console.log(`  → Status after submit: "${statusAfter}"`);
+    }
+    
+    // Check current URL
+    const currentURL = page.url();
+    console.log(`  → Current URL after submit: ${currentURL}`);
     
     // Try to click modal OK button if present
     try {
