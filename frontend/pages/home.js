@@ -433,6 +433,7 @@ function renderIncomeCategories() {
                   <span class="entry-member-badge">${entry.member_name}</span>
                   <button class="three-dots-btn" data-income-id="${entry.id}">⋮</button>
                   <div class="three-dots-menu" id="income-menu-${entry.id}">
+                    <button class="menu-item" data-action="edit" data-id="${entry.id}">Editar</button>
                     <button class="menu-item" data-action="delete" data-id="${entry.id}">Eliminar</button>
                   </div>
                 </div>
@@ -2041,6 +2042,14 @@ function refreshDisplay() {
 }
 
 /**
+ * Handle edit income
+ */
+async function handleEditIncome(incomeId) {
+  // Navigate to edit form with income ID
+  router.navigate(`/registrar-movimiento?tipo=INGRESO&edit=${incomeId}`);
+}
+
+/**
  * Handle delete income
  */
 async function handleDeleteIncome(incomeId) {
@@ -2231,7 +2240,9 @@ function setupCategoryListeners() {
       // Close menu
       document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
 
-      if (action === 'delete') {
+      if (action === 'edit') {
+        await handleEditIncome(id);
+      } else if (action === 'delete') {
         await handleDeleteIncome(id);
       }
     });

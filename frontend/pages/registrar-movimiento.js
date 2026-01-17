@@ -28,6 +28,7 @@ let formConfigLoaded = false;
 let participants = []; // [{ name, pct }]
 let currentUser = null;
 let currentEditMovement = null; // Movement being edited (if in edit mode)
+let currentEditIncome = null; // Income being edited (if in edit mode)
 
 /**
  * Helper: Format number with Spanish/Colombian format (e.g., 71.033,90)
@@ -78,10 +79,17 @@ export function render(user) {
   const editId = urlParams.get('edit');
   const tipoParam = urlParams.get('tipo');
   
+  // Determine if editing an income or movement
+  const isEditingIncome = editId && tipoParam === 'INGRESO';
+  
   // If editing or pre-selecting tipo, show loading state immediately
   if (editId || tipoParam) {
-    const title = editId ? 'Editar Movimiento' : 'Registrar movimiento';
-    const message = editId ? 'Cargando movimiento...' : 'Cargando formulario...';
+    const title = editId 
+      ? (isEditingIncome ? 'Editar Ingreso' : 'Editar Movimiento')
+      : 'Registrar movimiento';
+    const message = editId 
+      ? (isEditingIncome ? 'Cargando ingreso...' : 'Cargando movimiento...') 
+      : 'Cargando formulario...';
     
     return `
       <main class="card">
@@ -613,9 +621,13 @@ export async function setup() {
   // Reset participants for SPLIT
   resetParticipants();
 
-  // If edit mode, load movement data
+  // If edit mode, load movement or income data
   if (isEditMode) {
-    await loadMovementForEdit(editId);
+    if (tipoParam === 'INGRESO') {
+      await loadIncomeForEdit(editId);
+    } else {
+      await loadMovementForEdit(editId);
+    }
   }
 
   // Setup tipo button listeners
@@ -1163,7 +1175,12 @@ function onPagadorChange() {
   }
 
   if (tipo === 'SPLIT') {
-    resetParticipants();
+    // Only initialize participants if list is empty
+    if (participants.length === 0 && payer) {
+      participants.push({ name: payer, pct: 0 });
+      computeEquitablePcts();
+      renderParticipants();
+    }
   }
 }
 
@@ -2083,6 +2100,115 @@ async function loadMovementForEdit(movementId) {
 }
 
 /**
+ * Load income data for editing
+ */
+async function loadIncomeForEdit(incomeId) {
+  try {
+    const response = await fetch(`${API_URL}/income/${incomeId}`, {
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Error al cargar el ingreso');
+    }
+    
+    const income = await response.json();
+    console.log('Income loaded for edit:', income);
+    currentEditIncome = income;
+    
+    // Hide loading overlay
+    hideFullScreenLoading();
+    
+    // Pre-fill form fields
+    const descripcionEl = document.getElementById('descripcion');
+    const valorEl = document.getElementById('valor');
+    const fechaEl = document.getElementById('fecha');
+    const ingresoMiembroEl = document.getElementById('ingresoMiembro');
+    const ingresoTipoEl = document.getElementById('ingresoTipo');
+    const ingresoCuentaEl = document.getElementById('ingresoCuenta');
+    
+    if (descripcionEl) descripcionEl.value = income.description || '';
+    if (valorEl) valorEl.value = formatNumber(income.amount);
+    
+    if (fechaEl && income.income_date) {
+      // Extract date in YYYY-MM-DD format without timezone conversion
+      const dateStr = income.income_date.split('T')[0];
+      fechaEl.value = dateStr;
+    }
+    
+    // Update buttons and title for edit mode
+    const submitBtn = document.getElementById('submitBtn');
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (submitBtn) {
+      submitBtn.textContent = 'Actualizar';
+    }
+    if (cancelBtn) {
+      cancelBtn.classList.remove('hidden');
+    }
+    
+    // Select INGRESO tipo button
+    const ingresoBtn = document.querySelector('.tipo-btn[data-tipo="INGRESO"]');
+    if (ingresoBtn) {
+      ingresoBtn.classList.add('active');
+      document.getElementById('tipo').value = 'INGRESO';
+      onTipoChange();
+    }
+    
+    // Disable tipo selector buttons after selection
+    const tipoBtns = document.querySelectorAll('.tipo-btn');
+    tipoBtns.forEach(btn => {
+      btn.disabled = true;
+      btn.style.opacity = '0.5';
+      btn.style.cursor = 'not-allowed';
+      btn.title = 'No se puede cambiar el tipo de ingreso';
+    });
+    
+    // But keep the active one visually clear
+    if (ingresoBtn) {
+      ingresoBtn.style.opacity = '1';
+    }
+    
+    // Set income-specific fields after form UI is updated
+    setTimeout(() => {
+      // Set member
+      if (ingresoMiembroEl && income.member_id) {
+        // Find user by ID
+        const member = Object.values(usersMap).find(u => u.id === income.member_id);
+        if (member) {
+          ingresoMiembroEl.value = member.name;
+        }
+      }
+      
+      // Set income type
+      if (ingresoTipoEl && income.type) {
+        ingresoTipoEl.value = income.type;
+      }
+      
+      // Set account
+      if (ingresoCuentaEl && income.account_id) {
+        // Find account by ID
+        const account = accounts.find(acc => acc.id === income.account_id);
+        if (account) {
+          ingresoCuentaEl.value = account.name;
+        } else if (income.account_name) {
+          // Fallback: use the name from the income
+          ingresoCuentaEl.value = income.account_name;
+        }
+      }
+    }, 50);
+    
+  } catch (error) {
+    console.error('Error loading income:', error);
+    hideFullScreenLoading();
+    setStatus('Error al cargar el ingreso para editar', 'err');
+    
+    setTimeout(() => {
+      router.navigate('/');
+    }, 2000);
+  }
+}
+
+/**
  * Handle form submission
  */
 async function onSubmit(e) {
@@ -2097,7 +2223,8 @@ async function onSubmit(e) {
     const payload = readForm();
     
     // Show loading state - disable both buttons and form fields
-    const isEditMode = !!currentEditMovement;
+    const isEditMode = !!currentEditMovement || !!currentEditIncome;
+    const isEditingIncome = !!currentEditIncome;
     submitBtn.disabled = true;
     submitBtn.textContent = isEditMode ? 'Actualizando...' : 'Guardando...';
     if (cancelBtn) {
@@ -2111,10 +2238,12 @@ async function onSubmit(e) {
     
     // Handle INGRESO separately - submit to income API
     if (payload.tipo === 'INGRESO') {
-      setStatus('Registrando ingreso...', 'loading');
+      const endpoint = isEditingIncome ? `${API_URL}/income/${currentEditIncome.id}` : `${API_URL}/income`;
+      const method = isEditingIncome ? 'PATCH' : 'POST';
+      setStatus(isEditingIncome ? 'Actualizando ingreso...' : 'Registrando ingreso...', 'loading');
       
-      const res = await fetch(`${API_URL}/income`, {
-        method: 'POST',
+      const res = await fetch(endpoint, {
+        method: method,
         headers: {
           'Content-Type': 'application/json'
         },
@@ -2154,14 +2283,17 @@ async function onSubmit(e) {
         throw new Error(`HTTP ${res.status} - ${text}`);
       }
 
-      setStatus('Ingreso registrado correctamente.', 'ok');
+      const successMessage = isEditingIncome ? 'Ingreso actualizado correctamente.' : 'Ingreso registrado correctamente.';
+      setStatus(successMessage, 'ok');
       
       // Navigate first (starts loading in background)
       const navigationTarget = '/?tab=ingresos&reload=ingresos';
       router.navigate(navigationTarget);
       
       // Show success modal (while data loads in background)
-      await showSuccess('Ingreso registrado', 'El ingreso se registró correctamente.');
+      const modalTitle = isEditingIncome ? 'Ingreso actualizado' : 'Ingreso registrado';
+      const modalMessage = isEditingIncome ? 'El ingreso se actualizó correctamente.' : 'El ingreso se registró correctamente.';
+      await showSuccess(modalTitle, modalMessage);
       
       return;
     } else {
@@ -2279,6 +2411,9 @@ async function onSubmit(e) {
     const wasEditMode = !!currentEditMovement;
     if (currentEditMovement) {
       currentEditMovement = null;
+    }
+    if (currentEditIncome) {
+      currentEditIncome = null;
     }
     
     const title = wasEditMode ? 'Movimiento actualizado' : 'Movimiento registrado';
