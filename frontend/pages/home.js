@@ -2503,7 +2503,7 @@ function setupBudgetListeners() {
 async function handleAddBudget(categoryId, categoryName) {
   const amount = await showInputModal(
     'Agregar presupuesto',
-    `Ingrese el presupuesto para ${categoryName}:`,
+    `Ingrese el presupuesto para <strong>${categoryName}</strong>:`,
     '',
     'number'
   );
@@ -2534,7 +2534,7 @@ async function handleAddBudget(categoryId, categoryName) {
 async function handleEditBudget(categoryId, budgetId, currentAmount, categoryName) {
   const amount = await showInputModal(
     'Editar presupuesto',
-    `Editar presupuesto para ${categoryName}:`,
+    `Editar presupuesto para <strong>${categoryName}</strong>:`,
     currentAmount,
     'number'
   );
