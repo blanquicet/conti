@@ -262,8 +262,8 @@ async function handleLoginSubmit(e) {
   const result = await login(email, password);
 
   if (result.success) {
-    // Navigate to registrar-movimiento page
-    router.navigate('/registrar-movimiento');
+    // Navigate to home page (mes a mes)
+    router.navigate('/');
   } else {
     showError(loginError, result.error);
   }
@@ -290,8 +290,8 @@ async function handleRegisterSubmit(e) {
   const result = await register(name, email, password, confirmPassword);
 
   if (result.success) {
-    // Navigate to registrar-movimiento page
-    router.navigate('/registrar-movimiento');
+    // Navigate to home page (mes a mes)
+    router.navigate('/');
   } else {
     showError(registerError, result.error);
   }
