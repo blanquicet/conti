@@ -625,32 +625,26 @@ function resetForm() {
   cleanupEditState();
   
   // Clear all form inputs
-  document.getElementById('fecha').value = '';
-  document.getElementById('descripcion').value = '';
-  document.getElementById('monto').value = '';
-  
-  // Reset tipo to empty
+  const fechaEl = document.getElementById('fecha');
+  const descripcionEl = document.getElementById('descripcion');
+  const montoEl = document.getElementById('monto');
   const tipoEl = document.getElementById('tipo');
+  
+  if (fechaEl) fechaEl.value = '';
+  if (descripcionEl) descripcionEl.value = '';
+  if (montoEl) montoEl.value = '';
   if (tipoEl) tipoEl.value = '';
   
   // Clear all optional/conditional fields
-  const optionalFields = ['pagador', 'tomador', 'categoria', 'metodo', 'cuentaReceptora', 'notas'];
+  const optionalFields = ['pagador', 'tomador', 'categoria', 'metodo', 'cuentaReceptora', 'notas', 
+                          'ingresoMiembro', 'ingresoTipo', 'ingresoCuenta', 'pagadorCompartido'];
   optionalFields.forEach(fieldId => {
     const el = document.getElementById(fieldId);
     if (el) el.value = '';
   });
   
-  // Hide conditional sections
-  document.getElementById('pagadorRow').style.display = 'none';
-  document.getElementById('tomadorRow').style.display = 'none';
-  document.getElementById('categoriaRow').style.display = 'none';
-  document.getElementById('metodoRow').style.display = 'none';
-  document.getElementById('cuentaReceptoraRow').style.display = 'none';
-  
-  // Reset button states
-  document.getElementById('crearMovimientoBtn').style.display = 'inline-block';
-  document.getElementById('actualizarMovimientoBtn').style.display = 'none';
-  document.getElementById('cancelarEdicionBtn').style.display = 'none';
+  // Reset participants for SPLIT movements
+  resetParticipants();
   
   // Clear status messages
   setStatus('', '');
