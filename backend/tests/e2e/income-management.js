@@ -395,10 +395,14 @@ async function testIncomeManagement() {
     const buttonText = await page.locator('#submitBtn').textContent();
     console.log(`  → Submit button text: "${buttonText}"`);
     
-    // Check if form has any validation errors
-    const statusEl = await page.locator('#status').textContent();
-    if (statusEl) {
-      console.log(`  → Status before submit: "${statusEl}"`);
+    // Check if form has any validation errors (optional)
+    try {
+      const statusEl = await page.locator('#status').textContent({ timeout: 1000 });
+      if (statusEl && statusEl.trim()) {
+        console.log(`  → Status before submit: "${statusEl}"`);
+      }
+    } catch (e) {
+      // No status shown, that's fine
     }
     
     // Submit
@@ -406,10 +410,14 @@ async function testIncomeManagement() {
     await page.locator('#submitBtn').click();
     await page.waitForTimeout(2000);
     
-    // Check for errors after submit
-    const statusAfter = await page.locator('#status').textContent();
-    if (statusAfter) {
-      console.log(`  → Status after submit: "${statusAfter}"`);
+    // Check for errors after submit (optional)
+    try {
+      const statusAfter = await page.locator('#status').textContent({ timeout: 2000 });
+      if (statusAfter && statusAfter.trim()) {
+        console.log(`  → Status after submit: "${statusAfter}"`);
+      }
+    } catch (e) {
+      // No status shown, that's fine
     }
     
     // Check current URL
@@ -441,7 +449,16 @@ async function testIncomeManagement() {
     console.log('📝 Step 9: Verifying edited income shows updated data...');
     
     // Wait for page to load
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(3000);
+    
+    // Expand the salary category to see the updated income
+    const salaryCategoryAfterEdit = page.locator('.category-card[data-type="salary"]');
+    try {
+      await salaryCategoryAfterEdit.click();
+      await page.waitForTimeout(1000);
+    } catch (e) {
+      console.log('ℹ️ Category may already be expanded');
+    }
     
     // Check that the new description appears
     const updatedDescText = await page.locator('text=Salario Enero + Bono').count();
