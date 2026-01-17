@@ -81,6 +81,86 @@ export function showConfirmation(title, message, confirmText = 'Confirmar', requ
 }
 
 /**
+ * Show an input modal to capture a value
+ * @param {string} title - Modal title
+ * @param {string} label - Input label
+ * @param {string} defaultValue - Default input value
+ * @param {string} inputType - Input type (text, number, etc.)
+ * @returns {Promise<string|null>} - The input value or null if cancelled
+ */
+export function showInputModal(title, label, defaultValue = '', inputType = 'text') {
+  return new Promise((resolve) => {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    
+    modal.innerHTML = `
+      <div class="modal-header">
+        <h3>${title}</h3>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>
+            <span>${label}</span>
+            <input type="${inputType}" id="modal-input" value="${defaultValue}" ${inputType === 'number' ? 'min="0" step="0.01"' : ''} autocomplete="off" />
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="modal-cancel" class="btn-secondary">Cancelar</button>
+        <button id="modal-confirm" class="btn-primary">Confirmar</button>
+      </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Focus input
+    const input = modal.querySelector('#modal-input');
+    input.focus();
+    input.select();
+    
+    // Handle confirm
+    const confirmHandler = () => {
+      const value = input.value.trim();
+      document.body.removeChild(overlay);
+      resolve(value || null);
+    };
+    
+    // Handle cancel
+    const cancelHandler = () => {
+      document.body.removeChild(overlay);
+      resolve(null);
+    };
+    
+    // Handle buttons
+    modal.querySelector('#modal-cancel').addEventListener('click', cancelHandler);
+    modal.querySelector('#modal-confirm').addEventListener('click', confirmHandler);
+    
+    // Handle enter key
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmHandler();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelHandler();
+      }
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        cancelHandler();
+      }
+    });
+  });
+}
+
+/**
  * Show a success modal
  * @param {string} title - Modal title
  * @param {string} message - Modal message

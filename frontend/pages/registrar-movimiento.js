@@ -2104,7 +2104,6 @@ async function loadMovementForEdit(movementId) {
  */
 async function loadIncomeForEdit(incomeId) {
   try {
-    console.log('[loadIncomeForEdit] Starting, incomeId:', incomeId);
     const response = await fetch(`${API_URL}/income/${incomeId}`, {
       credentials: 'include'
     });
@@ -2114,12 +2113,11 @@ async function loadIncomeForEdit(incomeId) {
     }
     
     const income = await response.json();
-    console.log('[loadIncomeForEdit] Income loaded:', income);
+    console.log('Income loaded for edit:', income);
     currentEditIncome = income;
     
     // Hide loading overlay
     hideFullScreenLoading();
-    console.log('[loadIncomeForEdit] Loading overlay hidden');
     
     // Pre-fill form fields
     const descripcionEl = document.getElementById('descripcion');
@@ -2130,11 +2128,7 @@ async function loadIncomeForEdit(incomeId) {
     const ingresoCuentaEl = document.getElementById('ingresoCuenta');
     
     if (descripcionEl) descripcionEl.value = income.description || '';
-    // Clear valor first, then set it to avoid appending
-    if (valorEl) {
-      valorEl.value = '';
-      valorEl.value = formatNumber(income.amount);
-    }
+    if (valorEl) valorEl.value = formatNumber(income.amount);
     
     if (fechaEl && income.income_date) {
       // Extract date in YYYY-MM-DD format without timezone conversion
@@ -2142,28 +2136,22 @@ async function loadIncomeForEdit(incomeId) {
       fechaEl.value = dateStr;
     }
     
-    console.log('[loadIncomeForEdit] Basic fields filled');
-    
-    // Update buttons and title for edit mode FIRST (before onTipoChange)
+    // Update buttons and title for edit mode
     const submitBtn = document.getElementById('submitBtn');
     const cancelBtn = document.getElementById('cancelBtn');
-    console.log('[loadIncomeForEdit] Looking for submitBtn:', submitBtn ? 'FOUND' : 'NOT FOUND');
     if (submitBtn) {
-      const oldText = submitBtn.textContent;
       submitBtn.textContent = 'Actualizar';
-      console.log(`[loadIncomeForEdit] Button text changed: "${oldText}" → "${submitBtn.textContent}"`);
     }
     if (cancelBtn) {
       cancelBtn.classList.remove('hidden');
     }
     
-    // Select INGRESO tipo button and trigger onTipoChange AFTER updating button
+    // Select INGRESO tipo button
     const ingresoBtn = document.querySelector('.tipo-btn[data-tipo="INGRESO"]');
     if (ingresoBtn) {
       ingresoBtn.classList.add('active');
       document.getElementById('tipo').value = 'INGRESO';
       onTipoChange();
-      console.log('[loadIncomeForEdit] Called onTipoChange()');
     }
     
     // Disable tipo selector buttons after selection
