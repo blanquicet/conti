@@ -3499,3 +3499,15 @@ button.loading::after {
   font-style: italic;
   font-size: 14px;
 }
+
+/* Remove spinner arrows from budget input */
+.budget-inline-input::-webkit-inner-spin-button,
+.budget-inline-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.budget-inline-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
