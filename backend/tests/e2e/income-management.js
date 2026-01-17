@@ -166,27 +166,35 @@ async function testIncomeManagement() {
     // ==================================================================
     console.log('📝 Step 4: Registering salary income...');
     
-    await page.goto(`${appUrl}/registrar`);
+    await page.goto(`${appUrl}/registrar-movimiento`);
     await page.waitForTimeout(1000);
     
-    // Select INGRESO type
-    await page.selectOption('select#tipo', 'INGRESO');
+    // Click INGRESO button
+    await page.locator('button.tipo-btn[data-tipo="INGRESO"]').click();
     await page.waitForTimeout(500);
     
     // Fill income form
     await page.locator('#descripcion').fill('Salario Enero 2026');
-    await page.locator('#monto').fill('5000000');
+    await page.locator('#valor').fill('5000000');
     await page.locator('#fecha').fill('2026-01-15');
     
-    // Select account
-    await page.selectOption('select#cuenta', savingsAccountId);
+    // Select who receives (member) - this triggers account loading
+    await page.selectOption('select#ingresoMiembro', user1Id);
+    await page.waitForTimeout(500);
+    
+    // Select account (now it should be populated)
+    await page.selectOption('select#ingresoCuenta', savingsAccountId);
     
     // Select income type (salary)
-    await page.selectOption('select#tipoIngreso', 'salary');
+    await page.selectOption('select#ingresoTipo', 'salary');
     
     // Submit
-    await page.locator('#submit-btn').click();
-    await page.waitForTimeout(1500);
+    await page.locator('#submitBtn').click();
+    await page.waitForTimeout(2000);
+    
+    // Should navigate to Ingresos tab after submission
+    await page.waitForURL('**/?tab=ingresos*', { timeout: 10000 });
+    await page.waitForTimeout(1000);
     
     // Wait for success modal
     await page.waitForSelector('.modal-overlay', { timeout: 5000 });
@@ -198,10 +206,6 @@ async function testIncomeManagement() {
     // Click OK
     await page.locator('#modal-ok').click();
     await page.waitForTimeout(1000);
-    
-    // Should navigate to Ingresos tab
-    await page.waitForURL('**/?tab=ingresos*');
-    await page.waitForTimeout(2000);
     
     // Get income ID from database
     const salaryResult = await pool.query(
@@ -217,20 +221,27 @@ async function testIncomeManagement() {
     // ==================================================================
     console.log('📝 Step 5: Registering freelance income...');
     
-    await page.goto(`${appUrl}/registrar`);
+    await page.goto(`${appUrl}/registrar-movimiento`);
     await page.waitForTimeout(1000);
     
-    await page.selectOption('select#tipo', 'INGRESO');
+    // Click INGRESO button
+    await page.locator('button.tipo-btn[data-tipo="INGRESO"]').click();
     await page.waitForTimeout(500);
     
     await page.locator('#descripcion').fill('Proyecto Freelance X');
-    await page.locator('#monto').fill('1500000');
+    await page.locator('#valor').fill('1500000');
     await page.locator('#fecha').fill('2026-01-20');
-    await page.selectOption('select#cuenta', savingsAccountId);
-    await page.selectOption('select#tipoIngreso', 'freelance');
+    await page.selectOption('select#ingresoMiembro', user1Id);
+    await page.waitForTimeout(500);
+    await page.selectOption('select#ingresoCuenta', savingsAccountId);
+    await page.selectOption('select#ingresoTipo', 'freelance');
     
-    await page.locator('#submit-btn').click();
-    await page.waitForTimeout(1500);
+    await page.locator('#submitBtn').click();
+    await page.waitForTimeout(2000);
+    
+    // Should navigate to Ingresos tab
+    await page.waitForURL('**/?tab=ingresos*', { timeout: 10000 });
+    await page.waitForTimeout(1000);
     
     await page.waitForSelector('.modal-overlay', { timeout: 5000 });
     await page.locator('#modal-ok').click();
@@ -249,20 +260,27 @@ async function testIncomeManagement() {
     // ==================================================================
     console.log('📝 Step 6: Registering savings withdrawal...');
     
-    await page.goto(`${appUrl}/registrar`);
+    await page.goto(`${appUrl}/registrar-movimiento`);
     await page.waitForTimeout(1000);
     
-    await page.selectOption('select#tipo', 'INGRESO');
+    // Click INGRESO button
+    await page.locator('button.tipo-btn[data-tipo="INGRESO"]').click();
     await page.waitForTimeout(500);
     
     await page.locator('#descripcion').fill('Retiro para bolsillo');
-    await page.locator('#monto').fill('200000');
+    await page.locator('#valor').fill('200000');
     await page.locator('#fecha').fill('2026-01-10');
-    await page.selectOption('select#cuenta', cashAccountId);
-    await page.selectOption('select#tipoIngreso', 'savings_withdrawal');
+    await page.selectOption('select#ingresoMiembro', user1Id);
+    await page.waitForTimeout(500);
+    await page.selectOption('select#ingresoCuenta', cashAccountId);
+    await page.selectOption('select#ingresoTipo', 'savings_withdrawal');
     
-    await page.locator('#submit-btn').click();
-    await page.waitForTimeout(1500);
+    await page.locator('#submitBtn').click();
+    await page.waitForTimeout(2000);
+    
+    // Should navigate to Ingresos tab
+    await page.waitForURL('**/?tab=ingresos*', { timeout: 10000 });
+    await page.waitForTimeout(1000);
     
     await page.waitForSelector('.modal-overlay', { timeout: 5000 });
     await page.locator('#modal-ok').click();
@@ -318,7 +336,7 @@ async function testIncomeManagement() {
     await page.waitForTimeout(1000);
     
     // Should navigate to edit page
-    await page.waitForURL(`**/registrar?tipo=INGRESO&edit=${salaryIncomeId}`);
+    await page.waitForURL(`**/registrar-movimiento?tipo=INGRESO&edit=${salaryIncomeId}`);
     await page.waitForTimeout(1000);
     
     // Verify page title shows "Editar Ingreso"
@@ -328,12 +346,16 @@ async function testIncomeManagement() {
     }
     
     // Edit amount and description
-    await page.locator('#monto').fill('5500000');
+    await page.locator('#valor').fill('5500000');
     await page.locator('#descripcion').fill('Salario Enero + Bono');
     
     // Submit
-    await page.locator('#submit-btn').click();
-    await page.waitForTimeout(1500);
+    await page.locator('#submitBtn').click();
+    await page.waitForTimeout(2000);
+    
+    // Should navigate back to Ingresos tab
+    await page.waitForURL('**/?tab=ingresos*', { timeout: 10000 });
+    await page.waitForTimeout(1000);
     
     // Wait for success modal
     await page.waitForSelector('.modal-overlay', { timeout: 5000 });
@@ -344,10 +366,6 @@ async function testIncomeManagement() {
     
     // Click OK
     await page.locator('#modal-ok').click();
-    await page.waitForTimeout(2000);
-    
-    // Should navigate back to Ingresos tab
-    await page.waitForURL('**/?tab=ingresos*');
     await page.waitForTimeout(2000);
     
     console.log('✅ Salary income edited successfully');
