@@ -2560,7 +2560,7 @@ async function handleEditBudget(categoryId, budgetId, currentAmount, categoryNam
   
   const result = await setBudget(categoryId, currentMonth, parsedAmount);
   if (result) {
-    showSuccess('Presupuesto actualizado', `El presupuesto para ${categoryName} ha sido actualizado a ${formatCurrency(parsedAmount)}`);
+    showSuccess('Presupuesto actualizado', `El presupuesto para ${categoryName} ha sido actualizado de ${formatCurrency(currentAmount)} a ${formatCurrency(parsedAmount)}`);
     await loadBudgetsData();
     refreshDisplay();
   }
