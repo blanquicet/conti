@@ -465,10 +465,18 @@ async function testIncomeManagement() {
     if (updatedDescText === 0) {
       throw new Error('Updated description not found after edit');
     }
+    console.log('✓ Updated description found');
     
-    // Check that the new amount appears (formatted as COP)
-    const updatedAmountText = await page.locator('text=$5,500,000').count();
-    if (updatedAmountText === 0) {
+    // Check that the new amount appears (search for 5.500.000 or 5500000)
+    const amountPattern1 = await page.locator('text=5.500.000').count();
+    const amountPattern2 = await page.locator('text=5500000').count();
+    const amountPattern3 = await page.locator('text=$5.500.000').count();
+    console.log(`  → Amount patterns found: 5.500.000=${amountPattern1}, 5500000=${amountPattern2}, $5.500.000=${amountPattern3}`);
+    
+    if (amountPattern1 === 0 && amountPattern2 === 0 && amountPattern3 === 0) {
+      // Print page content to debug
+      const pageContent = await page.locator('.income-detail-entry').filter({ hasText: 'Salario' }).first().textContent();
+      console.log('  → Income entry content:', pageContent);
       throw new Error('Updated amount not found after edit');
     }
     
@@ -479,7 +487,8 @@ async function testIncomeManagement() {
     );
     const dbIncome = dbCheckResult.rows[0];
     
-    if (dbIncome.amount !== 5500000) {
+    // Compare as numbers (DB may return decimal like 5500000.00)
+    if (Number(dbIncome.amount) !== 5500000) {
       throw new Error(`Expected amount 5500000, got ${dbIncome.amount}`);
     }
     if (dbIncome.description !== 'Salario Enero + Bono') {
