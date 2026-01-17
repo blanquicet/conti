@@ -3419,11 +3419,27 @@ export async function setup() {
     currentMonth = getCurrentMonth();
   }
 
-  // Check URL parameters for active tab
+  // Check URL parameters for active tab and reload
   const urlParams = new URLSearchParams(window.location.search);
   const tabParam = urlParams.get('tab');
   if (tabParam && ['gastos', 'ingresos', 'prestamos', 'presupuesto', 'tarjetas'].includes(tabParam)) {
     activeTab = tabParam;
+  }
+  
+  // Check for tabs that need to be reloaded
+  const reloadParam = urlParams.get('reload');
+  if (reloadParam) {
+    const tabsToReload = reloadParam.split(',').filter(t => 
+      ['gastos', 'ingresos', 'prestamos', 'presupuesto', 'tarjetas'].includes(t)
+    );
+    // Clear data for tabs that need reload
+    clearTabData(tabsToReload);
+    // Mark non-active tabs for reload when user navigates to them
+    tabsToReload.forEach(tab => {
+      if (tab !== activeTab) {
+        tabsNeedingReload.add(tab);
+      }
+    });
   }
 
   // Load household members for filter

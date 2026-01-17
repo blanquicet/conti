@@ -2286,6 +2286,11 @@ async function onSubmit(e) {
       const successMessage = isEditingIncome ? 'Ingreso actualizado correctamente.' : 'Ingreso registrado correctamente.';
       setStatus(successMessage, 'ok');
       
+      // Clear edit state before navigation
+      if (currentEditIncome) {
+        currentEditIncome = null;
+      }
+      
       // Navigate first (starts loading in background)
       const navigationTarget = '/?tab=ingresos&reload=ingresos';
       router.navigate(navigationTarget);
