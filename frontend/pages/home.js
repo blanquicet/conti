@@ -2400,38 +2400,49 @@ function setupCategoryListeners() {
  * Setup budget listeners (for presupuesto tab)
  */
 function setupBudgetListeners() {
-  // Three-dots menu toggles
-  const budgetButtons = document.querySelectorAll('.three-dots-btn[data-category-id]');
-  console.log('Budget buttons found:', budgetButtons.length);
-  
-  budgetButtons.forEach(btn => {
+  // Three-dots menu toggles for budget items
+  document.querySelectorAll('.three-dots-btn[data-category-id]').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      e.stopPropagation();
       e.preventDefault();
-      console.log('Budget button clicked', btn.dataset.categoryId);
-      
-      const categoryId = btn.dataset.categoryId;
+      e.stopPropagation();
+      const categoryId = e.currentTarget.dataset.categoryId;
       const menu = document.getElementById(`budget-menu-${categoryId}`);
-      console.log('Menu found:', menu);
+      const isOpen = menu.style.display === 'block';
       
-      // Close all other menus
+      console.log('Budget button clicked:', categoryId, 'Menu:', menu, 'IsOpen:', isOpen);
+      
+      // Close all menus
       document.querySelectorAll('.three-dots-menu').forEach(m => {
-        if (m !== menu) m.classList.remove('show');
+        m.style.display = 'none';
+        m.classList.remove('menu-above');
       });
       
       // Toggle this menu
-      menu?.classList.toggle('show');
+      if (!isOpen) {
+        // Check if menu would overflow bottom of viewport
+        const btnRect = btn.getBoundingClientRect();
+        const menuHeight = 80; // Approximate height of menu with 2 items
+        const spaceBelow = window.innerHeight - btnRect.bottom;
+        
+        // If not enough space below, position above
+        if (spaceBelow < menuHeight) {
+          menu.classList.add('menu-above');
+        }
+        
+        menu.style.display = 'block';
+      }
     });
   });
   
-  // Menu item actions
+  // Menu action buttons for budgets
   document.querySelectorAll('.three-dots-menu .menu-item[data-action^="add-budget"], .three-dots-menu .menu-item[data-action^="edit-budget"], .three-dots-menu .menu-item[data-action^="delete-budget"]').forEach(item => {
     item.addEventListener('click', async (e) => {
+      e.preventDefault();
       e.stopPropagation();
       const action = item.dataset.action;
       
       // Close menu
-      item.closest('.three-dots-menu').classList.remove('show');
+      item.closest('.three-dots-menu').style.display = 'none';
       
       if (action === 'add-budget') {
         await handleAddBudget(item.dataset.categoryId, item.dataset.categoryName);
