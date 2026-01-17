@@ -517,10 +517,10 @@ function renderBudgets() {
           <div class="expense-category-name">${simplifiedName}</div>
           <div class="expense-category-amount">
             ${hasBudget ? `
-              <span class="budget-amount-editable" data-category-id="${budget.category_id}" data-amount="${budget.amount}">
+              <span class="budget-amount-editable" data-category-id="${budget.category_id}" data-budget-id="${budget.id}" data-amount="${budget.amount}">
                 ${formatCurrency(budget.amount)}
               </span>
-              <button class="btn-edit-budget-inline" data-category-id="${budget.category_id}" data-amount="${budget.amount}" title="Editar presupuesto">✏️</button>
+              <button class="btn-edit-budget-inline" data-category-id="${budget.category_id}" data-budget-id="${budget.id}" data-amount="${budget.amount}" title="Editar presupuesto">✏️</button>
             ` : `
               <span class="no-budget-text">Sin presupuesto</span>
               <button class="btn-add-budget-inline" data-category-id="${budget.category_id}" title="Agregar presupuesto">➕</button>
@@ -1452,6 +1452,35 @@ async function setBudget(categoryId, month, amount) {
     console.error('Error setting budget:', error);
     showError('Error al guardar', error.message);
     return null;
+  }
+}
+
+/**
+ * Delete a budget by ID
+ */
+async function deleteBudget(budgetId) {
+  try {
+    const response = await fetch(`${API_URL}/budgets/${budgetId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      let errorMsg = 'Error al eliminar presupuesto';
+      try {
+        const error = await response.json();
+        errorMsg = error.error || errorMsg;
+      } catch (e) {
+        errorMsg = `${response.status}: ${response.statusText}`;
+      }
+      throw new Error(errorMsg);
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting budget:', error);
+    showError('Error al eliminar', error.message);
+    return false;
   }
 }
 
@@ -2405,6 +2434,13 @@ function setupBudgetListeners() {
           return;
         }
         
+        // If amount is 0, don't create budget (just cancel)
+        if (amount === 0) {
+          await loadBudgetsData();
+          refreshDisplay();
+          return;
+        }
+        
         const result = await setBudget(categoryId, currentMonth, amount);
         if (result) {
           showSuccess('Presupuesto creado', `El presupuesto ha sido creado con ${formatCurrency(amount)}`);
@@ -2467,6 +2503,20 @@ function setupBudgetListeners() {
         if (isNaN(amount) || amount < 0) {
           showError('Monto inválido', 'Por favor ingresa un número válido mayor o igual a 0');
           input.focus();
+          return;
+        }
+        
+        // If amount is 0, delete the budget instead of updating
+        if (amount === 0) {
+          const budgetId = btn.dataset.budgetId;
+          if (budgetId) {
+            const deleted = await deleteBudget(budgetId);
+            if (deleted) {
+              showSuccess('Presupuesto eliminado', 'El presupuesto ha sido eliminado');
+              await loadBudgetsData();
+              refreshDisplay();
+            }
+          }
           return;
         }
         
