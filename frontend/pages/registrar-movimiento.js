@@ -985,7 +985,7 @@ function updateSubmitButton(isCompartido) {
   const submitBtn = document.getElementById('submitBtn');
   submitBtn.disabled = false;
   // Keep "Actualizar" text in edit mode, otherwise use "Registrar"
-  if (!currentEditMovement) {
+  if (!currentEditMovement && !currentEditIncome) {
     submitBtn.textContent = 'Registrar';
   }
   submitBtn.style.opacity = '1';
