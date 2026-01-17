@@ -515,7 +515,10 @@ async function testIncomeManagement() {
     const withdrawalEntry = page.locator('.income-detail-entry').filter({ hasText: 'Retiro para bolsillo' }).first();
     const withdrawalMenuButton = withdrawalEntry.locator('.three-dots-btn');
     await withdrawalMenuButton.click();
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
+    
+    // Wait for menu to be visible
+    await page.waitForSelector('.menu-item[data-action="delete"]', { state: 'visible', timeout: 5000 });
     
     // Click "Eliminar" in the menu
     const deleteButton = page.locator('.menu-item[data-action="delete"]').first();
