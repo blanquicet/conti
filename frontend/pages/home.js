@@ -516,14 +516,19 @@ function renderBudgets() {
         <div class="expense-category-info">
           <div class="expense-category-name">${simplifiedName}</div>
           <div class="expense-category-amount">
+            <span class="budget-amount-display" data-category-id="${budget.category_id}" data-budget-id="${hasBudget ? budget.id : ''}" data-amount="${hasBudget ? budget.amount : 0}">
+              ${hasBudget ? formatCurrency(budget.amount) : '<span class="no-budget-text">Sin presupuesto</span>'}
+            </span>
+          </div>
+        </div>
+        <div class="entry-actions">
+          <button class="three-dots-btn" data-category-id="${budget.category_id}" data-budget-id="${hasBudget ? budget.id : ''}" data-category-name="${simplifiedName}" data-has-budget="${hasBudget}">⋮</button>
+          <div class="three-dots-menu" id="budget-menu-${budget.category_id}">
             ${hasBudget ? `
-              <span class="budget-amount-editable" data-category-id="${budget.category_id}" data-budget-id="${budget.id}" data-amount="${budget.amount}">
-                ${formatCurrency(budget.amount)}
-              </span>
-              <button class="btn-edit-budget-inline" data-category-id="${budget.category_id}" data-budget-id="${budget.id}" data-amount="${budget.amount}" data-category-name="${simplifiedName}" title="Editar presupuesto">✏️</button>
+              <button class="menu-item" data-action="edit-budget" data-category-id="${budget.category_id}" data-budget-id="${budget.id}" data-amount="${budget.amount}" data-category-name="${simplifiedName}">Editar presupuesto</button>
+              <button class="menu-item" data-action="delete-budget" data-budget-id="${budget.id}" data-category-name="${simplifiedName}">Eliminar presupuesto</button>
             ` : `
-              <span class="no-budget-text">Sin presupuesto</span>
-              <button class="btn-add-budget-inline" data-category-id="${budget.category_id}" data-category-name="${simplifiedName}" title="Agregar presupuesto">➕</button>
+              <button class="menu-item" data-action="add-budget" data-category-id="${budget.category_id}" data-category-name="${simplifiedName}">Agregar presupuesto</button>
             `}
           </div>
         </div>
@@ -2395,152 +2400,44 @@ function setupCategoryListeners() {
  * Setup budget listeners (for presupuesto tab)
  */
 function setupBudgetListeners() {
-  // Add budget button (for categories without budgets)
-  document.querySelectorAll('.btn-add-budget-inline').forEach(btn => {
+  // Three-dots menu toggles
+  document.querySelectorAll('.three-dots-btn[data-category-id]').forEach(btn => {
     btn.addEventListener('click', (e) => {
-      e.preventDefault();
       e.stopPropagation();
       const categoryId = btn.dataset.categoryId;
-      const categoryName = btn.dataset.categoryName;
+      const menu = document.getElementById(`budget-menu-${categoryId}`);
       
-      // Replace button with inline input field
-      const parent = btn.parentElement;
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.min = '0';
-      input.step = '1';
-      input.className = 'budget-inline-input';
-      input.placeholder = 'Ingresa monto';
-      input.style.cssText = 'width: 150px; padding: 6px 10px; border: 2px solid var(--primary-color); border-radius: 6px; font-size: 15px; background: white; color: var(--text-color); outline: none;';
-      
-      // Replace content
-      parent.innerHTML = '';
-      parent.appendChild(input);
-      input.focus();
-      
-      // Save on Enter or blur
-      const saveBudget = async () => {
-        const value = input.value.trim();
-        if (value === '') {
-          // Cancel - reload display
-          await loadBudgetsData();
-          refreshDisplay();
-          return;
-        }
-        
-        const amount = parseFloat(value);
-        if (isNaN(amount) || amount < 0) {
-          showError('Monto inválido', 'Por favor ingresa un número válido mayor o igual a 0');
-          input.focus();
-          return;
-        }
-        
-        // If amount is 0, don't create budget (just cancel)
-        if (amount === 0) {
-          await loadBudgetsData();
-          refreshDisplay();
-          return;
-        }
-        
-        const result = await setBudget(categoryId, currentMonth, amount);
-        if (result) {
-          showSuccess('Presupuesto creado', `El presupuesto para ${categoryName} ha sido creado con ${formatCurrency(amount)}`);
-          await loadBudgetsData();
-          refreshDisplay();
-        }
-      };
-      
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          saveBudget();
-        } else if (e.key === 'Escape') {
-          loadBudgetsData().then(() => refreshDisplay());
-        }
+      // Close all other menus
+      document.querySelectorAll('.three-dots-menu').forEach(m => {
+        if (m !== menu) m.classList.remove('show');
       });
       
-      input.addEventListener('blur', saveBudget);
+      // Toggle this menu
+      menu?.classList.toggle('show');
     });
   });
   
-  // Edit budget button - make the amount itself editable
-  document.querySelectorAll('.btn-edit-budget-inline').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
+  // Menu item actions
+  document.querySelectorAll('.three-dots-menu .menu-item[data-action^="add-budget"], .three-dots-menu .menu-item[data-action^="edit-budget"], .three-dots-menu .menu-item[data-action^="delete-budget"]').forEach(item => {
+    item.addEventListener('click', async (e) => {
       e.stopPropagation();
-      const categoryId = btn.dataset.categoryId;
-      const categoryName = btn.dataset.categoryName;
-      const currentAmount = btn.dataset.amount;
+      const action = item.dataset.action;
       
-      // Find the amount span
-      const amountSpan = btn.previousElementSibling;
-      if (!amountSpan) return;
+      // Close menu
+      item.closest('.three-dots-menu').classList.remove('show');
       
-      // Replace with input field
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.min = '0';
-      input.step = '1';
-      input.className = 'budget-inline-input';
-      input.value = currentAmount;
-      input.style.cssText = 'width: 150px; padding: 6px 10px; border: 2px solid var(--primary-color); border-radius: 6px; font-size: 15px; background: white; color: var(--text-color); outline: none;';
-      
-      // Replace the span
-      amountSpan.replaceWith(input);
-      btn.style.display = 'none';
-      input.focus();
-      input.select();
-      
-      // Save on Enter or blur
-      const saveBudget = async () => {
-        const value = input.value.trim();
-        if (value === '' || value === currentAmount) {
-          // Cancel - reload display
-          await loadBudgetsData();
-          refreshDisplay();
-          return;
-        }
-        
-        const amount = parseFloat(value);
-        if (isNaN(amount) || amount < 0) {
-          showError('Monto inválido', 'Por favor ingresa un número válido mayor o igual a 0');
-          input.focus();
-          return;
-        }
-        
-        // If amount is 0, delete the budget instead of updating
-        if (amount === 0) {
-          const budgetId = btn.dataset.budgetId;
-          const categoryName = btn.dataset.categoryName;
-          if (budgetId) {
-            const deleted = await deleteBudget(budgetId);
-            if (deleted) {
-              showSuccess('Presupuesto eliminado', `El presupuesto para ${categoryName} ha sido eliminado`);
-              await loadBudgetsData();
-              refreshDisplay();
-            }
-          }
-          return;
-        }
-        
-        const result = await setBudget(categoryId, currentMonth, amount);
-        if (result) {
-          showSuccess('Presupuesto actualizado', `El presupuesto para ${categoryName} ha sido actualizado a ${formatCurrency(amount)}`);
-          await loadBudgetsData();
-          refreshDisplay();
-        }
-      };
-      
-      input.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          saveBudget();
-        } else if (e.key === 'Escape') {
-          loadBudgetsData().then(() => refreshDisplay());
-        }
-      });
-      
-      input.addEventListener('blur', saveBudget);
+      if (action === 'add-budget') {
+        await handleAddBudget(item.dataset.categoryId, item.dataset.categoryName);
+      } else if (action === 'edit-budget') {
+        await handleEditBudget(
+          item.dataset.categoryId,
+          item.dataset.budgetId,
+          item.dataset.amount,
+          item.dataset.categoryName
+        );
+      } else if (action === 'delete-budget') {
+        await handleDeleteBudget(item.dataset.budgetId, item.dataset.categoryName);
+      }
     });
   });
   
@@ -2581,6 +2478,83 @@ function setupBudgetListeners() {
     manageCategoriesBtn.addEventListener('click', () => {
       router.navigate('/hogar');
     });
+  }
+}
+
+/**
+ * Handle adding a budget
+ */
+async function handleAddBudget(categoryId, categoryName) {
+  const amount = prompt(`Ingrese el presupuesto para ${categoryName}:`);
+  if (!amount) return;
+  
+  const parsedAmount = parseFloat(amount);
+  if (isNaN(parsedAmount) || parsedAmount < 0) {
+    showError('Monto inválido', 'Por favor ingresa un número válido mayor o igual a 0');
+    return;
+  }
+  
+  if (parsedAmount === 0) {
+    return; // Don't create budget with 0
+  }
+  
+  const result = await setBudget(categoryId, currentMonth, parsedAmount);
+  if (result) {
+    showSuccess('Presupuesto creado', `El presupuesto para ${categoryName} ha sido creado con ${formatCurrency(parsedAmount)}`);
+    await loadBudgetsData();
+    refreshDisplay();
+  }
+}
+
+/**
+ * Handle editing a budget
+ */
+async function handleEditBudget(categoryId, budgetId, currentAmount, categoryName) {
+  const amount = prompt(`Editar presupuesto para ${categoryName}:`, currentAmount);
+  if (amount === null || amount === currentAmount) return;
+  
+  const parsedAmount = parseFloat(amount);
+  if (isNaN(parsedAmount) || parsedAmount < 0) {
+    showError('Monto inválido', 'Por favor ingresa un número válido mayor o igual a 0');
+    return;
+  }
+  
+  // If amount is 0, delete the budget
+  if (parsedAmount === 0) {
+    const deleted = await deleteBudget(budgetId);
+    if (deleted) {
+      showSuccess('Presupuesto eliminado', `El presupuesto para ${categoryName} ha sido eliminado`);
+      await loadBudgetsData();
+      refreshDisplay();
+    }
+    return;
+  }
+  
+  const result = await setBudget(categoryId, currentMonth, parsedAmount);
+  if (result) {
+    showSuccess('Presupuesto actualizado', `El presupuesto para ${categoryName} ha sido actualizado a ${formatCurrency(parsedAmount)}`);
+    await loadBudgetsData();
+    refreshDisplay();
+  }
+}
+
+/**
+ * Handle deleting a budget
+ */
+async function handleDeleteBudget(budgetId, categoryName) {
+  const confirmed = await showConfirmation(
+    'Eliminar presupuesto',
+    `¿Estás seguro de que deseas eliminar el presupuesto para ${categoryName}?`,
+    'Eliminar'
+  );
+  
+  if (!confirmed) return;
+  
+  const deleted = await deleteBudget(budgetId);
+  if (deleted) {
+    showSuccess('Presupuesto eliminado', `El presupuesto para ${categoryName} ha sido eliminado`);
+    await loadBudgetsData();
+    refreshDisplay();
   }
 }
 
