@@ -362,8 +362,8 @@ async function testAuthValidation() {
     await page.getByRole('button', { name: 'Registrarse' }).click();
     await page.waitForTimeout(2000);
     
-    // Should be redirected to app
-    await page.waitForURL('**/registrar-movimiento');
+    // Should be redirected to home page (Mes a Mes)
+    await page.waitForURL('**/');
     
     console.log('✅ Registration successful with valid data');
 

@@ -54,7 +54,7 @@ async function testHouseholdValidation() {
     
     await page.getByRole('button', { name: 'Registrarse' }).click();
     await page.waitForTimeout(2000);
-    await page.waitForURL('**/registrar-movimiento');
+    await page.waitForURL('**/');
     
     // Go to profile and create household
     await page.locator('#hamburger-btn').click();

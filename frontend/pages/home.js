@@ -1238,6 +1238,14 @@ async function loadMovementsData() {
       })
     ]);
 
+    // Handle 404 errors for movements (user has no household)
+    if (householdResponse.status === 404 || splitResponse.status === 404) {
+      console.log('User has no household - initializing empty data');
+      movementsData = null;
+      budgetsData = null;
+      return;
+    }
+
     if (!householdResponse.ok || !splitResponse.ok) {
       console.error('Error loading movements data');
       movementsData = null;

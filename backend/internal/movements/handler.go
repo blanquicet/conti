@@ -180,6 +180,11 @@ func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 	response, err := h.service.ListByHousehold(r.Context(), user.ID, filters)
 	if err != nil {
 		h.logger.Error("failed to list movements", "error", err, "user_id", user.ID)
+		// If user has no household, return 404 instead of 500
+		if err.Error() == "user has no household" {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}

@@ -58,8 +58,8 @@ async function testContactActivation() {
     await page.getByRole('button', { name: 'Registrarse' }).click();
     await page.waitForTimeout(2000);
     
-    // Should be on registrar-movimiento page
-    await page.waitForURL('**/registrar-movimiento');
+    // Should redirect to home page (Mes a Mes)
+    await page.waitForURL('**/');
     console.log('✅ User registered and logged in');
 
     // ==================================================================
