@@ -517,11 +517,9 @@ async function testIncomeManagement() {
     await withdrawalMenuButton.click();
     await page.waitForTimeout(1000);
     
-    // Wait for menu to be visible
-    await page.waitForSelector('.menu-item[data-action="delete"]', { state: 'visible', timeout: 5000 });
-    
-    // Click "Eliminar" in the menu
-    const deleteButton = page.locator('.menu-item[data-action="delete"]').first();
+    // Wait for this specific entry's menu to be visible and click delete
+    const deleteButton = withdrawalEntry.locator('.menu-item[data-action="delete"]');
+    await deleteButton.waitFor({ state: 'visible', timeout: 5000 });
     await deleteButton.click();
     await page.waitForTimeout(500);
     
