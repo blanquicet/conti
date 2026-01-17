@@ -305,8 +305,17 @@ async function testIncomeManagement() {
     // ==================================================================
     console.log('📝 Step 7: Verifying incomes appear in Ingresos tab...');
     
-    await page.goto(`${appUrl}/?tab=ingresos`);
+    // Navigate to home first
+    await page.goto(`${appUrl}/`);
     await page.waitForTimeout(2000);
+    
+    // Click on Ingresos tab
+    await page.locator('button.tab-btn[data-tab="ingresos"]').click();
+    await page.waitForTimeout(3000); // Wait for data to load
+    
+    // Wait for income list to be present
+    await page.waitForSelector('.dashboard-content', { timeout: 5000 });
+    await page.waitForTimeout(1000);
     
     // Check for income descriptions
     const salaryText = await page.locator('text=Salario Enero 2026').count();
@@ -330,15 +339,20 @@ async function testIncomeManagement() {
     // ==================================================================
     console.log('📝 Step 8: Editing salary income...');
     
-    // Find the salary income card and click the three-dots menu
-    const salaryCard = page.locator('.income-card').filter({ hasText: 'Salario Enero 2026' }).first();
-    const menuButton = salaryCard.locator('.three-dots-menu-btn');
+    // First, expand the category that contains the salary (should be "Sueldo" category)
+    const salaryCategory = page.locator('.category-card[data-type="salary"]');
+    await salaryCategory.click();
+    await page.waitForTimeout(1000);
+    
+    // Find the salary income entry and click the three-dots menu
+    const salaryEntry = page.locator('.income-detail-entry').filter({ hasText: 'Salario Enero 2026' }).first();
+    const menuButton = salaryEntry.locator('.three-dots-btn');
     await menuButton.click();
     await page.waitForTimeout(500);
     
     // Click "Editar" in the menu
-    const editButton = page.locator('.menu-option').filter({ hasText: 'Editar' }).first();
-    await editButton.click();
+    const editMenuItem = page.locator('.menu-item[data-action="edit"]').first();
+    await editMenuItem.click();
     await page.waitForTimeout(1000);
     
     // Should navigate to edit page
