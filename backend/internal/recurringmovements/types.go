@@ -392,4 +392,8 @@ type Service interface {
 	GetPreFillData(ctx context.Context, userID, templateID string, invertRoles bool) (*PreFillData, error)
 	Update(ctx context.Context, userID, id string, input *UpdateTemplateInput) (*RecurringMovementTemplate, error)
 	Delete(ctx context.Context, userID, id string) error
+	
+	// CalculateTemplatesSum returns the sum of all template amounts for a category
+	// Used by budgets service to validate that budget >= templates sum
+	CalculateTemplatesSum(ctx context.Context, userID, categoryID string) (float64, error)
 }

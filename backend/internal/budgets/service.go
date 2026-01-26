@@ -10,20 +10,34 @@ import (
 
 // BudgetService implements Service
 type BudgetService struct {
-	repo          Repository
-	categoryRepo  categories.Repository
-	householdRepo households.HouseholdRepository
-	auditService  audit.Service
+	repo              Repository
+	categoryRepo      categories.Repository
+	householdRepo     households.HouseholdRepository
+	auditService      audit.Service
+	templatesCalculator TemplatesSumCalculator // For validating budgets >= templates sum
 }
 
 // NewService creates a new budget service
-func NewService(repo Repository, categoryRepo categories.Repository, householdRepo households.HouseholdRepository, auditService audit.Service) *BudgetService {
+func NewService(
+	repo Repository, 
+	categoryRepo categories.Repository, 
+	householdRepo households.HouseholdRepository, 
+	auditService audit.Service,
+	templatesCalculator TemplatesSumCalculator,
+) *BudgetService {
 	return &BudgetService{
-		repo:          repo,
-		categoryRepo:  categoryRepo,
-		householdRepo: householdRepo,
-		auditService:  auditService,
+		repo:              repo,
+		categoryRepo:      categoryRepo,
+		householdRepo:     householdRepo,
+		auditService:      auditService,
+		templatesCalculator: templatesCalculator,
 	}
+}
+
+// SetTemplatesCalculator sets the templates calculator after initialization
+// This is needed to break the circular dependency between budgets and recurring movements
+func (s *BudgetService) SetTemplatesCalculator(calculator TemplatesSumCalculator) {
+	s.templatesCalculator = calculator
 }
 
 // GetByMonth returns budgets for a month with status indicators
@@ -92,6 +106,17 @@ func (s *BudgetService) Set(ctx context.Context, userID string, input *SetBudget
 	}
 	if category.HouseholdID != householdID {
 		return nil, ErrNotAuthorized
+	}
+
+	// Validate budget amount >= sum of templates for this category
+	if s.templatesCalculator != nil {
+		templatesSum, err := s.templatesCalculator.CalculateTemplatesSum(ctx, userID, input.CategoryID)
+		if err != nil {
+			// Log but don't fail - templates service might not be available
+			// This allows budgets to work independently
+		} else if input.Amount < templatesSum {
+			return nil, ErrBudgetBelowTemplates
+		}
 	}
 
 	// Set budget (upsert operation)

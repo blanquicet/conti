@@ -8,14 +8,21 @@ import (
 
 // Errors for budget operations
 var (
-	ErrBudgetNotFound     = errors.New("budget not found")
-	ErrNotAuthorized      = errors.New("not authorized")
-	ErrInvalidAmount      = errors.New("amount must be non-negative")
-	ErrInvalidMonth       = errors.New("invalid month format (must be YYYY-MM)")
-	ErrCategoryNotFound   = errors.New("category not found")
-	ErrNoHousehold        = errors.New("user does not belong to a household")
-	ErrBudgetsExist       = errors.New("budgets already exist for target month")
+	ErrBudgetNotFound      = errors.New("budget not found")
+	ErrNotAuthorized       = errors.New("not authorized")
+	ErrInvalidAmount       = errors.New("amount must be non-negative")
+	ErrInvalidMonth        = errors.New("invalid month format (must be YYYY-MM)")
+	ErrCategoryNotFound    = errors.New("category not found")
+	ErrNoHousehold         = errors.New("user does not belong to a household")
+	ErrBudgetsExist        = errors.New("budgets already exist for target month")
+	ErrBudgetBelowTemplates = errors.New("budget amount must be at least the sum of all templates for this category")
 )
+
+// TemplatesSumCalculator is an interface for calculating template sums
+// Used to avoid import cycles between budgets and recurringmovements packages
+type TemplatesSumCalculator interface {
+	CalculateTemplatesSum(ctx context.Context, userID, categoryID string) (float64, error)
+}
 
 // MonthlyBudget represents a budget for a category in a specific month
 type MonthlyBudget struct {

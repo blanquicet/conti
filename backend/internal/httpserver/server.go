@@ -193,7 +193,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Create budgets service and handler
 	budgetsRepo := budgets.NewPostgresRepository(pool)
-	budgetsService := budgets.NewService(budgetsRepo, categoriesRepo, householdRepo, auditService)
+	budgetsService := budgets.NewService(budgetsRepo, categoriesRepo, householdRepo, auditService, nil) // templatesCalculator set later
 	budgetsHandler := budgets.NewHandler(
 		budgetsService,
 		authService,
@@ -216,6 +216,9 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	// Create recurring movements service, handler, generator, and scheduler
 	recurringMovementsRepo := recurringmovements.NewRepository(pool)
 	recurringMovementsService := recurringmovements.NewService(recurringMovementsRepo, householdRepo, budgetsService, logger)
+	
+	// Now set the templates calculator in budgets service
+	budgetsService.SetTemplatesCalculator(recurringMovementsService)
 	
 	// Create form config handler for movements (with templates closure to avoid import cycles)
 	getTemplatesByCategory := func(ctx context.Context, userID string) (map[string][]movements.TemplateBasicInfo, error) {

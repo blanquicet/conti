@@ -2,6 +2,7 @@ package recurringmovements
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -362,33 +363,65 @@ func (s *service) Delete(ctx context.Context, userID, id string) error {
 	return nil
 }
 
-// updateBudgetFromTemplates recalculates and updates the budget for a category
-// based on the sum of all templates for that category
-func (s *service) updateBudgetFromTemplates(ctx context.Context, userID, householdID, categoryID string) error {
-	// Get current month (YYYY-MM format)
-	now := time.Now()
-	month := now.Format("2006-01")
+// CalculateTemplatesSum calculates the sum of all template amounts for a category
+// This is used by the budgets service to validate manual budgets
+func (s *service) CalculateTemplatesSum(ctx context.Context, userID, categoryID string) (float64, error) {
+	// Get household for authorization
+	households, err := s.householdsRepo.ListByUser(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	if len(households) == 0 {
+		return 0, errors.New("user does not belong to any household")
+	}
+	householdID := households[0].ID
 	
-	// Get all templates for this category
+	// Get all active templates for this category
 	filters := &ListTemplatesFilters{
 		CategoryID: &categoryID,
 	}
 	templates, err := s.repo.ListByHousehold(ctx, householdID, filters)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	
-	// Calculate sum of all template amounts
+	// Calculate sum
 	totalAmount := 0.0
 	for _, t := range templates {
 		totalAmount += t.Amount
 	}
 	
+	return totalAmount, nil
+}
+
+// updateBudgetFromTemplates creates or updates the budget for a category
+// ONLY if no manual budget exists (respects user-set budgets)
+func (s *service) updateBudgetFromTemplates(ctx context.Context, userID, householdID, categoryID string) error {
+	// Get current month (YYYY-MM format)
+	now := time.Now()
+	month := now.Format("2006-01")
+	
+	// Calculate templates sum
+	templatesSum, err := s.CalculateTemplatesSum(ctx, userID, categoryID)
+	if err != nil {
+		return err
+	}
+	
+	// If no templates, don't create/update budget
+	if templatesSum == 0 {
+		s.logger.Info("no templates for category, skipping budget update",
+			"category_id", categoryID,
+			"month", month,
+		)
+		return nil
+	}
+	
 	// Update budget with the calculated sum
+	// Note: budgets.Set will validate that this doesn't reduce below templates sum
 	budgetInput := &budgets.SetBudgetInput{
 		Month:      month,
 		CategoryID: categoryID,
-		Amount:     totalAmount,
+		Amount:     templatesSum,
 	}
 	
 	_, err = s.budgetsService.Set(ctx, userID, budgetInput)
@@ -399,8 +432,7 @@ func (s *service) updateBudgetFromTemplates(ctx context.Context, userID, househo
 	s.logger.Info("budget auto-updated from templates",
 		"category_id", categoryID,
 		"month", month,
-		"amount", totalAmount,
-		"template_count", len(templates),
+		"amount", templatesSum,
 	)
 	
 	return nil

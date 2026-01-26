@@ -87,6 +87,7 @@ func (h *Handler) SetBudget(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.Error("failed to set budget", "error", err, "user_id", user.ID)
 		if err == ErrInvalidMonth || err == ErrInvalidAmount || 
+		   err == ErrBudgetBelowTemplates ||
 		   strings.Contains(err.Error(), "required") {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

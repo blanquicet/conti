@@ -2859,14 +2859,20 @@ function setupBudgetListeners() {
  * Handle adding a budget
  */
 async function handleAddBudget(categoryId, categoryName) {
-  // TODO: Add validation - check if category has templates
-  // If templates exist, budget must be >= SUM(templates)
-  // Show error: "El presupuesto no puede ser menor que la suma de gastos presupuestados ($ X)"
+  // Calculate templates sum for validation
+  const templates = templatesData[categoryId] || [];
+  const templatesSum = templates.reduce((sum, t) => sum + (t.amount || 0), 0);
+  
+  // Build modal message with hint if templates exist
+  let message = `Ingrese el presupuesto para <strong>${categoryName}</strong>:`;
+  if (templatesSum > 0) {
+    message += `<br><br><small style="color: #666;">💡 Gastos predefinidos: ${formatCurrency(templatesSum)}<br>El presupuesto debe ser al menos este monto.</small>`;
+  }
   
   const amount = await showInputModal(
     'Agregar presupuesto',
-    `Ingrese el presupuesto para <strong>${categoryName}</strong>:`,
-    '',
+    message,
+    templatesSum > 0 ? templatesSum : '', // Pre-fill with templates sum if exists
     'number'
   );
   
@@ -2882,15 +2888,14 @@ async function handleAddBudget(categoryId, categoryName) {
     return; // Don't create budget with 0
   }
   
-  // TODO: Before saving, validate against templates sum
-  // Get templates for this category
-  // const templates = templatesData[categoryId] || [];
-  // const templatesSum = templates.reduce((sum, t) => sum + t.amount, 0);
-  // if (parsedAmount < templatesSum) {
-  //   showError('Presupuesto insuficiente', 
-  //     `El presupuesto no puede ser menor que la suma de gastos presupuestados (${formatCurrency(templatesSum)})`);
-  //   return;
-  // }
+  // Validate against templates sum
+  if (parsedAmount < templatesSum) {
+    showError(
+      'Presupuesto insuficiente', 
+      `El presupuesto no puede ser menor que la suma de gastos predefinidos (${formatCurrency(templatesSum)})`
+    );
+    return;
+  }
   
   const result = await setBudget(categoryId, currentMonth, parsedAmount);
   if (result) {
@@ -2904,12 +2909,19 @@ async function handleAddBudget(categoryId, categoryName) {
  * Handle editing a budget
  */
 async function handleEditBudget(categoryId, budgetId, currentAmount, categoryName) {
-  // TODO: Add validation - check if category has templates
-  // If templates exist, new budget must be >= SUM(templates)
+  // Calculate templates sum for validation
+  const templates = templatesData[categoryId] || [];
+  const templatesSum = templates.reduce((sum, t) => sum + (t.amount || 0), 0);
+  
+  // Build modal message with hint if templates exist
+  let message = `Editar presupuesto para <strong>${categoryName}</strong>:`;
+  if (templatesSum > 0) {
+    message += `<br><br><small style="color: #666;">💡 Gastos predefinidos: ${formatCurrency(templatesSum)}<br>El presupuesto debe ser al menos este monto.</small>`;
+  }
   
   const amount = await showInputModal(
     'Editar presupuesto',
-    `Editar presupuesto para <strong>${categoryName}</strong>:`,
+    message,
     currentAmount,
     'number'
   );
@@ -2922,15 +2934,14 @@ async function handleEditBudget(categoryId, budgetId, currentAmount, categoryNam
     return;
   }
   
-  // TODO: Before saving, validate against templates sum
-  // Get templates for this category
-  // const templates = templatesData[categoryId] || [];
-  // const templatesSum = templates.reduce((sum, t) => sum + t.amount, 0);
-  // if (parsedAmount > 0 && parsedAmount < templatesSum) {
-  //   showError('Presupuesto insuficiente', 
-  //     `El presupuesto no puede ser menor que la suma de gastos presupuestados (${formatCurrency(templatesSum)})`);
-  //   return;
-  // }
+  // Validate against templates sum (only if not deleting)
+  if (parsedAmount > 0 && parsedAmount < templatesSum) {
+    showError(
+      'Presupuesto insuficiente', 
+      `El presupuesto no puede ser menor que la suma de gastos predefinidos (${formatCurrency(templatesSum)})`
+    );
+    return;
+  }
   
   // If amount is 0, delete the budget
   if (parsedAmount === 0) {
