@@ -177,8 +177,8 @@ async function testBudgetManagement() {
     
     console.log('✅ Expanded all groups');
     
-    // Check for budget cards (using budget-category-item structure)
-    const budgetCards = await page.locator('.budget-category-item').count();
+    // Check for budget cards (using expense-category-item structure)
+    const budgetCards = await page.locator('.expense-category-item').count();
     if (budgetCards !== 3) {
       throw new Error(`Expected 3 budget cards, found ${budgetCards}`);
     }
@@ -186,28 +186,29 @@ async function testBudgetManagement() {
     console.log(`✅ Found ${budgetCards} budget cards (one per category)`);
 
     // ==================================================================
-    // STEP 5: Add Budget Using Three-Dots Menu and Modal
+    // STEP 5: Add Budget Using Action Button
     // ==================================================================
-    console.log('📝 Step 5: Adding budget using three-dots menu...');
+    console.log('📝 Step 5: Adding budget using action button...');
     
-    // Get first budget item
-    const firstBudgetCard = page.locator('.budget-category-item').first();
+    // Get first budget item (category without budget)
+    const firstBudgetCard = page.locator('.expense-category-item').first();
     
-    // Click three-dots button
-    const threeDotsBtn = firstBudgetCard.locator('.three-dots-btn');
-    await threeDotsBtn.click();
+    // Click the category header to expand and show action buttons
+    const categoryHeader = firstBudgetCard.locator('.expense-category-header');
+    await categoryHeader.click();
     await page.waitForTimeout(500);
     
-    // Click "Agregar" menu item
-    const addMenuItem = page.locator('.menu-item[data-action="add-budget"]').first();
-    await addMenuItem.click();
-    await page.waitForTimeout(500);
+    // Now look for the "Agregar presupuesto total" button (should be visible now)
+    const addBudgetBtn = firstBudgetCard.locator('button[data-action="add-budget"]');
+    await addBudgetBtn.waitFor({ timeout: 5000 });
+    await addBudgetBtn.click();
+    await page.waitForTimeout(1000);
     
     // Wait for modal to appear
     await page.waitForSelector('.modal', { timeout: 3000 });
     
-    // Fill budget amount in modal input
-    const modalInput = page.locator('.modal input[type="number"]');
+    // Fill budget amount in modal input (uses id="modal-input")
+    const modalInput = page.locator('#modal-input');
     await modalInput.fill('500000');
     await page.waitForTimeout(300);
     
@@ -221,12 +222,12 @@ async function testBudgetManagement() {
     await addSuccessOkBtn.click();
     await page.waitForTimeout(1000);
     
-    console.log('✅ Budget added successfully using three-dots menu');
+    console.log('✅ Budget added successfully using action button');
 
     // ==================================================================
-    // STEP 6: Edit Budget Using Three-Dots Menu and Modal
+    // STEP 6: Edit Budget Using Action Button
     // ==================================================================
-    console.log('📝 Step 6: Editing budget using three-dots menu...');
+    console.log('📝 Step 6: Editing budget using action button...');
     
     // Expand groups again (they collapse after reload)
     const editGroupHeaders = await page.locator('.expense-group-header').all();
@@ -236,23 +237,24 @@ async function testBudgetManagement() {
     }
     
     // Get first budget item again
-    const editBudgetCard = page.locator('.budget-category-item').first();
+    const editBudgetCard = page.locator('.expense-category-item').first();
     
-    // Click three-dots button again
-    const editThreeDotsBtn = editBudgetCard.locator('.three-dots-btn');
-    await editThreeDotsBtn.click();
+    // Click the category header to expand (categories collapse after page reload)
+    const editCategoryHeader = editBudgetCard.locator('.expense-category-header');
+    await editCategoryHeader.click();
     await page.waitForTimeout(500);
     
-    // Click "Editar" menu item (now available since budget exists)
-    const editMenuItem = page.locator('.menu-item[data-action="edit-budget"]').first();
-    await editMenuItem.click();
+    // Click the "Editar presupuesto total" button
+    const editBudgetBtn = editBudgetCard.locator('button[data-action="edit-budget"]');
+    await editBudgetBtn.waitFor({ timeout: 5000 });
+    await editBudgetBtn.click();
     await page.waitForTimeout(500);
     
     // Wait for modal to appear
     await page.waitForSelector('.modal', { timeout: 3000 });
     
-    // Clear and fill new budget amount in modal input
-    const editModalInput = page.locator('.modal input[type="number"]');
+    // Clear and fill new budget amount in modal input (uses id="modal-input")
+    const editModalInput = page.locator('#modal-input');
     await editModalInput.selectText();
     await editModalInput.fill('750000');
     await page.waitForTimeout(300);
@@ -267,15 +269,16 @@ async function testBudgetManagement() {
     await editSuccessOkBtn.click();
     await page.waitForTimeout(1000);
     
-    // Verify amount was updated
-    const updatedAmount = await editBudgetCard.locator('.budget-amount-display').textContent();
+    // Verify amount was updated (amount is in the category header)
+    const updatedAmountEl = editBudgetCard.locator('.expense-category-header .expense-category-amount');
+    const updatedAmount = await updatedAmountEl.textContent();
     console.log(`  Updated budget amount: ${updatedAmount.trim()}`);
     
     if (!updatedAmount.includes('750.000') && !updatedAmount.includes('750,000')) {
       throw new Error(`Expected budget to be 750,000 but got: ${updatedAmount}`);
     }
     
-    console.log('✅ Budget edited successfully using three-dots menu');
+    console.log('✅ Budget edited successfully using action button');
     
     // ==================================================================
     // STEP 7: Add Budgets to Remaining Categories via API
@@ -324,21 +327,20 @@ async function testBudgetManagement() {
     }
     
     // Verify budgets are empty for next month
-    const nextMonthCards = await page.locator('.budget-category-item').count();
+    const nextMonthCards = await page.locator('.expense-category-item').count();
     if (nextMonthCards !== 3) {
       throw new Error(`Expected 3 budget cards in next month, found ${nextMonthCards}`);
     }
     
     // Check that amounts show "Sin presupuesto" (no budgets set yet)
-    const firstCard = page.locator('.budget-category-item').first();
-    const hasNoBudget = await firstCard.locator('.no-budget-text').count();
-    const hasBudget = await firstCard.locator('.budget-amount-display').count();
+    const firstCard = page.locator('.expense-category-item').first();
+    const amountEl = firstCard.locator('.expense-category-header .expense-category-amount');
+    const amountText = await amountEl.textContent();
     
-    if (hasNoBudget > 0) {
-      console.log('  First card shows: Sin presupuesto');
-    } else if (hasBudget > 0) {
-      const amount = await firstCard.locator('.budget-amount-display').textContent();
-      console.log('  First card amount:', amount.trim());
+    console.log('  First card amount text:', amountText.trim());
+    
+    if (!amountText.includes('Sin presupuesto')) {
+      console.log('  ⚠️  Warning: Expected "Sin presupuesto" but got:', amountText.trim());
     }
     
     console.log('✅ Navigated to next month (budgets should be empty)');
@@ -382,15 +384,16 @@ async function testBudgetManagement() {
     }
     
     // Check that amounts are now populated
-    const copiedCards = await page.locator('.budget-category-item').all();
+    const copiedCards = await page.locator('.expense-category-item').all();
     
     for (let i = 0; i < copiedCards.length; i++) {
-      const cardAmount = await copiedCards[i].locator('.budget-amount-display').textContent();
+      const cardAmountEl = copiedCards[i].locator('.expense-category-header .expense-category-amount');
+      const cardAmount = await cardAmountEl.textContent();
       console.log(`  Category ${i + 1} amount:`, cardAmount.trim());
       
       // Check that budget amount is not empty and not 0
       // Format is now: "$ 500.000" or "$ 750.000" (for first category)
-      if (!cardAmount || cardAmount.trim() === '' || cardAmount.includes('$ 0') && !cardAmount.includes('$ 0,')) {
+      if (!cardAmount || cardAmount.trim() === '' || cardAmount.includes('Sin presupuesto')) {
         throw new Error(`Category ${i + 1} shows invalid budget after copy: ${cardAmount}`);
       }
     }
