@@ -29,9 +29,6 @@ export function render(user, activeRoute = '/') {
       <a href="/" class="dropdown-item ${activeRoute === '/' ? 'active' : ''}" data-route="/">
         Mes a Mes
       </a>
-      <a href="/registrar-movimiento" class="dropdown-item ${activeRoute === '/registrar-movimiento' ? 'active' : ''}" data-route="/registrar-movimiento">
-        Registrar movimientos
-      </a>
       <a href="/perfil" class="dropdown-item ${activeRoute === '/perfil' ? 'active' : ''}" data-route="/perfil">
         Perfil
       </a>
