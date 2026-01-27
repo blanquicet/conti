@@ -1,5 +1,5 @@
 /**
- * Simplified Template Budget Integration Test
+ * Template Budget Integration Test
  * 
  * Tests template creation and budget auto-calculation
  */

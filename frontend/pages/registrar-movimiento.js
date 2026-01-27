@@ -162,12 +162,6 @@ export function render(user) {
             
           </label>
 
-          <label class="field col-span-2">
-            <span>Nota</span>
-            <input name="descripcion" id="descripcion" type="text" placeholder="Ej: Almuerzo, Uber a casa, Guaritos…" required />
-            
-          </label>
-
           <label class="field col-span-2 hidden" id="categoriaWrap">
             <span>Categoría</span>
             <select name="categoria" id="categoria" required>
@@ -178,7 +172,7 @@ export function render(user) {
 
           <label class="field col-span-2 hidden" id="recurringTemplateWrap">
             <span style="display: flex; align-items: center; gap: 8px;">
-              ¿Gasto presupuestado?
+              ¿Gasto predefinido?
               <span id="templateLoadingSpinner" class="hidden" style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #6b7280;">
                 <svg class="animate-spin" style="height: 14px; width: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -188,11 +182,17 @@ export function render(user) {
               </span>
             </span>
             <select name="recurringTemplate" id="recurringTemplate">
-              <option value="" selected>Ninguno (crear manualmente)</option>
+              <option value="" selected>No</option>
             </select>
             <small style="color: #6b7280; font-size: 12px; margin-top: 4px; display: block;">
               Opcional: Selecciona para pre-llenar el formulario
             </small>
+          </label>
+
+          <label class="field col-span-2">
+            <span>Nota</span>
+            <input name="descripcion" id="descripcion" type="text" placeholder="Ej: Almuerzo, Uber a casa, Guaritos…" required />
+            
           </label>
 
           <label class="field col-span-2">
@@ -372,12 +372,6 @@ export function render(user) {
             
           </label>
 
-          <label class="field col-span-2">
-            <span>Nota</span>
-            <input name="descripcion" id="descripcion" type="text" placeholder="Ej: Almuerzo, Uber a casa, Guaritos…" required />
-            
-          </label>
-
           <label class="field col-span-2 hidden" id="categoriaWrap">
             <span>Categoría</span>
             <select name="categoria" id="categoria" required>
@@ -387,13 +381,19 @@ export function render(user) {
           </label>
 
           <label class="field col-span-2 hidden" id="recurringTemplateWrap2">
-            <span>¿Gasto presupuestado?</span>
+            <span>¿Gasto predefinido?</span>
             <select name="recurringTemplate" id="recurringTemplate2">
-              <option value="" selected>Ninguno (crear manualmente)</option>
+              <option value="" selected>No</option>
             </select>
             <small style="color: #6b7280; font-size: 12px; margin-top: 4px; display: block;">
               Opcional: Selecciona para pre-llenar el formulario
             </small>
+          </label>
+
+          <label class="field col-span-2">
+            <span>Nota</span>
+            <input name="descripcion" id="descripcion" type="text" placeholder="Ej: Almuerzo, Uber a casa, Guaritos…" required />
+            
           </label>
 
           <label class="field col-span-2">
@@ -846,11 +846,12 @@ export async function setup() {
   const categoriaEl = document.getElementById('categoria');
   if (categoriaEl) {
     categoriaEl.addEventListener('change', (e) => {
-      const categoryName = e.target.value;
+      // The dropdown value IS the category ID (for grouped categories) or name (for ungrouped)
+      const categoryId = e.target.value;
       const templateWrap = document.getElementById('recurringTemplateWrap');
       const templateWrap2 = document.getElementById('recurringTemplateWrap2');
       
-      if (!categoryName) {
+      if (!categoryId) {
         // Hide template field if no category selected
         if (templateWrap) templateWrap.classList.add('hidden');
         if (templateWrap2) templateWrap2.classList.add('hidden');
@@ -858,15 +859,8 @@ export async function setup() {
         return;
       }
       
-      // Find category ID from categoryName (search in categoryGroups)
-      let categoryId = null;
-      for (const group of categoryGroups) {
-        const category = group.categories.find(c => c.name === categoryName);
-        if (category) {
-          categoryId = category.id;
-          break;
-        }
-      }
+      // No lookup needed - categoryId is already what we want
+      // (The dropdown options use category.id as value)
       
       // Get templates from map (already loaded in formConfig - no API call needed!)
       recurringTemplates = categoryId && recurringTemplatesMap[categoryId] 
@@ -876,9 +870,18 @@ export async function setup() {
       // Render template dropdown
       renderRecurringTemplatesSelect();
       
-      // Show template field if there are templates or allow manual creation
-      if (templateWrap) templateWrap.classList.remove('hidden');
-      if (templateWrap2) templateWrap2.classList.remove('hidden');
+      // Check visibility conditions:
+      // 1. Must have recurring templates
+      // 2. Must NOT be INGRESO
+      const tipo = document.getElementById('tipo').value;
+      const shouldShow = recurringTemplates.length > 0 && tipo !== 'INGRESO';
+      
+      if (templateWrap) {
+        templateWrap.classList.toggle('hidden', !shouldShow);
+      }
+      if (templateWrap2) {
+        templateWrap2.classList.toggle('hidden', !shouldShow);
+      }
     });
   }
   
@@ -890,7 +893,7 @@ export async function setup() {
     const templateId = e.target.value;
     
     if (!templateId) {
-      // User selected "Ninguno" - clear template
+      // User selected "No" - clear template
       clearTemplateSelection();
       return;
     }
@@ -1044,14 +1047,11 @@ function renderCategorySelect() {
  */
 async function fetchTemplatePrefillData(templateId, invertRoles = false) {
   try {
-    const token = localStorage.getItem('token');
-    const url = `${API_URL}/recurring-movements/prefill/${templateId}${invertRoles ? '?invert_roles=true' : ''}`;
+    // Note: recurring-movements endpoints use /api prefix
+    const url = `/api/recurring-movements/prefill/${templateId}${invertRoles ? '?invert_roles=true' : ''}`;
     
     const response = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      credentials: 'include'
     });
     
     if (!response.ok) {
@@ -1080,15 +1080,24 @@ function renderRecurringTemplatesSelect() {
     
     const base = document.createElement('option');
     base.value = '';
-    base.textContent = recurringTemplates.length === 0 ? 'No hay gastos presupuestados' : 'Ninguno (crear manualmente)';
-    base.selected = true;
+    base.textContent = recurringTemplates.length === 0 ? 'No hay gastos predefinidos' : 'No';
     el.appendChild(base);
+    
+    let foundSelected = false;
     
     for (const template of recurringTemplates) {
       const opt = document.createElement('option');
       opt.value = template.id;
       opt.textContent = template.name;
+      if (selectedTemplate && template.id === selectedTemplate) {
+        opt.selected = true;
+        foundSelected = true;
+      }
       el.appendChild(opt);
+    }
+    
+    if (!foundSelected) {
+      base.selected = true;
     }
     
     // Disable if no templates
@@ -1111,7 +1120,10 @@ async function applyTemplatePrefill(templateId) {
     // Determine if we need role inversion based on current movement type
     const tipoEl = document.getElementById('tipo');
     const currentType = tipoEl ? tipoEl.value : null;
-    const needsInversion = currentType === 'DEBT_PAYMENT';
+    
+    // LOAN type in frontend maps to DEBT_PAYMENT in backend
+    // Role inversion needed when user is in "Préstamo" mode (LOAN or DEBT_PAYMENT)
+    const needsInversion = currentType === 'DEBT_PAYMENT' || currentType === 'LOAN';
     
     const prefillData = await fetchTemplatePrefillData(templateId, needsInversion);
     if (!prefillData) {
@@ -1119,81 +1131,130 @@ async function applyTemplatePrefill(templateId) {
       return;
     }
     
-    // Get the template
+    // Get the template from local cache (optional, for extra info)
     const template = recurringTemplates.find(t => t.id === templateId);
-    if (!template) return;
-  
-  // Pre-fill description
-  const descripcionEl = document.getElementById('descripcion');
-  if (descripcionEl && prefillData.description) {
-    descripcionEl.value = prefillData.description;
-  }
-  
-  // Pre-fill amount (always available from template)
-  const valorEl = document.getElementById('valor');
-  if (valorEl && prefillData.amount) {
-    valorEl.value = toEditableNumber(prefillData.amount);
-  }
-  
-  // Pre-fill payer
-  if (prefillData.payer_user_id) {
-    const pagadorEl = document.getElementById('pagador');
-    if (pagadorEl) {
-      // Find user name from ID
-      const payerUser = users.find(u => u.id === prefillData.payer_user_id);
-      if (payerUser) {
-        pagadorEl.value = payerUser.name;
-        // Trigger change to update dependent fields
-        pagadorEl.dispatchEvent(new Event('change'));
+    
+    // Determine target type from prefillData (more reliable than local cache)
+    // Map DEBT_PAYMENT to LOAN for frontend UI consistency
+    let targetType = prefillData.movement_type;
+    if (targetType === 'DEBT_PAYMENT') {
+      targetType = 'LOAN'; // Frontend uses LOAN, not DEBT_PAYMENT
+    } else if (!targetType) {
+      targetType = (prefillData.participants && prefillData.participants.length > 0) ? 'SPLIT' : 'HOUSEHOLD';
+    }
+    
+    // Auto-switch type if needed (e.g. template is SPLIT but we are in HOUSEHOLD)
+    // Exception: If we are in LOAN mode (Préstamo), we stay in LOAN (for role inversion)
+    const isInLoanMode = currentType === 'LOAN' || currentType === 'DEBT_PAYMENT';
+    if (!isInLoanMode && targetType && targetType !== currentType) {
+      // Switch type
+      if (tipoEl) tipoEl.value = targetType;
+      
+      // Update UI buttons
+      document.querySelectorAll('.tipo-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tipo === targetType);
+      });
+      
+      // Trigger change handler but KEEP template selection
+      onTipoChange(true);
+    } else if (isInLoanMode) {
+      // When in LOAN mode, ensure buttons show LOAN as active
+      document.querySelectorAll('.tipo-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tipo === 'LOAN');
+      });
+      if (tipoEl) tipoEl.value = 'LOAN';
+    }
+    
+    // Pre-fill description (use template name as fallback)
+    const descripcionEl = document.getElementById('descripcion');
+    if (descripcionEl) {
+      descripcionEl.value = prefillData.description || prefillData.template_name || (template ? template.name : '');
+    }
+    
+    // Pre-fill amount (always available from template)
+    const valorEl = document.getElementById('valor');
+    if (valorEl && prefillData.amount) {
+      valorEl.value = formatNumber(prefillData.amount);
+    }
+    
+    // Pre-fill payer
+    if (prefillData.payer_user_id) {
+      const pagadorEl = document.getElementById('pagador');
+      const pagadorCompartidoEl = document.getElementById('pagadorCompartido');
+      if (pagadorEl || pagadorCompartidoEl) {
+        // Find user name from ID using usersMap
+        const payerUser = Object.values(usersMap).find(u => u.id === prefillData.payer_user_id);
+        if (payerUser) {
+          // For SPLIT, use pagadorCompartido; for HOUSEHOLD/DEBT_PAYMENT use pagador
+          const targetEl = (targetType === 'SPLIT') ? pagadorCompartidoEl : pagadorEl;
+          if (targetEl) {
+            targetEl.value = payerUser.name;
+            // Trigger change to update dependent fields (payment methods, etc.)
+            targetEl.dispatchEvent(new Event('change'));
+          }
+        }
+      }
+    } else if (prefillData.payer_contact_id) {
+      const pagadorEl = document.getElementById('pagador');
+      const pagadorCompartidoEl = document.getElementById('pagadorCompartido');
+      if (pagadorEl || pagadorCompartidoEl) {
+        // Find contact name from ID using usersMap (contacts are also stored there)
+        const payerContact = Object.values(usersMap).find(u => u.id === prefillData.payer_contact_id);
+        if (payerContact) {
+          const targetEl = (targetType === 'SPLIT') ? pagadorCompartidoEl : pagadorEl;
+          if (targetEl) {
+            targetEl.value = payerContact.name;
+            targetEl.dispatchEvent(new Event('change'));
+          }
+        }
       }
     }
-  } else if (prefillData.payer_contact_id) {
-    const pagadorEl = document.getElementById('pagador');
-    if (pagadorEl) {
-      // Find contact name from ID
-      const payerContact = users.find(u => u.id === prefillData.payer_contact_id);
-      if (payerContact) {
-        pagadorEl.value = payerContact.name;
-        pagadorEl.dispatchEvent(new Event('change'));
+    
+    // Pre-fill payment method (only if visible - depends on payer type)
+    if (prefillData.payment_method_id) {
+      const metodoEl = document.getElementById('metodo');
+      if (metodoEl) {
+        // Find payment method name from ID
+        const method = paymentMethods.find(m => m.id === prefillData.payment_method_id);
+        if (method) {
+          // Need to wait a bit for showPaymentMethods to populate the dropdown after payer change
+          setTimeout(() => {
+            const metodoEl2 = document.getElementById('metodo');
+            if (metodoEl2) {
+              metodoEl2.value = method.name;
+            }
+          }, 100);
+        }
       }
     }
-  }
-  
-  // Pre-fill payment method
-  if (prefillData.payment_method_id) {
-    const metodoEl = document.getElementById('metodoPago');
-    if (metodoEl) {
-      // Find payment method name from ID
-      const method = paymentMethods.find(m => m.id === prefillData.payment_method_id);
-      if (method) {
-        metodoEl.value = method.name;
+    
+    // Pre-fill participants for SPLIT movements
+    if (prefillData.participants && prefillData.participants.length > 0) {
+      participants = prefillData.participants.map(p => {
+        const user = Object.values(usersMap).find(u => u.id === p.participant_user_id);
+        return {
+          name: user ? user.name : '',
+          pct: p.percentage * 100 // Convert decimal to percentage
+        };
+      });
+      renderParticipants();
+    }
+    
+    // Pre-fill counterparty/tomador for DEBT_PAYMENT (¿Quién recibió?)
+    if (prefillData.counterparty_user_id || prefillData.counterparty_contact_id) {
+      const tomadorEl = document.getElementById('tomador');
+      if (tomadorEl) {
+        const counterpartyId = prefillData.counterparty_user_id || prefillData.counterparty_contact_id;
+        const counterparty = Object.values(usersMap).find(u => u.id === counterpartyId);
+        if (counterparty) {
+          tomadorEl.value = counterparty.name;
+        }
       }
     }
-  }
-  
-  // Pre-fill participants for SPLIT movements
-  if (prefillData.participants && prefillData.participants.length > 0) {
-    participants = prefillData.participants.map(p => ({
-      name: users.find(u => u.id === p.participant_user_id)?.name || '',
-      pct: p.percentage * 100 // Convert decimal to percentage
-    }));
-    renderParticipants();
-  }
-  
-  // Pre-fill counterparty for DEBT_PAYMENT
-  if (prefillData.counterparty_user_id || prefillData.counterparty_contact_id) {
-    const contraparteEl = document.getElementById('contraparte');
-    if (contraparteEl) {
-      const counterpartyId = prefillData.counterparty_user_id || prefillData.counterparty_contact_id;
-      const counterparty = users.find(u => u.id === counterpartyId);
-      if (counterparty) {
-        contraparteEl.value = counterparty.name;
-      }
-    }
-  }
-  
-  // Store selected template reference
-  selectedTemplate = template;
+    
+    // Store selected template reference (use prefillData as fallback)
+    selectedTemplate = template || { id: templateId, name: prefillData.template_name };
+    
   } finally {
     // Hide loading indicator
     const loadingEl = document.getElementById('templateLoadingSpinner');
@@ -1334,7 +1395,7 @@ function updateSubmitButton(isCompartido) {
 /**
  * Handle tipo change
  */
-function onTipoChange() {
+function onTipoChange(keepTemplate = false) {
   const tipo = document.getElementById('tipo').value;
   const loanDirection = document.getElementById('loanDirection')?.value || 'LEND';
   
@@ -1345,13 +1406,32 @@ function onTipoChange() {
   const isIngreso = tipo === 'INGRESO';
 
   // Clear template selection when type changes (might need different role inversion)
-  clearTemplateSelection();
+  // But skip if we are programmatically switching type to match a template
+  if (!keepTemplate) {
+    clearTemplateSelection();
+    
+    // Reset template dropdown to "Ninguno"
+    const templateEl = document.getElementById('recurringTemplate');
+    const templateEl2 = document.getElementById('recurringTemplate2');
+    if (templateEl) templateEl.value = '';
+    if (templateEl2) templateEl2.value = '';
+  }
+
+  // Control visibility of recurring template field based on type
+  const templateWrap = document.getElementById('recurringTemplateWrap');
+  const templateWrap2 = document.getElementById('recurringTemplateWrap2');
   
-  // Reset template dropdown to "Ninguno"
-  const templateEl = document.getElementById('recurringTemplate');
-  const templateEl2 = document.getElementById('recurringTemplate2');
-  if (templateEl) templateEl.value = '';
-  if (templateEl2) templateEl2.value = '';
+  if (isIngreso) {
+    // Never show for INGRESO
+    if (templateWrap) templateWrap.classList.add('hidden');
+    if (templateWrap2) templateWrap2.classList.add('hidden');
+  } else {
+    // For other types, show only if templates are available for selected category
+    // recurringTemplates global variable holds templates for the currently selected category
+    const shouldShow = recurringTemplates && recurringTemplates.length > 0;
+    if (templateWrap) templateWrap.classList.toggle('hidden', !shouldShow);
+    if (templateWrap2) templateWrap2.classList.toggle('hidden', !shouldShow);
+  }
 
   // Show/hide loan direction selector
   document.getElementById('loanDirectionWrap').classList.toggle('hidden', !isLoan);
@@ -1409,11 +1489,11 @@ function onTipoChange() {
   }
 
   // Show/hide category field
-  // Hidden when: no tipo selected, INGRESO, or DEBT_PAYMENT (until payer is selected)
-  // For DEBT_PAYMENT: category visibility is controlled by onPagadorChange()
+  // Hidden when: no tipo selected or INGRESO
+  // Show for HOUSEHOLD, SPLIT, and DEBT_PAYMENT/LOAN (so templates can be used)
   const categoriaWrap = document.getElementById('categoriaWrap');
   if (categoriaWrap) {
-    const shouldHideCategoria = !tipo || isIngreso || isPagoDeuda;
+    const shouldHideCategoria = !tipo || isIngreso;
     categoriaWrap.classList.toggle('hidden', shouldHideCategoria);
   }
 
