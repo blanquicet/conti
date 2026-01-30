@@ -617,12 +617,9 @@ function validateInviteEmail() {
 }
 
 /**
- * Setup contact form handlers
+ * Setup contact form validation handlers (without submit handler)
  */
-function setupContactFormHandlers() {
-  const contactForm = document.getElementById('contact-form');
-  contactForm?.addEventListener('submit', handleContactSubmit);
-  
+function setupContactFormValidationHandlers() {
   // Setup real-time validation
   const emailInput = document.getElementById('contact-email');
   const phoneInput = document.getElementById('contact-phone');
@@ -650,6 +647,15 @@ function setupContactFormHandlers() {
   document.getElementById('cancel-contact-btn')?.addEventListener('click', () => {
     document.getElementById('contact-form-container').style.display = 'none';
   });
+}
+
+/**
+ * Setup contact form handlers for creating new contacts
+ */
+function setupContactFormHandlers() {
+  const contactForm = document.getElementById('contact-form');
+  contactForm?.addEventListener('submit', handleContactSubmit);
+  setupContactFormValidationHandlers();
 }
 
 /**
@@ -970,17 +976,13 @@ function handleEditContact(contactId) {
   container.innerHTML = renderContactForm(contact);
   container.style.display = 'block';
 
-  // Setup validation handlers
-  setupContactFormHandlers();
+  // Setup validation handlers ONLY (not the submit handler that creates new contacts)
+  setupContactFormValidationHandlers();
 
   const form = document.getElementById('contact-form');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     await handleUpdateContact(contactId);
-  });
-
-  document.getElementById('cancel-contact-btn').addEventListener('click', () => {
-    container.style.display = 'none';
   });
 }
 
