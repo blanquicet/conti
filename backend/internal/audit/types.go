@@ -72,6 +72,10 @@ ActionCategoryGroupDeleted Action = "CATEGORY_GROUP_DELETED"
 ActionBudgetCreated Action = "BUDGET_CREATED"
 ActionBudgetUpdated Action = "BUDGET_UPDATED"
 ActionBudgetDeleted Action = "BUDGET_DELETED"
+
+// Credit Card Payments
+ActionCreditCardPaymentCreated Action = "CREDIT_CARD_PAYMENT_CREATED"
+ActionCreditCardPaymentDeleted Action = "CREDIT_CARD_PAYMENT_DELETED"
 )
 
 // AuditLog represents a single audit log entry

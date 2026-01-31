@@ -17,6 +17,8 @@ import (
 	"github.com/blanquicet/gastos/backend/internal/categories"
 	"github.com/blanquicet/gastos/backend/internal/categorygroups"
 	"github.com/blanquicet/gastos/backend/internal/config"
+	"github.com/blanquicet/gastos/backend/internal/creditcardpayments"
+	"github.com/blanquicet/gastos/backend/internal/creditcards"
 	"github.com/blanquicet/gastos/backend/internal/email"
 	"github.com/blanquicet/gastos/backend/internal/households"
 	"github.com/blanquicet/gastos/backend/internal/income"
@@ -272,6 +274,28 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	// Start scheduler in background
 	go scheduler.Start(ctx)
 
+	// Create credit card payments service and handler
+	ccPaymentsRepo := creditcardpayments.NewRepository(pool)
+	ccPaymentsService := creditcardpayments.NewService(
+		ccPaymentsRepo,
+		householdRepo,
+		paymentMethodsRepo,
+		accountsRepo,
+		auditService,
+		logger,
+	)
+	ccPaymentsHandler := creditcardpayments.NewHandler(ccPaymentsService, authService, cfg.SessionCookieName, logger)
+
+	// Create credit cards summary service and handler
+	creditCardsRepo := creditcards.NewRepository(pool)
+	creditCardsService := creditcards.NewService(
+		creditCardsRepo,
+		householdRepo,
+		paymentMethodsRepo,
+		logger,
+	)
+	creditCardsHandler := creditcards.NewHandler(creditCardsService, authService, cfg.SessionCookieName)
+
 	// Create rate limiters for auth endpoints (if enabled)
 	// Login/Register: 5 requests per minute per IP (strict to prevent brute force)
 	// Password reset: 3 requests per minute per IP (even stricter)
@@ -392,6 +416,16 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Category groups endpoints
 	mux.HandleFunc("GET /category-groups", categoryGroupsHandler.ListCategoryGroups)
+
+	// Credit card payments endpoints
+	mux.HandleFunc("POST /credit-card-payments", ccPaymentsHandler.HandleCreate)
+	mux.HandleFunc("GET /credit-card-payments", ccPaymentsHandler.HandleList)
+	mux.HandleFunc("GET /credit-card-payments/{id}", ccPaymentsHandler.HandleGet)
+	mux.HandleFunc("DELETE /credit-card-payments/{id}", ccPaymentsHandler.HandleDelete)
+
+	// Credit cards summary endpoints (for Tarjetas tab)
+	mux.HandleFunc("GET /credit-cards/summary", creditCardsHandler.HandleGetSummary)
+	mux.HandleFunc("GET /credit-cards/{id}/movements", creditCardsHandler.HandleGetCardMovements)
 	
 	// Admin audit log endpoints (TODO: add admin-only middleware)
 	mux.HandleFunc("GET /admin/audit-logs", auditHandler.ListAuditLogs)

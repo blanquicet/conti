@@ -2568,6 +2568,11 @@ button.loading::after {
   max-height: calc(100vh - 160px);
   overflow-y: auto;
   z-index: 1000;
+  display: none;
+}
+
+.filter-dropdown.show {
+  display: block;
 }
 
 /* Filter loading overlay */
@@ -3221,6 +3226,160 @@ button.loading::after {
 
 .summary-divider {
   display: none;
+}
+
+/* Credit Cards Tab Styles */
+.credit-card-card {
+  background: white;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.credit-card-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.credit-card-card.card-paid {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.card-period-badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.expense-group-amount-sub {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin-top: 2px;
+}
+
+.expense-group-amount-sub.paid-amount {
+  color: #059669;
+}
+
+.debt-amount {
+  color: #374151 !important;
+}
+
+.paid-amount {
+  color: #059669 !important;
+}
+
+.payment-amount {
+  color: #059669 !important;
+}
+
+.available-positive {
+  color: #374151 !important;
+}
+
+.available-negative {
+  color: #374151 !important;
+}
+
+.card-section {
+  background: white;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.card-section .expense-category-header {
+  cursor: pointer;
+}
+
+.card-net-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  margin-top: 12px;
+}
+
+.net-label {
+  font-weight: 500;
+  color: #374151;
+}
+
+.net-amount {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.net-amount.paid {
+  color: #059669;
+}
+
+.net-amount.debt {
+  color: #374151;
+}
+
+.card-loading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 24px;
+  justify-content: center;
+  color: #6b7280;
+}
+
+.loading-spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #111827;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.entry-category-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+.entry-account-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: #dcfce7;
+  color: #15803d;
+}
+
+.payment-entry {
+  background: #f0fdf4;
+  border-radius: 8px;
+  margin: 4px 0;
+  padding: 8px 12px;
+}
+
+.expense-category-count {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-left: auto;
+  margin-right: 8px;
 }
 
 /* Expense Category Items (sub-categories within groups) */

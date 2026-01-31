@@ -26,13 +26,14 @@ func (r *repository) Create(ctx context.Context, pm *PaymentMethod) (*PaymentMet
 	err := r.pool.QueryRow(ctx, `
 		INSERT INTO payment_methods (
 			household_id, owner_id, name, type, is_shared_with_household,
-			last4, institution, notes, is_active
+			last4, institution, notes, is_active, cutoff_day, linked_account_id
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id, household_id, owner_id, name, type, is_shared_with_household,
-		          last4, institution, notes, is_active, created_at, updated_at
+		          last4, institution, notes, is_active, created_at, updated_at,
+		          cutoff_day, linked_account_id
 	`, pm.HouseholdID, pm.OwnerID, pm.Name, pm.Type, pm.IsSharedWithHousehold,
-	   pm.Last4, pm.Institution, pm.Notes, pm.IsActive).Scan(
+	   pm.Last4, pm.Institution, pm.Notes, pm.IsActive, pm.CutoffDay, pm.LinkedAccountID).Scan(
 		&result.ID,
 		&result.HouseholdID,
 		&result.OwnerID,
@@ -45,6 +46,8 @@ func (r *repository) Create(ctx context.Context, pm *PaymentMethod) (*PaymentMet
 		&isActiveFromDB,
 		&result.CreatedAt,
 		&result.UpdatedAt,
+		&result.CutoffDay,
+		&result.LinkedAccountID,
 	)
 
 	if err != nil {
@@ -66,9 +69,11 @@ var pm PaymentMethod
 err := r.pool.QueryRow(ctx, `
 SELECT pm.id, pm.household_id, pm.owner_id, pm.name, pm.type,
        pm.is_shared_with_household, pm.last4, pm.institution, pm.notes,
-       pm.is_active, pm.created_at, pm.updated_at, u.name as owner_name
+       pm.is_active, pm.created_at, pm.updated_at, u.name as owner_name,
+       pm.cutoff_day, pm.linked_account_id, a.name as linked_account_name
 FROM payment_methods pm
 JOIN users u ON pm.owner_id = u.id
+LEFT JOIN accounts a ON pm.linked_account_id = a.id
 WHERE pm.id = $1
 `, id).Scan(
 &pm.ID,
@@ -84,6 +89,9 @@ WHERE pm.id = $1
 &pm.CreatedAt,
 &pm.UpdatedAt,
 &pm.OwnerName,
+&pm.CutoffDay,
+&pm.LinkedAccountID,
+&pm.LinkedAccountName,
 )
 
 if err != nil {
@@ -103,11 +111,14 @@ func (r *repository) Update(ctx context.Context, pm *PaymentMethod) (*PaymentMet
 	err := r.pool.QueryRow(ctx, `
 		UPDATE payment_methods
 		SET name = $1, is_shared_with_household = $2, last4 = $3,
-		    institution = $4, notes = $5, is_active = $6, updated_at = NOW()
-		WHERE id = $7
+		    institution = $4, notes = $5, is_active = $6, updated_at = NOW(),
+		    cutoff_day = $7, linked_account_id = $8
+		WHERE id = $9
 		RETURNING id, household_id, owner_id, name, type, is_shared_with_household,
-		          last4, institution, notes, is_active, created_at, updated_at
-	`, pm.Name, pm.IsSharedWithHousehold, pm.Last4, pm.Institution, pm.Notes, pm.IsActive, pm.ID).Scan(
+		          last4, institution, notes, is_active, created_at, updated_at,
+		          cutoff_day, linked_account_id
+	`, pm.Name, pm.IsSharedWithHousehold, pm.Last4, pm.Institution, pm.Notes, pm.IsActive,
+	   pm.CutoffDay, pm.LinkedAccountID, pm.ID).Scan(
 		&result.ID,
 		&result.HouseholdID,
 		&result.OwnerID,
@@ -120,6 +131,8 @@ func (r *repository) Update(ctx context.Context, pm *PaymentMethod) (*PaymentMet
 		&isActiveFromDB,
 		&result.CreatedAt,
 		&result.UpdatedAt,
+		&result.CutoffDay,
+		&result.LinkedAccountID,
 	)
 
 	if err != nil {
@@ -160,9 +173,11 @@ func (r *repository) ListByHousehold(ctx context.Context, householdID string) ([
 rows, err := r.pool.Query(ctx, `
 SELECT pm.id, pm.household_id, pm.owner_id, pm.name, pm.type,
        pm.is_shared_with_household, pm.last4, pm.institution, pm.notes,
-       pm.is_active, pm.created_at, pm.updated_at, u.name as owner_name
+       pm.is_active, pm.created_at, pm.updated_at, u.name as owner_name,
+       pm.cutoff_day, pm.linked_account_id, a.name as linked_account_name
 FROM payment_methods pm
 JOIN users u ON pm.owner_id = u.id
+LEFT JOIN accounts a ON pm.linked_account_id = a.id
 WHERE pm.household_id = $1
 ORDER BY pm.is_shared_with_household DESC, pm.name ASC
 `, householdID)
@@ -189,6 +204,9 @@ err := rows.Scan(
 &pm.CreatedAt,
 &pm.UpdatedAt,
 &pm.OwnerName,
+&pm.CutoffDay,
+&pm.LinkedAccountID,
+&pm.LinkedAccountName,
 )
 if err != nil {
 return nil, err
@@ -208,7 +226,8 @@ func (r *repository) FindByName(ctx context.Context, householdID, name string) (
 var pm PaymentMethod
 err := r.pool.QueryRow(ctx, `
 SELECT id, household_id, owner_id, name, type, is_shared_with_household,
-       last4, institution, notes, is_active, created_at, updated_at
+       last4, institution, notes, is_active, created_at, updated_at,
+       cutoff_day, linked_account_id
 FROM payment_methods
 WHERE household_id = $1 AND name = $2
 `, householdID, name).Scan(
@@ -224,6 +243,8 @@ WHERE household_id = $1 AND name = $2
 &pm.IsActive,
 &pm.CreatedAt,
 &pm.UpdatedAt,
+&pm.CutoffDay,
+&pm.LinkedAccountID,
 )
 
 if err != nil {

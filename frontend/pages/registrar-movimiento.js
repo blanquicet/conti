@@ -237,7 +237,6 @@ export function render(user) {
             <select name="ingresoCuenta" id="ingresoCuenta">
               <option value="" selected>Seleccionar</option>
             </select>
-            <small class="hint">Solo cuentas tipo savings o cash</small>
           </label>
 
           <!-- Pagador y Tomador en fila (para DEBT_PAYMENT) -->
@@ -258,7 +257,6 @@ export function render(user) {
             <select name="cuentaReceptora" id="cuentaReceptora">
               <option value="" selected>Seleccionar cuenta</option>
             </select>
-            <small class="hint">Solo cuentas tipo savings o cash del receptor</small>
           </label>
 
           <!-- Pagador solo (para SPLIT) -->
@@ -438,7 +436,6 @@ export function render(user) {
             <select name="ingresoCuenta" id="ingresoCuenta">
               <option value="" selected>Seleccionar</option>
             </select>
-            <small class="hint">Solo cuentas tipo savings o cash</small>
           </label>
 
           <!-- Pagador y Tomador en fila (para DEBT_PAYMENT) -->
@@ -459,7 +456,6 @@ export function render(user) {
             <select name="cuentaReceptora" id="cuentaReceptora">
               <option value="" selected>Seleccionar cuenta</option>
             </select>
-            <small class="hint">Solo cuentas tipo savings o cash del receptor</small>
           </label>
 
           <!-- Pagador solo (para SPLIT) -->
@@ -1373,7 +1369,7 @@ function renderCuentaReceptoraSelect(receiverId = null) {
   for (const account of filteredAccounts) {
     const opt = document.createElement('option');
     opt.value = account.id;
-    opt.textContent = `${account.name} (${account.type === 'savings' ? 'Ahorros' : 'Efectivo'})`;
+    opt.textContent = account.name;
     cuentaEl.appendChild(opt);
   }
 }

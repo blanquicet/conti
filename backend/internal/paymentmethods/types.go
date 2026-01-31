@@ -8,10 +8,14 @@ import (
 
 // Errors for payment method operations
 var (
-ErrPaymentMethodNotFound     = errors.New("payment method not found")
-ErrPaymentMethodNameExists   = errors.New("payment method name already exists in household")
-ErrNotAuthorized             = errors.New("not authorized")
-ErrInvalidPaymentMethodType  = errors.New("invalid payment method type")
+ErrPaymentMethodNotFound       = errors.New("payment method not found")
+ErrPaymentMethodNameExists     = errors.New("payment method name already exists in household")
+ErrNotAuthorized               = errors.New("not authorized")
+ErrInvalidPaymentMethodType    = errors.New("invalid payment method type")
+ErrCutoffDayOnlyForCreditCards = errors.New("cutoff_day is only applicable for credit cards")
+ErrLinkedAccountRequired       = errors.New("linked_account_id is required for debit cards")
+ErrLinkedAccountMustBeSavings  = errors.New("linked account must be a savings account")
+ErrInvalidCutoffDay            = errors.New("cutoff_day must be between 1 and 31")
 )
 
 // PaymentMethodType represents the type of payment method
@@ -49,8 +53,15 @@ IsActive               bool              `json:"is_active"`
 CreatedAt              time.Time         `json:"created_at"`
 UpdatedAt              time.Time         `json:"updated_at"`
 
+// Credit card specific: billing cycle cut-off day (1-31, NULL = last day of month)
+CutoffDay              *int              `json:"cutoff_day,omitempty"`
+
+// Debit card specific: linked savings account for balance tracking
+LinkedAccountID        *string           `json:"linked_account_id,omitempty"`
+
 // Populated from joins - not in DB table
 OwnerName              string            `json:"owner_name,omitempty"`
+LinkedAccountName      *string           `json:"linked_account_name,omitempty"`
 }
 
 // Validate validates payment method fields
@@ -70,6 +81,17 @@ return errors.New("last4 must be exactly 4 characters")
 if p.Institution != nil && len(*p.Institution) > 100 {
 return errors.New("institution must be 100 characters or less")
 }
+// Validate cutoff_day: only for credit cards, must be 1-31
+if p.CutoffDay != nil {
+if p.Type != TypeCreditCard {
+return ErrCutoffDayOnlyForCreditCards
+}
+if *p.CutoffDay < 1 || *p.CutoffDay > 31 {
+return ErrInvalidCutoffDay
+}
+}
+// Note: linked_account_id validation (required for debit cards, must be savings)
+// is done in the service layer where we can check the account type
 return nil
 }
 

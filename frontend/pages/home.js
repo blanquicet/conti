@@ -20,6 +20,7 @@ let incomeData = null;
 let movementsData = null; // Gastos data (filtered)
 let originalMovementsData = null; // Original unfiltered movements data from API
 let loansData = null; // Préstamos data (debts consolidation with movement details)
+let creditCardsData = null; // Tarjetas data (credit card summary)
 let activeTab = 'gastos'; // 'gastos', 'ingresos', 'prestamos', 'presupuesto', 'tarjetas' - DEFAULT TO GASTOS
 let householdMembers = []; // List of household members for filtering
 let selectedMemberIds = []; // Array of selected member IDs (empty = all)
@@ -27,8 +28,13 @@ let selectedIncomeTypes = []; // Array of selected income types (empty = all)
 let selectedCategories = []; // Array of selected categories for gastos filter (empty = all)
 let selectedPaymentMethods = []; // Array of selected payment method IDs for gastos filter (empty = all)
 let selectedLoanPeople = []; // Array of selected person IDs for loans filter (empty = all)
+let selectedCardIds = []; // Array of selected credit card IDs for tarjetas filter (empty = all)
+let selectedCardOwnerIds = []; // Array of selected owner IDs for tarjetas filter (empty = all)
+let allCreditCards = []; // All credit cards for filter dropdown (not filtered)
+let allCardOwners = []; // All card owners for filter dropdown (not filtered)
 let isFilterOpen = false; // Track if filter dropdown is open
 let isLoansFilterOpen = false; // Track if loans filter dropdown is open
+let isCardsFilterOpen = false; // Track if cards filter dropdown is open
 let tabsNeedingReload = new Set(); // Tabs that need to reload when activated ('gastos', 'ingresos', 'prestamos', 'presupuesto', 'tarjetas')
 let budgetsData = null; // Presupuesto data
 let templatesData = {}; // Templates data grouped by category_id (initialize as empty object)
@@ -87,6 +93,25 @@ function formatDate(dateString) {
   const monthName = monthLong.replace('.', '').charAt(0).toUpperCase() + monthLong.replace('.', '').slice(1);
   
   return `${day} ${monthName} ${year}`;
+}
+
+/**
+ * Format billing cycle period (e.g., "Dic 29 - Ene 28")
+ */
+function formatBillingPeriod(billingCycle) {
+  if (!billingCycle || !billingCycle.start_date || !billingCycle.end_date) return '';
+  
+  const startDate = new Date(billingCycle.start_date);
+  const endDate = new Date(billingCycle.end_date);
+  
+  const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  
+  const startDay = startDate.getDate();
+  const startMonth = monthNames[startDate.getMonth()];
+  const endDay = endDate.getDate();
+  const endMonth = monthNames[endDate.getMonth()];
+  
+  return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
 }
 
 /**
@@ -1194,10 +1219,33 @@ export function render(user) {
             <div class="loading-spinner"></div>
             <p>Cargando...</p>
           </div>
+        ` : activeTab === 'tarjetas' && creditCardsData ? `
+          ${renderCreditCardsMonthSelector()}
+          
+          <div class="loans-summary">
+            <div class="summary-item">
+              <div class="summary-label">Deuda total</div>
+              <div class="summary-amount debt-amount">${formatCurrency(creditCardsData?.totals?.total_debt || 0)}</div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-item">
+              <div class="summary-label">Disponible</div>
+              <div class="summary-amount ${creditCardsData?.can_pay_all ? 'available-positive' : 'available-negative'}">${formatCurrency(creditCardsData?.available_cash?.total || 0)}</div>
+            </div>
+          </div>
+
+          <div id="cards-container">
+            ${renderCreditCards()}
+          </div>
+        ` : activeTab === 'tarjetas' ? `
+          <div class="loading-state">
+            <div class="loading-spinner"></div>
+            <p>Cargando...</p>
+          </div>
         ` : `
           <div class="coming-soon">
-            <div class="coming-soon-icon">💳</div>
-            <p>Próximamente</p>
+            <div class="coming-soon-icon">❓</div>
+            <p>Tab desconocido</p>
           </div>
         `}
       </div>
@@ -1544,6 +1592,619 @@ async function loadBudgetsData() {
     budgetsData = null;
     templatesData = {};
   }
+}
+
+/**
+ * Load credit cards data for the current billing cycle
+ */
+async function loadCreditCardsData() {
+  try {
+    // Use day 15 of the current month as cycle_date
+    // This works best for cards with cutoff day 28 (majority case)
+    const cycleDate = `${currentMonth}-15`;
+    
+    // Build query params for filters
+    let url = `${API_URL}/credit-cards/summary?cycle_date=${cycleDate}`;
+    
+    if (selectedCardIds && selectedCardIds.length > 0) {
+      url += `&card_ids=${selectedCardIds.join(',')}`;
+    }
+    if (selectedCardOwnerIds && selectedCardOwnerIds.length > 0) {
+      url += `&owner_ids=${selectedCardOwnerIds.join(',')}`;
+    }
+    
+    const response = await fetch(url, {
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      console.error('Error loading credit cards data');
+      creditCardsData = null;
+      return;
+    }
+
+    creditCardsData = await response.json();
+    
+    // On first load (no filters), store all cards for the filter dropdown
+    if (allCreditCards.length === 0 && creditCardsData?.cards) {
+      allCreditCards = creditCardsData.cards.map(c => ({ id: c.id, name: c.name, owner_id: c.owner_id, owner_name: c.owner_name }));
+      
+      // Extract unique owners
+      const ownerIds = new Set();
+      allCardOwners = [];
+      creditCardsData.cards.forEach(card => {
+        if (!ownerIds.has(card.owner_id)) {
+          ownerIds.add(card.owner_id);
+          allCardOwners.push({ id: card.owner_id, name: card.owner_name });
+        }
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error loading credit cards data:', error);
+    creditCardsData = null;
+  }
+}
+
+/**
+ * Render month selector for credit cards (same as other tabs)
+ */
+function renderCreditCardsMonthSelector() {
+  return `
+    <div class="month-selector">
+      <button id="prev-month-btn" class="month-nav-btn">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"/>
+        </svg>
+      </button>
+      <div class="month-display">${getMonthDateRange(currentMonth)}</div>
+      <button id="next-month-btn" class="month-nav-btn">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"/>
+        </svg>
+      </button>
+    </div>
+  `;
+}
+
+/**
+ * Render credit cards (Tarjetas tab)
+ */
+function renderCreditCards() {
+  if (!creditCardsData || !creditCardsData.cards || creditCardsData.cards.length === 0) {
+    // Check if filters are active
+    const hasFilters = (selectedCardIds && selectedCardIds.length > 0) || 
+                       (selectedCardOwnerIds && selectedCardOwnerIds.length > 0);
+    
+    const emptyMessage = hasFilters 
+      ? 'No hay tarjetas que coincidan con los filtros seleccionados'
+      : 'No hay tarjetas de crédito configuradas';
+    
+    const emptyAction = hasFilters
+      ? `<button class="btn-secondary" id="clear-filters-empty">Mostrar todo</button>`
+      : `<a href="/hogar" class="btn-primary">Configurar tarjetas</a>`;
+    
+    return `
+      <div class="empty-state">
+        <div class="empty-icon">💳</div>
+        <p>${emptyMessage}</p>
+        ${emptyAction}
+      </div>
+      <div class="floating-actions">
+        <button id="filter-cards-btn" class="btn-filter-floating" title="Filtrar">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
+          </svg>
+        </button>
+        ${renderCardsFilterDropdown()}
+        <button id="add-card-payment-btn" class="btn-add-floating">+</button>
+      </div>
+    `;
+  }
+
+  const cardsHtml = creditCardsData.cards.map(card => {
+    const hasDebt = card.net_debt > 0;
+    const isPaid = card.net_debt <= 0;
+    const billingPeriod = formatBillingPeriod(card.billing_cycle);
+    
+    return `
+      <div class="expense-group-card credit-card-card ${isPaid ? 'card-paid' : ''}" data-card-id="${card.id}">
+        <div class="expense-group-header">
+          <div class="expense-group-icon-container">
+            <span class="expense-group-icon">💳</span>
+          </div>
+          <div class="expense-group-info">
+            <div class="expense-group-name">${card.name}</div>
+            <div class="expense-group-amount ${isPaid ? 'paid-amount' : ''}">${isPaid ? '✓ Pagado' : formatCurrency(card.net_debt)}</div>
+          </div>
+          <div class="card-period-badge">${billingPeriod}</div>
+          <svg class="expense-group-chevron" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+          </svg>
+        </div>
+        <div class="expense-group-details hidden" id="card-details-${card.id}">
+          <!-- Charges and payments will be loaded when expanded -->
+          <div class="card-loading">
+            <div class="loading-spinner-small"></div>
+            <span>Cargando movimientos...</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <!-- Filter loading overlay -->
+    <div class="filter-loading-overlay" id="filter-loading" style="display: none;">
+      <div class="loading-spinner"></div>
+    </div>
+    
+    ${cardsHtml}
+    
+    <div class="floating-actions">
+      <button id="filter-cards-btn" class="btn-filter-floating" title="Filtrar">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V17a1 1 0 01-.447.894l-2 1.333A1 1 0 018 18.333V10.414L3.293 5.707A1 1 0 013 5V3z"/>
+        </svg>
+      </button>
+      ${renderCardsFilterDropdown()}
+      <button id="add-card-payment-btn" class="btn-add-floating">+</button>
+    </div>
+  `;
+}
+
+/**
+ * Render filter dropdown for credit cards
+ */
+function renderCardsFilterDropdown() {
+  return `
+    <div class="filter-dropdown" id="cards-filter-dropdown">
+      <div class="filter-section">
+        <div class="filter-section-header">
+          <span class="filter-section-title">Tarjetas</span>
+          <div class="filter-section-actions">
+            <button class="filter-link-btn" id="cards-select-all">Todos</button>
+            <button class="filter-link-btn" id="cards-select-none">Limpiar</button>
+          </div>
+        </div>
+        <div class="filter-options">
+          ${allCreditCards.map(card => {
+            const isSelected = !selectedCardIds || selectedCardIds.length === 0 || selectedCardIds.includes(card.id);
+            return `
+              <label class="filter-checkbox-label">
+                <input type="checkbox" class="filter-checkbox card-filter-checkbox" 
+                       value="${card.id}" 
+                       ${isSelected ? 'checked' : ''}>
+                <span>${card.name}</span>
+              </label>
+            `;
+          }).join('') || '<p class="filter-empty">No hay tarjetas</p>'}
+        </div>
+      </div>
+      
+      <div class="filter-section">
+        <div class="filter-section-header">
+          <span class="filter-section-title">Propietario</span>
+          <div class="filter-section-actions">
+            <button class="filter-link-btn" id="owners-select-all">Todos</button>
+            <button class="filter-link-btn" id="owners-select-none">Limpiar</button>
+          </div>
+        </div>
+        <div class="filter-options">
+          ${allCardOwners.map(owner => {
+            const isSelected = !selectedCardOwnerIds || selectedCardOwnerIds.length === 0 || selectedCardOwnerIds.includes(owner.id);
+            return `
+              <label class="filter-checkbox-label">
+                <input type="checkbox" class="filter-checkbox owner-filter-checkbox" 
+                       value="${owner.id}" 
+                       ${isSelected ? 'checked' : ''}>
+                <span>${owner.name}</span>
+              </label>
+            `;
+          }).join('') || '<p class="filter-empty">No hay propietarios</p>'}
+        </div>
+      </div>
+
+      <div class="filter-footer">
+        <button class="btn-secondary btn-small" id="clear-cards-filters">Mostrar todo</button>
+        <button class="btn-primary btn-small" id="apply-cards-filters">Aplicar</button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * Render card movements (charges and payments) when a card is expanded
+ */
+async function loadAndRenderCardMovements(cardId) {
+  const detailsContainer = document.getElementById(`card-details-${cardId}`);
+  if (!detailsContainer) return;
+
+  try {
+    // Use day 15 of the current month as cycle_date
+    const cycleDate = `${currentMonth}-15`;
+    const response = await fetch(`${API_URL}/credit-cards/${cardId}/movements?cycle_date=${cycleDate}`, {
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      detailsContainer.innerHTML = `
+        <div class="error-message">
+          <p>Error al cargar movimientos</p>
+        </div>
+      `;
+      return;
+    }
+
+    const data = await response.json();
+    
+    // Render charges section
+    const chargesHtml = data.charges?.movements?.length > 0 ? `
+      <div class="expense-category-item card-section">
+        <div class="expense-category-header" data-section="charges-${cardId}">
+          <div class="expense-category-info">
+            <span class="expense-category-name">Gastos</span>
+            <span class="expense-category-amount">${formatCurrency(data.charges.total)}</span>
+          </div>
+          <svg class="category-chevron" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+          </svg>
+        </div>
+        <div class="expense-category-details hidden" id="charges-${cardId}">
+          ${data.charges.movements.map(m => `
+            <div class="movement-detail-entry">
+              <div class="entry-info">
+                <span class="entry-description">${m.description || 'Sin descripción'}</span>
+                <span class="entry-amount">${formatCurrency(m.amount)}</span>
+                <div class="entry-date">${formatDate(m.movement_date)}</div>
+              </div>
+              <div class="entry-actions">
+                ${m.category_name ? `<span class="entry-payment-badge">${m.category_name}</span>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : `
+      <div class="expense-category-item card-section">
+        <div class="expense-category-header">
+          <div class="expense-category-info">
+            <span class="expense-category-name">Gastos</span>
+            <span class="expense-category-amount">${formatCurrency(0)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Render payments section
+    const paymentsHtml = data.payments?.items?.length > 0 ? `
+      <div class="expense-category-item card-section">
+        <div class="expense-category-header" data-section="payments-${cardId}">
+          <div class="expense-category-info">
+            <span class="expense-category-name">Abonos</span>
+            <span class="expense-category-amount">${formatCurrency(data.payments.total)}</span>
+          </div>
+          <svg class="category-chevron" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/>
+          </svg>
+        </div>
+        <div class="expense-category-details hidden" id="payments-${cardId}">
+          ${data.payments.items.map(p => `
+            <div class="movement-detail-entry payment-entry">
+              <div class="entry-info">
+                <span class="entry-description">${p.notes || 'Abono a tarjeta'}</span>
+                <span class="entry-amount">${formatCurrency(p.amount)}</span>
+                <div class="entry-date">${formatDate(p.payment_date)}</div>
+              </div>
+              <div class="entry-actions">
+                <span class="entry-account-badge">${p.source_account_name}</span>
+                <button class="three-dots-btn" data-payment-id="${p.id}">⋮</button>
+                <div class="three-dots-menu" id="payment-menu-${p.id}">
+                  <button class="menu-item menu-item-danger" data-action="delete-payment" data-payment-id="${p.id}">Eliminar</button>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : `
+      <div class="expense-category-item card-section">
+        <div class="expense-category-header">
+          <div class="expense-category-info">
+            <span class="expense-category-name">Abonos</span>
+            <span class="expense-category-amount">${formatCurrency(0)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    detailsContainer.innerHTML = chargesHtml + paymentsHtml;
+    
+    // Setup expand/collapse for charges and payments sections
+    setupCardSectionListeners(cardId);
+    
+  } catch (error) {
+    console.error('Error loading card movements:', error);
+    detailsContainer.innerHTML = `
+      <div class="error-message">
+        <p>Error al cargar movimientos</p>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Setup listeners for card sections (charges/payments expand/collapse)
+ */
+function setupCardSectionListeners(cardId) {
+  // Charges section
+  const chargesHeader = document.querySelector(`[data-section="charges-${cardId}"]`);
+  if (chargesHeader) {
+    chargesHeader.addEventListener('click', () => {
+      const movements = document.getElementById(`charges-${cardId}`);
+      const chevron = chargesHeader.querySelector('.category-chevron');
+      if (movements) {
+        movements.classList.toggle('hidden');
+        chevron?.classList.toggle('rotated');
+      }
+    });
+  }
+
+  // Payments section
+  const paymentsHeader = document.querySelector(`[data-section="payments-${cardId}"]`);
+  if (paymentsHeader) {
+    paymentsHeader.addEventListener('click', () => {
+      const movements = document.getElementById(`payments-${cardId}`);
+      const chevron = paymentsHeader.querySelector('.category-chevron');
+      if (movements) {
+        movements.classList.toggle('hidden');
+        chevron?.classList.toggle('rotated');
+      }
+    });
+  }
+
+  // Payment menu buttons
+  document.querySelectorAll(`#card-details-${cardId} .three-dots-btn`).forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const paymentId = btn.dataset.paymentId;
+      const menu = document.getElementById(`payment-menu-${paymentId}`);
+      
+      // Close all other menus
+      document.querySelectorAll('.three-dots-menu').forEach(m => {
+        if (m.id !== `payment-menu-${paymentId}`) m.style.display = 'none';
+      });
+      
+      if (menu) {
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+      }
+    });
+  });
+
+  // Delete payment action
+  document.querySelectorAll(`#card-details-${cardId} [data-action="delete-payment"]`).forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const paymentId = btn.dataset.paymentId;
+      await handleDeleteCardPayment(paymentId, cardId);
+    });
+  });
+}
+
+/**
+ * Handle delete card payment
+ */
+async function handleDeleteCardPayment(paymentId, cardId) {
+  const confirmed = await showConfirmation(
+    '¿Eliminar este abono?',
+    'Esta acción no se puede deshacer.'
+  );
+  
+  if (!confirmed) return;
+
+  try {
+    const response = await fetch(`${API_URL}/credit-card-payments/${paymentId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || 'Error al eliminar el abono');
+    }
+
+    showSuccess('Abono eliminado', 'El abono se ha eliminado correctamente');
+    
+    // Reload card movements
+    await loadAndRenderCardMovements(cardId);
+    
+    // Reload summary to update totals
+    await loadCreditCardsData();
+    refreshDisplay();
+    
+  } catch (error) {
+    console.error('Error deleting payment:', error);
+    showError('Error', error.message || 'Error al eliminar el abono');
+  }
+}
+
+/**
+ * Show card payment modal
+ */
+async function showCardPaymentModal() {
+  // Get savings accounts for source dropdown
+  let accounts = [];
+  let creditCards = [];
+  
+  try {
+    // Fetch accounts and payment methods in parallel
+    const [accountsResponse, configResponse] = await Promise.all([
+      fetch(`${API_URL}/accounts`, { credentials: 'include' }),
+      fetch(`${API_URL}/movement-form-config`, { credentials: 'include' })
+    ]);
+    
+    if (accountsResponse.ok) {
+      const accountsData = await accountsResponse.json();
+      accounts = (accountsData.accounts || accountsData || []).filter(a => a.type === 'savings' || a.type === 'cash');
+    }
+    
+    if (configResponse.ok) {
+      const config = await configResponse.json();
+      creditCards = config.payment_methods?.filter(pm => pm.type === 'credit_card') || [];
+    }
+  } catch (error) {
+    console.error('Error loading config:', error);
+  }
+
+  if (creditCards.length === 0) {
+    showError('Sin tarjetas', 'No hay tarjetas de crédito configuradas. Ve a Hogar para configurarlas.');
+    return;
+  }
+
+  if (accounts.length === 0) {
+    showError('Sin cuentas', 'No hay cuentas de ahorro configuradas para realizar pagos.');
+    return;
+  }
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'card-payment-modal';
+  
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px; max-height: 90vh; overflow-y: auto;">
+      <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">
+        Registrar abono a tarjeta
+      </h3>
+      
+      <form id="card-payment-form" style="display: flex; flex-direction: column; gap: 16px;">
+        <label class="field">
+          <span>Tarjeta de crédito *</span>
+          <select id="payment-card" required>
+            <option value="">Selecciona una tarjeta</option>
+            ${creditCards.map(card => `
+              <option value="${card.id}">${card.name}</option>
+            `).join('')}
+          </select>
+        </label>
+        
+        <label class="field">
+          <span>Monto *</span>
+          <input type="text" id="payment-amount" inputmode="decimal" placeholder="0" required>
+        </label>
+        
+        <label class="field">
+          <span>Fecha *</span>
+          <input type="date" id="payment-date" required value="${new Date().toISOString().split('T')[0]}">
+        </label>
+        
+        <label class="field">
+          <span>Cuenta de origen *</span>
+          <select id="payment-source" required>
+            <option value="">Selecciona una cuenta</option>
+            ${accounts.map(acc => `
+              <option value="${acc.id}">${acc.name}</option>
+            `).join('')}
+          </select>
+        </label>
+        
+        <label class="field">
+          <span>Notas (opcional)</span>
+          <input type="text" id="payment-notes" placeholder="Ej: Pago mensual">
+        </label>
+        
+        <div class="form-actions" style="display: flex; gap: 12px; margin-top: 8px;">
+          <button type="button" class="btn-secondary" id="cancel-payment" style="flex: 1;">Cancelar</button>
+          <button type="submit" class="btn-primary" style="flex: 1;">Registrar abono</button>
+        </div>
+      </form>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Setup amount formatting
+  const amountInput = document.getElementById('payment-amount');
+  amountInput.addEventListener('blur', (e) => {
+    const rawValue = parseNumber(e.target.value);
+    if (rawValue > 0) {
+      e.target.value = formatNumber(rawValue);
+    }
+  });
+  amountInput.addEventListener('focus', (e) => {
+    const rawValue = parseNumber(e.target.value);
+    e.target.value = rawValue > 0 ? String(rawValue) : '';
+  });
+  
+  // Setup form handlers
+  document.getElementById('cancel-payment').addEventListener('click', () => modal.remove());
+  
+  document.getElementById('card-payment-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const cardId = document.getElementById('payment-card').value;
+    const amount = parseNumber(document.getElementById('payment-amount').value);
+    const date = document.getElementById('payment-date').value;
+    const sourceId = document.getElementById('payment-source').value;
+    const notes = document.getElementById('payment-notes').value.trim();
+    
+    if (!cardId || !amount || !date || !sourceId) {
+      showError('Campos requeridos', 'Por favor completa todos los campos obligatorios');
+      return;
+    }
+    
+    try {
+      const response = await fetch(`${API_URL}/credit-card-payments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          credit_card_id: cardId,
+          amount: amount,
+          payment_date: date,
+          source_account_id: sourceId,
+          notes: notes || null
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al registrar el abono');
+      }
+      
+      modal.remove();
+      showSuccess('Abono registrado', 'El abono se ha registrado correctamente');
+      
+      // Reload data
+      await loadCreditCardsData();
+      refreshDisplay();
+      
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      showError('Error', error.message || 'Error al registrar el abono');
+    }
+  });
+}
+
+/**
+ * Parse number from Colombian formatted string
+ */
+function parseNumber(str) {
+  if (!str) return 0;
+  // Remove thousand separators (.) and replace decimal comma with dot
+  const cleaned = String(str).replace(/\./g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
+/**
+ * Format number with Colombian separators
+ */
+function formatNumber(num) {
+  if (!num && num !== 0) return '';
+  return new Intl.NumberFormat('es-CO', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(num);
 }
 
 /**
@@ -2187,6 +2848,13 @@ function refreshDisplay() {
         </div>
       `;
     }
+  }
+  
+  // Handle tarjetas tab
+  const tarjetasContainer = document.getElementById('cards-container');
+  if (tarjetasContainer && activeTab === 'tarjetas') {
+    tarjetasContainer.innerHTML = renderCreditCards();
+    setupCardsListeners();
   }
 
   const totalEl = document.querySelector('.total-amount');
@@ -2856,6 +3524,166 @@ function setupBudgetListeners() {
 }
 
 /**
+ * Setup credit cards listeners
+ */
+function setupCardsListeners() {
+  // Card expand/collapse
+  document.querySelectorAll('.credit-card-card').forEach(card => {
+    const header = card.querySelector('.expense-group-header');
+    if (header) {
+      header.addEventListener('click', async () => {
+        const cardId = card.dataset.cardId;
+        const details = document.getElementById(`card-details-${cardId}`);
+        const chevron = card.querySelector('.expense-group-chevron');
+        
+        if (details) {
+          const wasHidden = details.classList.contains('hidden');
+          details.classList.toggle('hidden');
+          chevron?.classList.toggle('rotated');
+          
+          // Load movements when first expanded
+          if (wasHidden && details.innerHTML.includes('card-loading')) {
+            await loadAndRenderCardMovements(cardId);
+          }
+        }
+      });
+    }
+  });
+  
+  // Filter button
+  const filterBtn = document.getElementById('filter-cards-btn');
+  if (filterBtn) {
+    filterBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isCardsFilterOpen = !isCardsFilterOpen;
+      const dropdown = document.getElementById('cards-filter-dropdown');
+      if (dropdown) {
+        dropdown.classList.toggle('show', isCardsFilterOpen);
+      }
+    });
+  }
+  
+  // Filter select all/none buttons
+  document.getElementById('cards-select-all')?.addEventListener('click', () => {
+    document.querySelectorAll('.card-filter-checkbox').forEach(cb => cb.checked = true);
+  });
+  document.getElementById('cards-select-none')?.addEventListener('click', () => {
+    document.querySelectorAll('.card-filter-checkbox').forEach(cb => cb.checked = false);
+  });
+  document.getElementById('owners-select-all')?.addEventListener('click', () => {
+    document.querySelectorAll('.owner-filter-checkbox').forEach(cb => cb.checked = true);
+  });
+  document.getElementById('owners-select-none')?.addEventListener('click', () => {
+    document.querySelectorAll('.owner-filter-checkbox').forEach(cb => cb.checked = false);
+  });
+  
+  // Clear all filters
+  const clearFiltersBtn = document.getElementById('clear-cards-filters');
+  if (clearFiltersBtn) {
+    clearFiltersBtn.addEventListener('click', async () => {
+      selectedCardIds = [];
+      selectedCardOwnerIds = [];
+      
+      // Close dropdown
+      isCardsFilterOpen = false;
+      const dropdown = document.getElementById('cards-filter-dropdown');
+      if (dropdown) {
+        dropdown.classList.remove('show');
+      }
+      
+      // Show loading
+      showCreditCardsLoadingState();
+      
+      // Reload data
+      await loadCreditCardsData();
+      refreshDisplay();
+    });
+  }
+  
+  // Clear filters from empty state
+  const clearFiltersEmptyBtn = document.getElementById('clear-filters-empty');
+  if (clearFiltersEmptyBtn) {
+    clearFiltersEmptyBtn.addEventListener('click', async () => {
+      selectedCardIds = [];
+      selectedCardOwnerIds = [];
+      
+      // Show loading
+      showCreditCardsLoadingState();
+      
+      // Reload data
+      await loadCreditCardsData();
+      refreshDisplay();
+    });
+  }
+  
+  // Apply filters button
+  const applyFiltersBtn = document.getElementById('apply-cards-filters');
+  if (applyFiltersBtn) {
+    applyFiltersBtn.addEventListener('click', async () => {
+      // Collect selected card IDs
+      selectedCardIds = [];
+      document.querySelectorAll('.card-filter-checkbox:checked').forEach(cb => {
+        selectedCardIds.push(cb.value);
+      });
+      
+      // Collect selected owner IDs
+      selectedCardOwnerIds = [];
+      document.querySelectorAll('.owner-filter-checkbox:checked').forEach(cb => {
+        selectedCardOwnerIds.push(cb.value);
+      });
+      
+      // Close dropdown
+      isCardsFilterOpen = false;
+      const dropdown = document.getElementById('cards-filter-dropdown');
+      if (dropdown) {
+        dropdown.classList.remove('show');
+      }
+      
+      // Show loading
+      showCreditCardsLoadingState();
+      
+      // Reload data with filters
+      await loadCreditCardsData();
+      refreshDisplay();
+    });
+  }
+  
+  // Add card payment button
+  const addPaymentBtn = document.getElementById('add-card-payment-btn');
+  if (addPaymentBtn) {
+    addPaymentBtn.addEventListener('click', () => {
+      showCardPaymentModal();
+    });
+  }
+  
+  // Close dropdown when clicking outside
+  document.addEventListener('click', (e) => {
+    if (isCardsFilterOpen && !e.target.closest('#cards-filter-dropdown') && !e.target.closest('#filter-cards-btn')) {
+      isCardsFilterOpen = false;
+      const dropdown = document.getElementById('cards-filter-dropdown');
+      if (dropdown) {
+        dropdown.classList.remove('show');
+      }
+    }
+  });
+}
+
+/**
+ * Show loading state for credit cards
+ */
+function showCreditCardsLoadingState() {
+  const container = document.getElementById('cards-container');
+  if (container) {
+    container.innerHTML = `
+      <div class="loading-state" style="padding: 40px; text-align: center;">
+        <div class="loading-spinner"></div>
+        <p>Cargando tarjetas...</p>
+      </div>
+    `;
+  }
+}
+
+/**
  * Handle adding a budget
  */
 async function handleAddBudget(categoryId, categoryName) {
@@ -2993,7 +3821,7 @@ async function handleAddTemplate(categoryId = null, categoryName = null) {
  * Show template creation/edit modal
  * Uses MovementFormState from movement-form.js
  */
-function showTemplateModal(categoryId, categoryName, existingTemplate = null) {
+async function showTemplateModal(categoryId, categoryName, existingTemplate = null) {
   const isEdit = !!existingTemplate;
   const title = isEdit ? 'Editar gasto' : 'Presupuestar nuevo gasto';
   
@@ -3001,6 +3829,18 @@ function showTemplateModal(categoryId, categoryName, existingTemplate = null) {
   const users = window.formConfigCache?.users || [];
   const paymentMethods = window.formConfigCache?.payment_methods || [];
   const categoryGroups = window.formConfigCache?.category_groups || [];
+  
+  // Fetch accounts for receiver account selection
+  let accounts = [];
+  try {
+    const response = await fetch(`${API_URL}/accounts`, { credentials: 'include' });
+    if (response.ok) {
+      const accountsData = await response.json();
+      accounts = (accountsData || []).filter(a => a.type === 'savings' || a.type === 'cash');
+    }
+  } catch (error) {
+    console.error('Error loading accounts:', error);
+  }
   
   // Initialize form state
   const formState = new MovementFormState({
@@ -3177,6 +4017,14 @@ function showTemplateModal(categoryId, categoryName, existingTemplate = null) {
             </label>
           </div>
           
+          <!-- Cuenta donde recibe (para DEBT_PAYMENT cuando el receptor es miembro) -->
+          <label class="field hidden" id="template-receiver-account-wrap">
+            <span>Cuenta donde recibe *</span>
+            <select id="template-receiver-account">
+              <option value="">Selecciona cuenta</option>
+            </select>
+          </label>
+          
           <!-- Método de pago (para DEBT_PAYMENT/HOUSEHOLD) -->
           <label class="field hidden" id="template-payment-method-wrap-other">
             <span>Método de pago *</span>
@@ -3222,6 +4070,8 @@ function showTemplateModal(categoryId, categoryName, existingTemplate = null) {
   const debtPaymentWrap = document.getElementById('template-debt-payment-wrap');
   const debtPayerSelect = document.getElementById('template-debt-payer');
   const debtReceiverSelect = document.getElementById('template-debt-receiver');
+  const receiverAccountWrap = document.getElementById('template-receiver-account-wrap');
+  const receiverAccountSelect = document.getElementById('template-receiver-account');
   const paymentMethodWrapSplit = document.getElementById('template-payment-method-wrap-split');
   const paymentMethodWrapOther = document.getElementById('template-payment-method-wrap-other');
   const paymentMethodSelect = document.getElementById('template-payment-method');
@@ -3572,8 +4422,11 @@ function showTemplateModal(categoryId, categoryName, existingTemplate = null) {
     debtPaymentWrap.classList.add('hidden');
     paymentMethodWrapSplit.classList.add('hidden');
     paymentMethodWrapOther.classList.add('hidden');
+    receiverAccountWrap.classList.add('hidden');
     paymentMethodSelect.required = false;
     paymentMethodSelectOther.required = false;
+    receiverAccountSelect.required = false;
+    receiverAccountSelect.value = '';
     
     if (!type) return;
     
@@ -3592,6 +4445,7 @@ function showTemplateModal(categoryId, categoryName, existingTemplate = null) {
     } else if (type === 'DEBT_PAYMENT') {
       // Préstamo: dirección + pagador/receptor
       // Payment method hidden by default, shown only if payer is household member
+      // Receiver account hidden by default, shown only if receiver is household member
       loanDirectionWrap.classList.remove('hidden');
       debtPaymentWrap.classList.remove('hidden');
       paymentMethodWrapOther.classList.add('hidden'); // Hidden by default
@@ -3638,6 +4492,44 @@ function showTemplateModal(categoryId, categoryName, existingTemplate = null) {
         paymentMethodSelectOther.required = false;
         paymentMethodSelectOther.value = '';
       }
+    }
+  });
+  
+  // Handle debt receiver change (show/hide receiver account for members)
+  debtReceiverSelect.addEventListener('change', (e) => {
+    const receiverId = e.target.value;
+    if (receiverId) {
+      const user = formState.usersMap[receiverId];
+      const isMember = user && user.type === 'member';
+      
+      if (isMember) {
+        // Populate receiver account dropdown with accounts owned by this member
+        const memberAccounts = accounts.filter(a => a.owner_id === receiverId);
+        receiverAccountSelect.innerHTML = '<option value="">Selecciona cuenta</option>';
+        memberAccounts.forEach(acc => {
+          const option = document.createElement('option');
+          option.value = acc.id;
+          option.textContent = acc.name;
+          receiverAccountSelect.appendChild(option);
+        });
+        
+        if (memberAccounts.length > 0) {
+          receiverAccountWrap.classList.remove('hidden');
+          receiverAccountSelect.required = true;
+        } else {
+          receiverAccountWrap.classList.add('hidden');
+          receiverAccountSelect.required = false;
+        }
+      } else {
+        // Hide receiver account for contacts
+        receiverAccountWrap.classList.add('hidden');
+        receiverAccountSelect.required = false;
+        receiverAccountSelect.value = '';
+      }
+    } else {
+      receiverAccountWrap.classList.add('hidden');
+      receiverAccountSelect.required = false;
+      receiverAccountSelect.value = '';
     }
   });
   
@@ -3763,6 +4655,10 @@ function showTemplateModal(categoryId, categoryName, existingTemplate = null) {
       if (counterparty) {
         if (counterparty.type === 'member') {
           formData.counterparty_user_id = counterparty.id;
+          // Add receiver account if counterparty is a member
+          if (receiverAccountSelect.value) {
+            formData.receiver_account_id = receiverAccountSelect.value;
+          }
         } else if (counterparty.type === 'contact') {
           formData.counterparty_contact_id = counterparty.id;
         }
@@ -4707,7 +5603,9 @@ export function clearTabData(tabsToReload = []) {
   if (tabsToReload.includes('presupuesto')) {
     budgetsData = null;
   }
-  // tarjetas will be added when implemented
+  if (tabsToReload.includes('tarjetas')) {
+    creditCardsData = null;
+  }
 }
 
 /**
@@ -4839,7 +5737,8 @@ export async function setup() {
       const needsLoad = (activeTab === 'gastos' && !movementsData) ||
                         (activeTab === 'ingresos' && !incomeData) ||
                         (activeTab === 'prestamos' && !loansData) ||
-                        (activeTab === 'presupuesto' && (!budgetsData || Object.keys(templatesData).length === 0));
+                        (activeTab === 'presupuesto' && (!budgetsData || Object.keys(templatesData).length === 0)) ||
+                        (activeTab === 'tarjetas' && !creditCardsData);
       
       if (needsLoad) {
         // Show loading state immediately
@@ -4862,6 +5761,8 @@ export async function setup() {
           await loadLoansData();
         } else if (activeTab === 'presupuesto') {
           await loadBudgetsData();
+        } else if (activeTab === 'tarjetas') {
+          await loadCreditCardsData();
         }
       }
       
@@ -4929,11 +5830,26 @@ export async function setup() {
           `;
           setupMonthNavigation();
           setupBudgetListeners();
+        } else if (activeTab === 'tarjetas') {
+          contentContainer.innerHTML = `
+            ${renderCreditCardsMonthSelector()}
+            
+            <div class="total-display" style="margin-bottom: 24px;">
+              <div class="total-label">Deuda total</div>
+              <div class="total-amount">${formatCurrency(creditCardsData?.totals?.total_debt || 0)}</div>
+            </div>
+            
+            <div id="cards-container">
+              ${renderCreditCards()}
+            </div>
+          `;
+          setupMonthNavigation();
+          setupCardsListeners();
         } else {
           contentContainer.innerHTML = `
             <div class="coming-soon">
-              <div class="coming-soon-icon">💳</div>
-              <p>Próximamente</p>
+              <div class="coming-soon-icon">❓</div>
+              <p>Tab desconocido</p>
             </div>
           `;
         }
@@ -5069,6 +5985,8 @@ function setupMonthNavigation() {
         await loadLoansData();
       } else if (activeTab === 'presupuesto') {
         await loadBudgetsData();
+      } else if (activeTab === 'tarjetas') {
+        await loadCreditCardsData();
       }
       refreshDisplay();
     };
@@ -5086,6 +6004,8 @@ function setupMonthNavigation() {
         await loadLoansData();
       } else if (activeTab === 'presupuesto') {
         await loadBudgetsData();
+      } else if (activeTab === 'tarjetas') {
+        await loadCreditCardsData();
       }
       refreshDisplay();
     };
