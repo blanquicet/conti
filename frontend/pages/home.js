@@ -96,7 +96,8 @@ function formatDate(dateString) {
 }
 
 /**
- * Format billing cycle period (e.g., "Dic 29 - Ene 28")
+ * Format billing cycle period (e.g., "Dic 31 - Ene 30")
+ * Uses UTC to avoid timezone conversion issues
  */
 function formatBillingPeriod(billingCycle) {
   if (!billingCycle || !billingCycle.start_date || !billingCycle.end_date) return '';
@@ -106,10 +107,11 @@ function formatBillingPeriod(billingCycle) {
   
   const monthNames = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   
-  const startDay = startDate.getDate();
-  const startMonth = monthNames[startDate.getMonth()];
-  const endDay = endDate.getDate();
-  const endMonth = monthNames[endDate.getMonth()];
+  // Use UTC methods to avoid timezone conversion
+  const startDay = startDate.getUTCDate();
+  const startMonth = monthNames[startDate.getUTCMonth()];
+  const endDay = endDate.getUTCDate();
+  const endMonth = monthNames[endDate.getUTCMonth()];
   
   return `${startMonth} ${startDay} - ${endMonth} ${endDay}`;
 }
