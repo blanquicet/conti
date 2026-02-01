@@ -4753,7 +4753,8 @@ async function showTemplateModal(categoryId, categoryName, existingTemplate = nu
       const receiverId = debtReceiverSelect.value;
       if (receiverId) {
         const user = formState.usersMap[receiverId];
-        // Receiver account is always optional for templates
+        // Receiver account required only for REPAY + member + auto_generate
+        // LEND doesn't require it (optional)
         receiverAccountSelect.required = false;
         updateLabelRequired(receiverAccountLabel, false);
       }
@@ -4769,9 +4770,16 @@ async function showTemplateModal(categoryId, categoryName, existingTemplate = nu
       loanDirectionInput.value = direction;
       updateLoanLabels(direction);
       
-      // Receiver account is always optional for templates
-      receiverAccountSelect.required = false;
-      updateLabelRequired(receiverAccountLabel, false);
+      // Update receiver account required status based on direction
+      const receiverId = debtReceiverSelect.value;
+      const isAutoGenerate = autoGenerateCheckbox.checked;
+      if (receiverId) {
+        const user = formState.usersMap[receiverId];
+        // Required only for REPAY + member + auto_generate
+        const isRequired = isAutoGenerate && user && user.type === 'member' && direction === 'REPAY';
+        receiverAccountSelect.required = isRequired;
+        updateLabelRequired(receiverAccountLabel, isRequired);
+      }
     });
   });
   
@@ -4925,8 +4933,9 @@ async function showTemplateModal(categoryId, categoryName, existingTemplate = nu
         
         if (memberAccounts.length > 0) {
           receiverAccountWrap.classList.remove('hidden');
-          // Receiver account required only for DEBT_PAYMENT + member + auto_generate
-          const isRequired = isAutoGenerate;
+          // Receiver account required only for REPAY + member + auto_generate
+          const loanDirection = loanDirectionInput.value;
+          const isRequired = isAutoGenerate && loanDirection === 'REPAY';
           receiverAccountSelect.required = isRequired;
           updateLabelRequired(receiverAccountLabel, isRequired);
         } else {
@@ -5165,8 +5174,9 @@ async function showTemplateModal(categoryId, categoryName, existingTemplate = nu
           const raValue = receiverAccountSelect.value;
           if (raValue) {
             formData.receiver_account_id = raValue;
-          } else if (isAutoGenerate) {
-            // Required only for DEBT_PAYMENT + member + auto_generate
+          } else if (isAutoGenerate && loanDirectionInput.value === 'REPAY') {
+            // Required only for REPAY (Pagar un préstamo) + member + auto_generate
+            // LEND (Hacer un préstamo) doesn't require receiver account
             showError('Error', 'La cuenta receptora es requerida cuando el receptor es un miembro y se genera automáticamente');
             return;
           }
