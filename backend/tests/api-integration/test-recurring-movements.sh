@@ -160,6 +160,7 @@ echo "$TEMPLATE_FIXED_AUTO" | jq -e '.amount == 3200000' > /dev/null
 echo -e "${GREEN}✓ Auto-generate template created (ID: $TEMPLATE_FIXED_AUTO_ID)${NC}\n"
 
 run_test "Create template without auto-generate (manual only)"
+# Note: HOUSEHOLD type doesn't need payer_user_id - the payer is implicit (the household as a unit)
 TEMPLATE_FIXED_MANUAL=$(api_call $CURL_FLAGS -X POST $BASE_URL/api/recurring-movements \
   -H "Content-Type: application/json" \
   -b $COOKIES_FILE \
@@ -169,8 +170,7 @@ TEMPLATE_FIXED_MANUAL=$(api_call $CURL_FLAGS -X POST $BASE_URL/api/recurring-mov
     \"movement_type\": \"HOUSEHOLD\",
     \"category_id\": \"$CATEGORY_ID\",
     \"amount\": 150000,
-    \"auto_generate\": false,
-    \"payer_user_id\": \"$USER_ID\"
+    \"auto_generate\": false
   }")
 TEMPLATE_FIXED_MANUAL_ID=$(echo "$TEMPLATE_FIXED_MANUAL" | jq -r '.id')
 echo "$TEMPLATE_FIXED_MANUAL" | jq -e '.name == "Restaurante favorito"' > /dev/null
@@ -178,6 +178,7 @@ echo "$TEMPLATE_FIXED_MANUAL" | jq -e '.auto_generate == false' > /dev/null
 echo -e "${GREEN}✓ Manual template created (ID: $TEMPLATE_FIXED_MANUAL_ID)${NC}\n"
 
 run_test "Create template with estimated amount (user can adjust)"
+# Note: HOUSEHOLD type doesn't need payer_user_id - the payer is implicit (the household as a unit)
 TEMPLATE_VARIABLE=$(api_call $CURL_FLAGS -X POST $BASE_URL/api/recurring-movements \
   -H "Content-Type: application/json" \
   -b $COOKIES_FILE \
@@ -187,8 +188,7 @@ TEMPLATE_VARIABLE=$(api_call $CURL_FLAGS -X POST $BASE_URL/api/recurring-movemen
     \"movement_type\": \"HOUSEHOLD\",
     \"category_id\": \"$CATEGORY_ID\",
     \"amount\": 200000,
-    \"auto_generate\": false,
-    \"payer_user_id\": \"$USER_ID\"
+    \"auto_generate\": false
   }")
 TEMPLATE_VARIABLE_ID=$(echo "$TEMPLATE_VARIABLE" | jq -r '.id')
 echo "$TEMPLATE_VARIABLE" | jq -e '.amount == 200000' > /dev/null
@@ -199,6 +199,7 @@ echo -e "${GREEN}✓ Template with estimated amount created (ID: $TEMPLATE_VARIA
 # ───────────────────────────────────────────────────────────
 
 run_test "Reject template with auto_generate=true but no recurrence"
+# Note: HOUSEHOLD type doesn't need payer_user_id
 INVALID_RESPONSE=$(curl $CURL_FLAGS -w "\n%{http_code}" -X POST $BASE_URL/api/recurring-movements \
   -H "Content-Type: application/json" \
   -b $COOKIES_FILE \
@@ -207,22 +208,21 @@ INVALID_RESPONSE=$(curl $CURL_FLAGS -w "\n%{http_code}" -X POST $BASE_URL/api/re
     \"movement_type\": \"HOUSEHOLD\",
     \"category_id\": \"$CATEGORY_ID\",
     \"amount\": 100000,
-    \"auto_generate\": true,
-    \"payer_user_id\": \"$USER_ID\"
+    \"auto_generate\": true
   }")
 HTTP_CODE=$(echo "$INVALID_RESPONSE" | tail -n1)
 [ "$HTTP_CODE" == "400" ]
 echo -e "${GREEN}✓ Correctly rejected auto_generate without recurrence (HTTP 400)${NC}\n"
 
 run_test "Reject template without amount"
+# Note: HOUSEHOLD type doesn't need payer_user_id
 INVALID_RESPONSE2=$(curl $CURL_FLAGS -w "\n%{http_code}" -X POST $BASE_URL/api/recurring-movements \
   -H "Content-Type: application/json" \
   -b $COOKIES_FILE \
   -d "{
     \"name\": \"Invalid Template 2\",
     \"movement_type\": \"HOUSEHOLD\",
-    \"category_id\": \"$CATEGORY_ID\",
-    \"payer_user_id\": \"$USER_ID\"
+    \"category_id\": \"$CATEGORY_ID\"
   }")
 HTTP_CODE2=$(echo "$INVALID_RESPONSE2" | tail -n1)
 [ "$HTTP_CODE2" == "400" ]
