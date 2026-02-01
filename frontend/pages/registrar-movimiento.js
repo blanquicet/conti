@@ -2059,6 +2059,11 @@ function readForm() {
     currency: 'COP'
   };
 
+  // Add generated_from_template_id if movement was created using a template
+  if (selectedTemplate && selectedTemplate.id) {
+    payload.generated_from_template_id = selectedTemplate.id;
+  }
+
   // Add category_id (required for HOUSEHOLD, optional for DEBT_PAYMENT if payer is member)
   // NOT required for LOAN type
   if (categoria) {

@@ -854,3 +854,37 @@ func calculateNextScheduledDate(from time.Time, pattern *RecurrencePattern, dayO
 		return from
 	}
 }
+
+// GetTemplatesUsedInMonth returns a map of template IDs that have movements in the given month
+// key: template_id, value: true if used this month
+func (r *repository) GetTemplatesUsedInMonth(ctx context.Context, householdID, month string) (map[string]bool, error) {
+	// month format: "YYYY-MM"
+	query := `
+		SELECT DISTINCT generated_from_template_id
+		FROM movements
+		WHERE household_id = $1
+		  AND generated_from_template_id IS NOT NULL
+		  AND to_char(movement_date, 'YYYY-MM') = $2
+	`
+	
+	rows, err := r.pool.Query(ctx, query, householdID, month)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	result := make(map[string]bool)
+	for rows.Next() {
+		var templateID string
+		if err := rows.Scan(&templateID); err != nil {
+			return nil, err
+		}
+		result[templateID] = true
+	}
+	
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	
+	return result, nil
+}

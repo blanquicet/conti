@@ -171,6 +171,11 @@ func (h *Handler) HandleList(w http.ResponseWriter, r *http.Request) {
 			filters.MovementType = &movementType
 		}
 	}
+	
+	// Month filter (YYYY-MM format) - if provided, will populate UsedThisMonth field
+	if month := r.URL.Query().Get("month"); month != "" {
+		filters.Month = &month
+	}
 
 	// List templates
 	templates, err := h.service.ListByHousehold(r.Context(), user.ID, filters)

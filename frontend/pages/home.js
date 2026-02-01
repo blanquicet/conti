@@ -695,6 +695,20 @@ function renderTemplateItem(template) {
     ? `Cada día ${template.day_of_month}`
     : 'Manual';
   
+  // Status badge based on whether the template was used this month
+  // - Auto-generate templates: "✓ Generado" (green) or "Pendiente" (gray)
+  // - Manual templates: "✓ Pagado" (green) or "Sin pagar" (gray)
+  let statusBadge = '';
+  if (template.auto_generate) {
+    statusBadge = template.used_this_month
+      ? '<span class="entry-status-badge entry-status-done">✓ Generado</span>'
+      : '<span class="entry-status-badge entry-status-pending">Pendiente</span>';
+  } else {
+    statusBadge = template.used_this_month
+      ? '<span class="entry-status-badge entry-status-done">✓ Pagado</span>'
+      : '<span class="entry-status-badge entry-status-pending">Sin pagar</span>';
+  }
+  
   return `
     <div class="movement-detail-entry" data-template-id="${template.id}">
       <div class="entry-info">
@@ -703,12 +717,7 @@ function renderTemplateItem(template) {
         <div class="entry-date">${scheduleDisplay}</div>
       </div>
       <div class="entry-actions">
-        ${template.movement_type === 'SPLIT' 
-          ? `<span class="entry-split-badge">Compartido</span>` 
-          : template.payment_method_name 
-            ? `<span class="entry-payment-badge">${template.payment_method_name}</span>` 
-            : ''
-        }
+        ${statusBadge}
         <button class="three-dots-btn" data-template-id="${template.id}">⋮</button>
         <div class="three-dots-menu" id="template-menu-${template.id}">
           <button class="menu-item" data-action="edit-template" data-template-id="${template.id}">
@@ -1566,7 +1575,7 @@ async function loadBudgetsData() {
       fetch(`${API_URL}/budgets/${currentMonth}`, {
         credentials: 'include'
       }),
-      fetch(`${API_URL}/api/recurring-movements`, {
+      fetch(`${API_URL}/api/recurring-movements?month=${currentMonth}`, {
         credentials: 'include'
       })
     ]);
@@ -4744,11 +4753,9 @@ async function showTemplateModal(categoryId, categoryName, existingTemplate = nu
       const receiverId = debtReceiverSelect.value;
       if (receiverId) {
         const user = formState.usersMap[receiverId];
-        const loanDirection = loanDirectionInput.value;
-        // Only required for REPAY (paying back debt), not for LEND (giving loan)
-        const isRequired = isAutoGenerate && user && user.type === 'member' && loanDirection === 'REPAY';
-        receiverAccountSelect.required = isRequired;
-        updateLabelRequired(receiverAccountLabel, isRequired);
+        // Receiver account is always optional for templates
+        receiverAccountSelect.required = false;
+        updateLabelRequired(receiverAccountLabel, false);
       }
     }
   });
@@ -4762,16 +4769,9 @@ async function showTemplateModal(categoryId, categoryName, existingTemplate = nu
       loanDirectionInput.value = direction;
       updateLoanLabels(direction);
       
-      // Update receiver account required status based on direction
-      const receiverId = debtReceiverSelect.value;
-      const isAutoGenerate = autoGenerateCheckbox.checked;
-      if (receiverId) {
-        const user = formState.usersMap[receiverId];
-        // Only required for REPAY (paying back debt), not for LEND (giving loan)
-        const isRequired = isAutoGenerate && user && user.type === 'member' && direction === 'REPAY';
-        receiverAccountSelect.required = isRequired;
-        updateLabelRequired(receiverAccountLabel, isRequired);
-      }
+      // Receiver account is always optional for templates
+      receiverAccountSelect.required = false;
+      updateLabelRequired(receiverAccountLabel, false);
     });
   });
   
@@ -4925,9 +4925,8 @@ async function showTemplateModal(categoryId, categoryName, existingTemplate = nu
         
         if (memberAccounts.length > 0) {
           receiverAccountWrap.classList.remove('hidden');
-          // REPAY (pay back debt): required if auto-generate (money goes to their account)
-          // LEND (give loan): always optional (could be transfer or paying for them)
-          const isRequired = isAutoGenerate && loanDirection === 'REPAY';
+          // Receiver account required only for DEBT_PAYMENT + member + auto_generate
+          const isRequired = isAutoGenerate;
           receiverAccountSelect.required = isRequired;
           updateLabelRequired(receiverAccountLabel, isRequired);
         } else {
@@ -5167,7 +5166,8 @@ async function showTemplateModal(categoryId, categoryName, existingTemplate = nu
           if (raValue) {
             formData.receiver_account_id = raValue;
           } else if (isAutoGenerate) {
-            showError('Error', 'La cuenta receptora es requerida cuando el receptor es un miembro');
+            // Required only for DEBT_PAYMENT + member + auto_generate
+            showError('Error', 'La cuenta receptora es requerida cuando el receptor es un miembro y se genera automáticamente');
             return;
           }
         } else if (counterparty.type === 'contact') {

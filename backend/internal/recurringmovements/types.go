@@ -140,6 +140,11 @@ type RecurringMovementTemplate struct {
 	
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+	
+	// Computed field (not stored in DB) - indicates if template has been used this month
+	// For auto_generate=true: true if auto-generated movement exists
+	// For auto_generate=false: true if manual movement using this template exists
+	UsedThisMonth bool `json:"used_this_month,omitempty"`
 }
 
 // TemplateParticipant represents a participant in a SPLIT template
@@ -432,6 +437,7 @@ type ListTemplatesFilters struct {
 	CategoryID   *string
 	IsActive     *bool
 	MovementType *movements.MovementType
+	Month        *string // YYYY-MM format - if provided, will populate UsedThisMonth field
 }
 
 // PreFillData represents pre-fill data for movement forms
@@ -464,6 +470,7 @@ type Repository interface {
 	Update(ctx context.Context, id string, input *UpdateTemplateInput) (*RecurringMovementTemplate, error)
 	UpdateGenerationTracking(ctx context.Context, id string, lastGenerated, nextScheduled time.Time) error
 	Delete(ctx context.Context, id string) error
+	GetTemplatesUsedInMonth(ctx context.Context, householdID, month string) (map[string]bool, error)
 }
 
 // Service defines the interface for recurring movement template business logic

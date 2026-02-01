@@ -144,7 +144,25 @@ func (s *service) ListByHousehold(ctx context.Context, userID string, filters *L
 		return nil, err
 	}
 
-	return s.repo.ListByHousehold(ctx, householdID, filters)
+	templates, err := s.repo.ListByHousehold(ctx, householdID, filters)
+	if err != nil {
+		return nil, err
+	}
+
+	// If month is provided, populate UsedThisMonth field
+	if filters != nil && filters.Month != nil && *filters.Month != "" {
+		usedMap, err := s.repo.GetTemplatesUsedInMonth(ctx, householdID, *filters.Month)
+		if err != nil {
+			// Log error but don't fail - this is an optional enhancement
+			s.logger.Error("failed to get templates used in month", "error", err)
+		} else {
+			for _, t := range templates {
+				t.UsedThisMonth = usedMap[t.ID]
+			}
+		}
+	}
+
+	return templates, nil
 }
 
 // ListByCategory lists all active templates for a category
