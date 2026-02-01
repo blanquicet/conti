@@ -583,9 +583,10 @@ function renderBudgets() {
   };
 
   // Render group card (reusing expense-group-card structure)
-  const renderGroupCard = (groupName, groupBudgets) => {
+  const renderGroupCard = (groupName, groupBudgets, totalBudget) => {
     const groupTotal = groupBudgets.reduce((sum, b) => sum + (b.amount || 0), 0);
     const safeGroupId = groupName.replace(/\s+/g, '-').toLowerCase();
+    const groupPercentage = totalBudget > 0 ? ((groupTotal / totalBudget) * 100).toFixed(1) : '0.0';
     
     // Get group icon from first budget's category_group_icon
     const groupIcon = groupBudgets[0]?.category_group_icon || '📁';
@@ -601,6 +602,7 @@ function renderBudgets() {
             <div class="expense-group-amount">${formatCurrency(groupTotal)}</div>
           </div>
           <div class="expense-group-actions">
+            <span class="expense-group-percentage">${groupPercentage}%</span>
             <svg class="expense-group-chevron" width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M7.5 5L12.5 10L7.5 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -613,15 +615,21 @@ function renderBudgets() {
     `;
   };
 
+  // Sort groups by total budget amount (descending) - same as Gastos tab
+  const sortedGroupNames = Object.keys(grouped).sort((a, b) => {
+    const totalA = grouped[a].reduce((sum, budget) => sum + (budget.amount || 0), 0);
+    const totalB = grouped[b].reduce((sum, budget) => sum + (budget.amount || 0), 0);
+    return totalB - totalA;
+  });
+
   // Render all groups
-  const groupsHtml = Object.keys(grouped)
-    .sort()
-    .map(groupName => renderGroupCard(groupName, grouped[groupName]))
+  const groupsHtml = sortedGroupNames
+    .map(groupName => renderGroupCard(groupName, grouped[groupName], totals.total_budget))
     .join('');
 
   // Render ungrouped
   const ungroupedHtml = ungrouped.length > 0 
-    ? renderGroupCard('Otros', ungrouped)
+    ? renderGroupCard('Otros', ungrouped, totals.total_budget)
     : '';
 
   return `
