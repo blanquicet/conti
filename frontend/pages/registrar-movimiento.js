@@ -117,7 +117,12 @@ export function render(user) {
           <p style="color: #6b7280; font-size: 16px;">${message}</p>
         </div>
 
-        <form id="movForm" novalidate style="display: none;">
+        <form id="movForm" novalidate style="display: none; position: relative;">
+        <!-- Form loading overlay -->
+        <div class="filter-loading-overlay" id="form-loading" style="display: none;">
+          <div class="spinner"></div>
+          <p>Cargando datos...</p>
+        </div>
         <div class="grid">
           <div class="field col-span-2">
             <span>¿Qué deseas registrar?</span>
@@ -171,16 +176,7 @@ export function render(user) {
           </label>
 
           <label class="field col-span-2 hidden" id="recurringTemplateWrap">
-            <span style="display: flex; align-items: center; gap: 8px;">
-              ¿Gasto predefinido?
-              <span id="templateLoadingSpinner" class="hidden" style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #6b7280;">
-                <svg class="animate-spin" style="height: 14px; width: 14px;" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Cargando...
-              </span>
-            </span>
+            <span>¿Gasto predefinido?</span>
             <select name="recurringTemplate" id="recurringTemplate">
               <option value="" selected>No</option>
             </select>
@@ -1108,9 +1104,11 @@ function renderRecurringTemplatesSelect() {
  * Apply pre-fill data to form
  */
 async function applyTemplatePrefill(templateId) {
-  // Show loading indicator
-  const loadingEl = document.getElementById('templateLoadingSpinner');
-  if (loadingEl) loadingEl.classList.remove('hidden');
+  // Show form loading overlay to prevent interaction
+  const formLoading = document.getElementById('form-loading');
+  if (formLoading) {
+    formLoading.style.display = 'flex';
+  }
   
   try {
     // Determine if we need role inversion based on current movement type
@@ -1214,12 +1212,11 @@ async function applyTemplatePrefill(templateId) {
         const method = paymentMethods.find(m => m.id === prefillData.payment_method_id);
         if (method) {
           // Need to wait a bit for showPaymentMethods to populate the dropdown after payer change
-          setTimeout(() => {
-            const metodoEl2 = document.getElementById('metodo');
-            if (metodoEl2) {
-              metodoEl2.value = method.name;
-            }
-          }, 100);
+          await new Promise(resolve => setTimeout(resolve, 100));
+          const metodoEl2 = document.getElementById('metodo');
+          if (metodoEl2) {
+            metodoEl2.value = method.name;
+          }
         }
       }
     }
@@ -1252,9 +1249,11 @@ async function applyTemplatePrefill(templateId) {
     selectedTemplate = template || { id: templateId, name: prefillData.template_name };
     
   } finally {
-    // Hide loading indicator
-    const loadingEl = document.getElementById('templateLoadingSpinner');
-    if (loadingEl) loadingEl.classList.add('hidden');
+    // Hide form loading overlay
+    const formLoading = document.getElementById('form-loading');
+    if (formLoading) {
+      formLoading.style.display = 'none';
+    }
   }
 }
 
