@@ -257,7 +257,7 @@ func (i *CreateMovementInput) Validate() error {
 type UpdateMovementInput struct {
 	Description     *string             `json:"description,omitempty"`
 	Amount          *float64            `json:"amount,omitempty"`
-	Category        *string             `json:"category,omitempty"`
+	CategoryID      *string             `json:"category_id,omitempty"`
 	MovementDate    *time.Time          `json:"movement_date,omitempty"`
 	PaymentMethodID *string             `json:"payment_method_id,omitempty"`
 	ReceiverAccountID *string           `json:"receiver_account_id,omitempty"`

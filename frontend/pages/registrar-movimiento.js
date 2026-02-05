@@ -2816,7 +2816,7 @@ async function onSubmit(e) {
         const updatePayload = {
           description: payload.description,
           amount: payload.amount,
-          category: payload.category,
+          category_id: payload.category_id,
           movement_date: payload.movement_date + 'T00:00:00Z' // Add time component for RFC3339
         };
         

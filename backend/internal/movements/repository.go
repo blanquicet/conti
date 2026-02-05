@@ -522,9 +522,9 @@ func (r *repository) Update(ctx context.Context, id string, input *UpdateMovemen
 		args = append(args, *input.Amount)
 		argNum++
 	}
-	if input.Category != nil {
+	if input.CategoryID != nil {
 		setClauses = append(setClauses, fmt.Sprintf("category_id = $%d", argNum))
-		args = append(args, *input.Category)
+		args = append(args, *input.CategoryID)
 		argNum++
 	}
 	if input.MovementDate != nil {
