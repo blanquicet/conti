@@ -1044,7 +1044,7 @@ function renderCategorySelect() {
 async function fetchTemplatePrefillData(templateId, invertRoles = false) {
   try {
     // Note: recurring-movements endpoints use /api prefix
-    const url = `/api/recurring-movements/prefill/${templateId}${invertRoles ? '?invert_roles=true' : ''}`;
+    const url = `${API_URL}/api/recurring-movements/prefill/${templateId}${invertRoles ? '?invert_roles=true' : ''}`;
     
     const response = await fetch(url, {
       credentials: 'include'
