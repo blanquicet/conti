@@ -2060,10 +2060,8 @@ function readForm() {
   };
 
   // Add generated_from_template_id if movement was created using a template
-  console.log('selectedTemplate before payload:', selectedTemplate); // DEBUG
   if (selectedTemplate && selectedTemplate.id) {
     payload.generated_from_template_id = selectedTemplate.id;
-    console.log('Adding generated_from_template_id to payload:', selectedTemplate.id); // DEBUG
   }
 
   // Add category_id (required for HOUSEHOLD, optional for DEBT_PAYMENT if payer is member)
@@ -2247,9 +2245,6 @@ async function loadMovementForEdit(movementId) {
     }
     
     const movement = await response.json();
-    console.log('Movement loaded for edit:', movement); // DEBUG
-    console.log('Movement type:', movement.type); // DEBUG
-    console.log('Movement participants:', movement.participants); // DEBUG
     currentEditMovement = movement;
     
     // Hide loading overlay
@@ -2271,7 +2266,6 @@ async function loadMovementForEdit(movementId) {
         id: movement.generated_from_template_id,
         name: movement.description || 'Template' // Use description as fallback name
       };
-      console.log('Set selectedTemplate from movement:', selectedTemplate);
       
       // Update template dropdown if visible (need to trigger category change first)
       // This will be done after onTipoChange updates the UI
@@ -2453,11 +2447,9 @@ async function loadMovementForEdit(movementId) {
               
               if (paymentMethod) {
                 selectedPaymentMethodName = paymentMethod.name;
-                console.log('Found payment method by ID:', selectedPaymentMethodName);
               } else if (movement.payment_method_name) {
                 // Fallback: use the name directly from the movement (might be inactive)
                 selectedPaymentMethodName = movement.payment_method_name;
-                console.log('Using payment method name from movement (possibly inactive):', selectedPaymentMethodName);
               } else {
                 console.warn('Payment method not found in paymentMethods array:', movement.payment_method_id);
               }
@@ -2469,7 +2461,6 @@ async function loadMovementForEdit(movementId) {
                 
                 if (optionIndex >= 0) {
                   metodoEl.selectedIndex = optionIndex;
-                  console.log('Payment method selected at index:', optionIndex);
                 } else {
                   // Payment method not in dropdown - add it as unavailable option
                   console.warn('Payment method not found in dropdown, adding as unavailable:', selectedPaymentMethodName);
@@ -2478,8 +2469,6 @@ async function loadMovementForEdit(movementId) {
                   unavailableOption.textContent = `${selectedPaymentMethodName} (no disponible)`;
                   unavailableOption.selected = true;
                   metodoEl.appendChild(unavailableOption);
-                  
-                  console.log('Unavailable payment method added and selected');
                 }
               }
             }
@@ -2546,11 +2535,9 @@ async function loadMovementForEdit(movementId) {
               
               if (account) {
                 selectedAccountName = account.name;
-                console.log('Found receiver account by ID:', selectedAccountName);
               } else if (movement.receiver_account_name) {
                 // Fallback: use the name from the movement
                 selectedAccountName = movement.receiver_account_name;
-                console.log('Using receiver account name from movement:', selectedAccountName);
               } else {
                 console.warn('Receiver account not found:', movement.receiver_account_id);
               }
@@ -2560,7 +2547,6 @@ async function loadMovementForEdit(movementId) {
                 
                 if (optionIndex >= 0) {
                   cuentaReceptoraEl.selectedIndex = optionIndex;
-                  console.log('Receiver account selected at index:', optionIndex);
                 } else {
                   // Account not in dropdown - add it as unavailable option
                   console.warn('Receiver account not found in dropdown, adding as unavailable:', selectedAccountName);
@@ -2569,7 +2555,6 @@ async function loadMovementForEdit(movementId) {
                   unavailableOption.textContent = `${selectedAccountName} (no disponible)`;
                   unavailableOption.selected = true;
                   cuentaReceptoraEl.appendChild(unavailableOption);
-                  console.log('Unavailable receiver account added and selected');
                 }
               }
             }
@@ -2611,8 +2596,6 @@ async function loadMovementForEdit(movementId) {
           const templateWrap2 = document.getElementById('recurringTemplateWrap2');
           if (templateWrap && recurringTemplates.length > 0) templateWrap.classList.remove('hidden');
           if (templateWrap2 && recurringTemplates.length > 0) templateWrap2.classList.remove('hidden');
-          
-          console.log('Template dropdown set to:', movement.generated_from_template_id);
         } catch (err) {
           console.error('Error setting template dropdown:', err);
         }
@@ -2644,7 +2627,6 @@ async function loadIncomeForEdit(incomeId) {
     }
     
     const income = await response.json();
-    console.log('Income loaded for edit:', income);
     currentEditIncome = income;
     
     // Hide loading overlay
