@@ -362,10 +362,7 @@ func (i *CreateTemplateInput) Validate() error {
 			if hasCounterpartyUser && hasCounterpartyContact {
 				return errors.New("cannot specify both counterparty_user_id and counterparty_contact_id")
 			}
-			// Receiver account required if counterparty is a member
-			if hasCounterpartyUser && (i.ReceiverAccountID == nil || *i.ReceiverAccountID == "") {
-				return errors.New("receiver_account_id is required when counterparty is a household member")
-			}
+			// Receiver account is optional - if provided, it will be used; otherwise, user can select when editing generated movement
 		}
 		// Validate counterparty if provided (for pre-fill)
 		if hasCounterpartyUser && hasCounterpartyContact {

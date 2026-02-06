@@ -143,14 +143,14 @@ The `payment_method_id` tracks where the money came from (credit card, debit, ca
 
 ## Receiver Account Requirements (Auto-generate)
 
-The `receiver_account_id` is only applicable for DEBT_PAYMENT when the counterparty (who receives the payment) is a household member.
+The `receiver_account_id` is only applicable for DEBT_PAYMENT when the counterparty (who receives the payment) is a household member. It's optional and can be set later when editing the generated movement.
 
 | Movement Type | Counterparty | `receiver_account_id` |
 |---------------|--------------|----------------------|
 | HOUSEHOLD | N/A | ❌ N/A |
 | SPLIT | N/A | ❌ N/A |
-| DEBT_PAYMENT | Member | ✅ Required |
-| DEBT_PAYMENT | Contact | ❌ Not needed |
+| DEBT_PAYMENT | Member | 📝 Optional (pre-fills if set) |
+| DEBT_PAYMENT | Contact | ❌ N/A |
 
 ---
 
@@ -234,7 +234,7 @@ IF auto_generate = true:
         IF payer is member:
             REQUIRE: payment_method_id
         IF counterparty is member:
-            REQUIRE: receiver_account_id
+            OPTIONAL: receiver_account_id (pre-fills if set)
 
 ELSE (auto_generate = false OR not set):
     // Form pre-fill mode - movement_type is required but all other fields optional
@@ -281,7 +281,7 @@ Auto-generate templates create movements automatically, so they must follow the 
 | `payment_method_id` | ✅ If payer is member | ✅ If payer is member | ✅ |
 | `category_id` | ❌ Optional | ❌ Optional | ✅ |
 | `counterparty` | ✅ Required | ✅ Required | ✅ |
-| `receiver_account_id` | ✅ If counterparty is member | ✅ If counterparty is member | ✅ |
+| `receiver_account_id` | 📝 If counterparty is member | 📝 If counterparty is member | ✅ |
 | `participants` | ❌ Not allowed | ❌ Not allowed | ✅ |
 
 ### Summary
