@@ -277,10 +277,18 @@ async function testContactActivation() {
     await page.goto(`${appUrl}/hogar`);
     await page.waitForTimeout(1000);
     
-    // Find deactivated contact, click three-dots menu, then "Activar" button
-    const contactToReactivate = page.locator('.contact-item', { hasText: 'To Deactivate' });
+    // Find deactivated contact (inactive contacts are sorted to the bottom)
+    const contactToReactivate = page.locator('.contact-item').filter({ hasText: 'To Deactivate' });
+    
+    // Scroll into view since inactive contacts are at the bottom
+    await contactToReactivate.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    
+    // Click three-dots menu
     await contactToReactivate.locator('.three-dots-btn').click();
     await page.waitForTimeout(300);
+    
+    // Click "Activar" button
     await contactToReactivate.locator('button[data-action="toggle-active"]').click();
     
     // Wait for confirmation modal and confirm
