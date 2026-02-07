@@ -11,4 +11,4 @@
  */
 export const API_URL = window.location.hostname === "localhost"
   ? ""
-  : "https://api.gastos.blanquicet.com.co";
+  : "https://api.conti.blanquicet.com.co";
