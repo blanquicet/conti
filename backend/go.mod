@@ -1,4 +1,4 @@
-module github.com/blanquicet/gastos/backend
+module github.com/blanquicet/conti/backend
 
 go 1.24.0
 

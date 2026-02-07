@@ -18,14 +18,14 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}=== Setup GitHub Actions para Gastos ===${NC}"
+echo -e "${GREEN}=== Setup GitHub Actions para Conti ===${NC}"
 echo ""
 
 # Variables
 SUBSCRIPTION_ID="0f6b14e8-ade9-4dc5-9ef9-d0bcbaf5f0d8"
 TENANT_ID="9de9ca20-a74e-40c6-9df8-61b9e313a5b3"
-SP_NAME="github-actions-gastos"
-GITHUB_REPO="blanquicet/gastos"  # Repositorio de GitHub
+SP_NAME="github-actions-conti"
+GITHUB_REPO="blanquicet/conti"  # Repositorio de GitHub
 
 # Verificar Azure CLI
 if ! command -v az &> /dev/null; then

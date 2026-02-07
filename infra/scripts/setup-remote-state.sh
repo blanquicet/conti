@@ -68,7 +68,7 @@ else
         --encryption-services blob \
         --min-tls-version TLS1_2 \
         --allow-blob-public-access false \
-        --tags project=gastos environment=production managed_by=script
+        --tags project=conti environment=production managed_by=script
 
     echo -e "${GREEN}✓ Storage Account creado${NC}"
 fi

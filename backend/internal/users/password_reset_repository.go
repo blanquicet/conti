@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/blanquicet/gastos/backend/internal/auth"
+	"github.com/blanquicet/conti/backend/internal/auth"
 )
 
 // PasswordResetRepository implements auth.PasswordResetRepository using PostgreSQL.

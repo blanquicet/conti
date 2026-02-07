@@ -85,26 +85,26 @@ variable "email_api_key" {
 variable "email_from_address" {
   description = "Email sender address"
   type        = string
-  default     = "noreply@gastos.blanquicet.com.co"
+  default     = "noreply@conti.blanquicet.com.co"
 }
 
 variable "email_from_name" {
   description = "Email sender name"
   type        = string
-  default     = "Gastos"
+  default     = "Conti"
 }
 
 variable "email_base_url" {
   description = "Base URL for email links (frontend URL)"
   type        = string
-  default     = "https://gastos.blanquicet.com.co"
+  default     = "https://conti.blanquicet.com.co"
 }
 
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
   default = {
-    project     = "gastos"
+    project     = "conti"
     environment = "production"
     managed_by  = "terraform"
   }

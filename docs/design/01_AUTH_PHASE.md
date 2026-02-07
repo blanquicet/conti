@@ -718,9 +718,9 @@ Full setup guide available in `DEVELOPMENT.md`.
    # Terraform automatically configures Container Apps with:
    EMAIL_PROVIDER=resend
    EMAIL_API_KEY=secretref:email-api-key  # From GitHub Secret
-   EMAIL_FROM_ADDRESS=noreply@gastos.blanquicet.com.co
-   EMAIL_FROM_NAME=Gastos
-   EMAIL_BASE_URL=https://gastos.blanquicet.com.co
+   EMAIL_FROM_ADDRESS=noreply@conti.blanquicet.com.co
+   EMAIL_FROM_NAME=Conti
+   EMAIL_BASE_URL=https://conti.blanquicet.com.co
    ```
 
    **⚠️ Security Note:**
@@ -956,14 +956,14 @@ EMAIL_PROVIDER=sendgrid # Production (SendGrid - alternative)
    # Automatically configures:
    EMAIL_PROVIDER=resend
    EMAIL_API_KEY=secretref:email-api-key
-   EMAIL_FROM_ADDRESS=noreply@gastos.blanquicet.com.co
-   EMAIL_FROM_NAME=Gastos
-   EMAIL_BASE_URL=https://gastos.blanquicet.com.co
+   EMAIL_FROM_ADDRESS=noreply@conti.blanquicet.com.co
+   EMAIL_FROM_NAME=Conti
+   EMAIL_BASE_URL=https://conti.blanquicet.com.co
    ```
 
 5. **Domain Verification**
    - Go to Domains section in Resend dashboard
-   - Add `gastos.blanquicet.com.co`
+   - Add `conti.blanquicet.com.co`
    - Add DNS records to Cloudflare (DKIM, SPF, DMARC)
    - Resend provides specific records
    - Note: Can send emails immediately without verification

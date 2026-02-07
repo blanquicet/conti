@@ -16,7 +16,7 @@ echo "🚀 Starting E2E Test: $TEST_FILE"
 echo "================================"
 
 # Check if database is running
-if ! pg_isready -h localhost -p 5432 -U gastos 2>/dev/null; then
+if ! pg_isready -h localhost -p 5432 -U conti 2>/dev/null; then
     echo "❌ PostgreSQL is not running on localhost:5432"
     echo "Please start the database with: cd backend && docker compose up -d"
     exit 1
@@ -32,10 +32,10 @@ cd ../../
 
 # Always rebuild the backend binary
 echo "📦 Building backend..."
-go build -o gastos-api ./cmd/api
+go build -o conti-api ./cmd/api
 
 # Set environment variables for local testing
-export DATABASE_URL="postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable"
+export DATABASE_URL="postgres://conti:conti_dev_password@localhost:5432/conti?sslmode=disable"
 export STATIC_DIR="../frontend"
 export RATE_LIMIT_ENABLED="false"
 export SESSION_COOKIE_SECURE="false"
@@ -43,7 +43,7 @@ export EMAIL_PROVIDER="noop"
 
 # Start backend and redirect logs to /tmp/backend.log
 echo "🔧 Starting backend server..."
-./gastos-api > /tmp/backend.log 2>&1 &
+./conti-api > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 
 # Function to cleanup on exit

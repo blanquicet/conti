@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/audit"
-	"github.com/blanquicet/gastos/backend/internal/auth"
+	"github.com/blanquicet/conti/backend/internal/audit"
+	"github.com/blanquicet/conti/backend/internal/auth"
 )
 
 // MockHouseholdRepository is a mock implementation for testing

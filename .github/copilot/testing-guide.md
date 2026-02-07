@@ -793,7 +793,7 @@ LIMIT 1;
 **Verificación en Mailtrap (local testing):**
 1. Go to https://mailtrap.io/inboxes
 2. Find latest email
-3. Subject: "Restablecer contraseña - Gastos"
+3. Subject: "Restablecer contraseña - Conti"
 4. Body should include:
    - Spanish HTML template
    - Reset link: `http://localhost:8080/reset-password?token=...`
@@ -1035,8 +1035,8 @@ SMTP_HOST=sandbox.smtp.mailtrap.io
 SMTP_PORT=587
 SMTP_USERNAME=your_username
 SMTP_PASSWORD=your_password
-EMAIL_FROM_ADDRESS=noreply@gastos.blanquicet.com.co
-EMAIL_FROM_NAME=Gastos
+EMAIL_FROM_ADDRESS=noreply@conti.blanquicet.com.co
+EMAIL_FROM_NAME=Conti
 EMAIL_BASE_URL=http://localhost:8080
 ```
 
@@ -1045,16 +1045,16 @@ EMAIL_BASE_URL=http://localhost:8080
 # Set via GitHub Secrets → Terraform → Azure Container Apps
 EMAIL_PROVIDER=resend
 EMAIL_API_KEY=re_xxxxx (from secret)
-EMAIL_FROM_ADDRESS=noreply@gastos.blanquicet.com.co
-EMAIL_FROM_NAME=Gastos
-EMAIL_BASE_URL=https://gastos.blanquicet.com.co
+EMAIL_FROM_ADDRESS=noreply@conti.blanquicet.com.co
+EMAIL_FROM_NAME=Conti
+EMAIL_BASE_URL=https://conti.blanquicet.com.co
 ```
 
 ### Development (No Email - Logs Only)
 ```bash
 EMAIL_PROVIDER=noop
-EMAIL_FROM_ADDRESS=noreply@gastos.blanquicet.com.co
-EMAIL_FROM_NAME=Gastos
+EMAIL_FROM_ADDRESS=noreply@conti.blanquicet.com.co
+EMAIL_FROM_NAME=Conti
 EMAIL_BASE_URL=http://localhost:8080
 ```
 

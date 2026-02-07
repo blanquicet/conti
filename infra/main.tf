@@ -1,7 +1,7 @@
 # =============================================================================
-# Gastos App - Infrastructure (Terraform)
+# Conti App - Infrastructure (Terraform)
 # =============================================================================
-# This configuration manages Azure resources for the Gastos app.
+# This configuration manages Azure resources for the Conti app.
 # Phase 1: PostgreSQL for authentication only.
 # =============================================================================
 

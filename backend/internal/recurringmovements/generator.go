@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/movements"
+	"github.com/blanquicet/conti/backend/internal/movements"
 )
 
 // Generator handles automatic movement generation from templates

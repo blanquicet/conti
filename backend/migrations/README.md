@@ -1,6 +1,6 @@
 # Backend - Database Migrations
 
-This document describes how to run database migrations for the Gastos authentication backend.
+This document describes how to run database migrations for the Conti authentication backend.
 
 ## Prerequisites
 

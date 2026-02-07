@@ -1,7 +1,7 @@
 {
-  "name": "gastos-backend-tests",
+  "name": "conti-backend-tests",
   "version": "1.0.0",
-  "description": "E2E tests for Gastos backend",
+  "description": "E2E tests for Conti backend",
   "type": "module",
   "scripts": {
     "test:e2e": "node e2e/password-reset.js && node e2e/auth-validation.js && node e2e/household-management.js && node e2e/household-validation.js && node e2e/contact-activation.js && node e2e/payment-methods.js && node e2e/income-management.js && node e2e/movement-familiar.js && node e2e/movement-compartido.js && node e2e/movement-pago-deuda.js",

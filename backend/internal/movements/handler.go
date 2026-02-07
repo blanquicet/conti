@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/auth"
-	"github.com/blanquicet/gastos/backend/internal/categorygroups"
-	"github.com/blanquicet/gastos/backend/internal/households"
-	"github.com/blanquicet/gastos/backend/internal/paymentmethods"
+	"github.com/blanquicet/conti/backend/internal/auth"
+	"github.com/blanquicet/conti/backend/internal/categorygroups"
+	"github.com/blanquicet/conti/backend/internal/households"
+	"github.com/blanquicet/conti/backend/internal/paymentmethods"
 )
 
 // Handler handles movement-related HTTP requests.

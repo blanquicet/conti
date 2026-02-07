@@ -6,7 +6,7 @@ import (
 	"runtime/debug"
 	"time"
 	
-	"github.com/blanquicet/gastos/backend/internal/audit"
+	"github.com/blanquicet/conti/backend/internal/audit"
 )
 
 // responseWriter wraps http.ResponseWriter to capture status code.

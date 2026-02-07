@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/blanquicet/gastos/backend/internal/auth"
-	"github.com/blanquicet/gastos/backend/internal/households"
+	"github.com/blanquicet/conti/backend/internal/auth"
+	"github.com/blanquicet/conti/backend/internal/households"
 )
 
 // Handler handles HTTP requests for account management

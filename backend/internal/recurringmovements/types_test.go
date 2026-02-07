@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/movements"
+	"github.com/blanquicet/conti/backend/internal/movements"
 )
 
 // TestRecurrencePatternValidate tests RecurrencePattern validation

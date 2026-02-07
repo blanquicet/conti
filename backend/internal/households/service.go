@@ -7,8 +7,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/blanquicet/gastos/backend/internal/audit"
-	"github.com/blanquicet/gastos/backend/internal/auth"
+	"github.com/blanquicet/conti/backend/internal/audit"
+	"github.com/blanquicet/conti/backend/internal/auth"
 )
 
 // Service handles household business logic

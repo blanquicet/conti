@@ -656,7 +656,7 @@ curl -X POST http://localhost:8080/api/recurring-movements \
 
 ### Check templates in DB
 ```bash
-docker exec -it gastos-postgres psql -U postgres -d gastos -c \
+docker exec -it conti-postgres psql -U postgres -d gastos -c \
   "SELECT id, name, amount_type, auto_generate, recurrence_type FROM recurring_movements;"
 ```
 

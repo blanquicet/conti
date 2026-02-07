@@ -30,7 +30,7 @@ override.tf.json
 *_override.tf.json
 
 # Go
-/backend/gastos-api
+/backend/conti-api
 
 # Node
 node_modules/

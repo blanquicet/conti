@@ -2,7 +2,7 @@
  * Navbar Component
  * 
  * Hamburger menu (☰) with dropdown navigation
- * - Profile, Gastos, Salir
+ * - Profile, Home, Salir
  * - Shows current user name
  * - Highlights active page
  * - Click outside to close

@@ -182,8 +182,8 @@ logger,
 
 ```bash
 cd backend
-go build -o gastos-api ./cmd/api
-./gastos-api
+go build -o conti-api ./cmd/api
+./conti-api
 ```
 
 **Create a movement via your app or API:**

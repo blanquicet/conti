@@ -3,9 +3,9 @@ package budgets
 import (
 	"context"
 
-	"github.com/blanquicet/gastos/backend/internal/audit"
-	"github.com/blanquicet/gastos/backend/internal/categories"
-	"github.com/blanquicet/gastos/backend/internal/households"
+	"github.com/blanquicet/conti/backend/internal/audit"
+	"github.com/blanquicet/conti/backend/internal/categories"
+	"github.com/blanquicet/conti/backend/internal/households"
 )
 
 // BudgetService implements Service

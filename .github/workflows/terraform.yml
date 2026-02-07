@@ -41,9 +41,9 @@ env:
   TF_VAR_n8n_api_key: ${{ secrets.N8N_API_KEY }}
   TF_VAR_email_provider: "resend"
   TF_VAR_email_api_key: ${{ secrets.EMAIL_API_KEY }}
-  TF_VAR_email_from_address: "noreply@gastos.blanquicet.com.co"
-  TF_VAR_email_from_name: "Gastos"
-  TF_VAR_email_base_url: "https://gastos.blanquicet.com.co"
+  TF_VAR_email_from_address: "noreply@conti.blanquicet.com.co"
+  TF_VAR_email_from_name: "Conti"
+  TF_VAR_email_base_url: "https://conti.blanquicet.com.co"
   TF_VERSION: "1.5.7"
 
 jobs:

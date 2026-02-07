@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/movements"
+	"github.com/blanquicet/conti/backend/internal/movements"
 )
 
 // Errors for recurring movement operations

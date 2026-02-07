@@ -43,7 +43,7 @@ python migrate_income.py '/ruta/a/tu/Casita - Ingresos.csv'
 
 ---
 
-## Migración de Movimientos (Gastos)
+## Migración de Movimientos (Conti)
 
 ### 1. Configuración
 
@@ -60,7 +60,7 @@ cp .env.movements .env
 
 ```bash
 python migrate_movements.py \
-  '/home/jose/Desktop/Casita - Gastos.csv' \
+  '/home/jose/Desktop/Casita - Conti.csv' \
   '/home/jose/Desktop/Casita - GastoParticipantes.csv' \
   --dry-run
 ```
@@ -79,7 +79,7 @@ Una vez validado con dry-run, ejecuta la migración:
 
 ```bash
 python migrate_movements.py \
-  '/home/jose/Desktop/Casita - Gastos.csv' \
+  '/home/jose/Desktop/Casita - Conti.csv' \
   '/home/jose/Desktop/Casita - GastoParticipantes.csv'
 ```
 

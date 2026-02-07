@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/blanquicet/gastos/backend/internal/sessions"
+	"github.com/blanquicet/conti/backend/internal/sessions"
 )
 
 // contextKey is a custom type for context keys to avoid collisions.

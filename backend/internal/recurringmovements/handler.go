@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/blanquicet/gastos/backend/internal/auth"
-	"github.com/blanquicet/gastos/backend/internal/movements"
+	"github.com/blanquicet/conti/backend/internal/auth"
+	"github.com/blanquicet/conti/backend/internal/movements"
 )
 
 // Handler handles recurring movement template HTTP requests

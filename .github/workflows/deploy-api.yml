@@ -37,9 +37,9 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: gastos
-          POSTGRES_PASSWORD: gastos_test_password
-          POSTGRES_DB: gastos_test
+          POSTGRES_USER: conti
+          POSTGRES_PASSWORD: conti_test_password
+          POSTGRES_DB: conti_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s

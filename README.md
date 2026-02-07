@@ -1,12 +1,12 @@
-# Gastos
+# Conti
 
 > Personal and family finance app focused on shared expenses, debt clarity, and financial transparency.
 
 **⚠️ In Active Development** — This project is currently under active development. Features and architecture are evolving rapidly.
 
-## What is Gastos?
+## What is Conti?
 
-Gastos is a web application designed to make money management between people simple, transparent, and calm. It helps you:
+Conti is a web application designed to make money management between people simple, transparent, and calm. It helps you:
 
 - Track shared expenses with family and friends
 - Understand who owes whom (and how much)

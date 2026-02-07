@@ -1,4 +1,4 @@
-# Infraestructura - Gastos App
+# Infraestructura - Conti App
 
 Esta carpeta contiene la configuración de **Terraform** para crear y gestionar los recursos de Azure de la aplicación Gastos.
 
@@ -547,9 +547,9 @@ El backend Go se despliega en **Azure Container Apps**, un servicio serverless p
 
 | Recurso | Nombre | Propósito |
 | ------- | ------ | --------- |
-| Log Analytics Workspace | `gastos-api-logs` | Logs y monitoreo |
-| Container App Environment | `gastos-api-env` | Entorno de ejecución |
-| Container App | `gastos-api` | La aplicación Go |
+| Log Analytics Workspace | `conti-api-logs` | Logs y monitoreo |
+| Container App Environment | `conti-api-env` | Entorno de ejecución |
+| Container App | `conti-api` | La aplicación Go |
 
 ### Configuración
 
@@ -562,7 +562,7 @@ El backend Go se despliega en **Azure Container Apps**, un servicio serverless p
 
 | Tipo | URL |
 | ---- | --- |
-| Default Azure | `https://gastos-api.happytree-8a8e768b.westus2.azurecontainerapps.io` |
+| Default Azure | `https://conti-api.happytree-8a8e768b.westus2.azurecontainerapps.io` |
 | Custom Domain | `https://api.gastos.blanquicet.com.co` |
 
 ---
@@ -577,7 +577,7 @@ Agrega estos registros en Cloudflare para `blanquicet.com.co`:
 
 | Type | Name | Content | Proxy |
 | ---- | ---- | ------- | ----- |
-| CNAME | `api.gastos` | `gastos-api.happytree-8a8e768b.westus2.azurecontainerapps.io` | **DNS only** (nube gris) |
+| CNAME | `api.gastos` | `conti-api.happytree-8a8e768b.westus2.azurecontainerapps.io` | **DNS only** (nube gris) |
 | TXT | `asuid.api.gastos` | `0CD2548528D10CDD6B09A5598CD441F5D60B7C8E60684BD84B0655BFE8B8A25E` | - |
 
 > **Importante**: El proxy de Cloudflare DEBE estar deshabilitado (DNS only) para que Azure pueda validar el dominio y emitir el certificado.
@@ -587,16 +587,16 @@ Agrega estos registros en Cloudflare para `blanquicet.com.co`:
 ```bash
 # Agregar el hostname
 az containerapp hostname add \
-  --name gastos-api \
+  --name conti-api \
   --resource-group gastos-rg \
   --hostname api.gastos.blanquicet.com.co
 
 # Vincular con certificado SSL managed (gratuito)
 az containerapp hostname bind \
-  --name gastos-api \
+  --name conti-api \
   --resource-group gastos-rg \
   --hostname api.gastos.blanquicet.com.co \
-  --environment gastos-api-env \
+  --environment conti-api-env \
   --validation-method CNAME
 ```
 
@@ -605,13 +605,13 @@ az containerapp hostname bind \
 ```bash
 # Ver hostnames configurados
 az containerapp hostname list \
-  --name gastos-api \
+  --name conti-api \
   --resource-group gastos-rg \
   -o table
 
 # Ver estado del certificado
 az containerapp env certificate list \
-  --name gastos-api-env \
+  --name conti-api-env \
   --resource-group gastos-rg \
   --query "[].{name:name, subject:properties.subjectName, state:properties.provisioningState}" \
   -o table

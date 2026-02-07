@@ -6,9 +6,9 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/budgets"
-	"github.com/blanquicet/gastos/backend/internal/households"
-	"github.com/blanquicet/gastos/backend/internal/movements"
+	"github.com/blanquicet/conti/backend/internal/budgets"
+	"github.com/blanquicet/conti/backend/internal/households"
+	"github.com/blanquicet/conti/backend/internal/movements"
 )
 
 // service implements Service interface

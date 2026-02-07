@@ -4,17 +4,17 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: gastos-postgres
+    container_name: conti-postgres
     environment:
-      POSTGRES_USER: gastos
-      POSTGRES_PASSWORD: gastos_dev_password
-      POSTGRES_DB: gastos
+      POSTGRES_USER: conti
+      POSTGRES_PASSWORD: conti_dev_password
+      POSTGRES_DB: conti
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gastos"]
+      test: ["CMD-SHELL", "pg_isready -U conti"]
       interval: 5s
       timeout: 5s
       retries: 5

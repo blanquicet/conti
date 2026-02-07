@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/blanquicet/gastos/backend/internal/auth"
+	"github.com/blanquicet/conti/backend/internal/auth"
 )
 
 // Handler handles HTTP requests for budget management

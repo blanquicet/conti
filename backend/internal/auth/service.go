@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/audit"
+	"github.com/blanquicet/conti/backend/internal/audit"
 )
 
 // EmailSender defines the interface for sending emails.

@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/config"
-	"github.com/blanquicet/gastos/backend/internal/httpserver"
+	"github.com/blanquicet/conti/backend/internal/config"
+	"github.com/blanquicet/conti/backend/internal/httpserver"
 	"github.com/joho/godotenv"
 )
 

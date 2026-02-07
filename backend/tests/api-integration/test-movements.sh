@@ -6,7 +6,7 @@ set -e  # Exit on any error
 set -o pipefail  # Exit on pipe failure
 
 BASE_URL="${API_BASE_URL:-http://localhost:8080}"
-DATABASE_URL="${DATABASE_URL:-postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable}"
+DATABASE_URL="${DATABASE_URL:-postgres://conti:conti_dev_password@localhost:5432/conti?sslmode=disable}"
 COOKIES_FILE="/tmp/gastos-movements-test-cookies.txt"
 JOSE_EMAIL="jose+movements$(date +%s%N)@test.com"
 CARO_EMAIL="caro+movements$(date +%s%N)@test.com"

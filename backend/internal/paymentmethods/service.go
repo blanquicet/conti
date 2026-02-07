@@ -4,7 +4,7 @@ import (
 "context"
 "errors"
 "strings"
-	"github.com/blanquicet/gastos/backend/internal/audit"
+	"github.com/blanquicet/conti/backend/internal/audit"
 )
 
 // Service handles payment method business logic

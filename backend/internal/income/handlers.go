@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/auth"
+	"github.com/blanquicet/conti/backend/internal/auth"
 )
 
 // Handler handles HTTP requests for income management

@@ -1,4 +1,4 @@
-# Gastos Backend
+# Conti Backend
 
 Go API backend for the Gastos application, handling authentication, sessions, and business logic.
 
@@ -55,7 +55,7 @@ cp .env.example .env
 ### 3. Run Migrations
 
 ```bash
-export DB_URL="postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable"
+export DB_URL="postgres://conti:conti_dev_password@localhost:5432/conti?sslmode=disable"
 migrate -path ./migrations -database "$DB_URL" up
 ```
 

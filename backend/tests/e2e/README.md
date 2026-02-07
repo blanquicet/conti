@@ -1,6 +1,6 @@
 # Backend E2E Tests
 
-This directory contains end-to-end tests for the Gastos backend using Playwright.
+This directory contains end-to-end tests for the Conti backend using Playwright.
 
 ## Prerequisites
 
@@ -99,7 +99,7 @@ pg_isready -h localhost -p 5432 -U gastos
 
 # 2. Set environment variables and start backend
 cd backend
-export DATABASE_URL="postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable"
+export DATABASE_URL="postgres://conti:conti_dev_password@localhost:5432/conti?sslmode=disable"
 export STATIC_DIR="../frontend"
 export RATE_LIMIT_ENABLED="false"
 export SESSION_COOKIE_SECURE="false"
@@ -320,7 +320,7 @@ const headless = process.env.CI === 'true' || process.env.HEADLESS === 'true';
 const apiUrl = process.env.API_URL || 'http://localhost:8080';
 
 // Database URL
-const dbUrl = process.env.DATABASE_URL || 'postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable';
+const dbUrl = process.env.DATABASE_URL || 'postgres://conti:conti_dev_password@localhost:5432/conti?sslmode=disable';
 
 // Token source
 if (process.env.CI) {

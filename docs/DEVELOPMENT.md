@@ -72,7 +72,7 @@ El archivo `.env` viene pre-configurado con los valores correctos para desarroll
 ```bash
 # Desde el directorio backend/
 # Definir variable para facilitar uso
-export DB_URL="postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable"
+export DB_URL="postgres://conti:conti_dev_password@localhost:5432/conti?sslmode=disable"
 
 migrate -path ./migrations -database "$DB_URL" up
 ```
@@ -110,7 +110,7 @@ Salida esperada:
 **Nota:** Para los comandos de verificación de base de datos, define esta variable primero:
 
 ```bash
-export DB_URL="postgres://gastos:gastos_dev_password@localhost:5432/gastos?sslmode=disable"
+export DB_URL="postgres://conti:conti_dev_password@localhost:5432/conti?sslmode=disable"
 ```
 
 ### Opción 1: Backend sirviendo frontend (RECOMENDADO)
@@ -214,7 +214,7 @@ Deberías ver:
 
 | Name             | Value    | HttpOnly | Secure     | SameSite | Expires |
 |------------------|----------|----------|------------|----------|---------|
-| `gastos_session` | `<uuid>` | ✅       | ❌ (local) | Lax      | 30 días |
+| `conti_session` | `<uuid>` | ✅       | ❌ (local) | Lax      | 30 días |
 
 ---
 
@@ -333,7 +333,7 @@ Antes de hacer push:
 - [ ] Solo se crea 1 sesión en el registro (verificar con `psql "$DB_URL"`)
 - [ ] Login funciona correctamente
 - [ ] Logout elimina la sesión de la DB
-- [ ] Cookie `gastos_session` se crea y elimina correctamente
+- [ ] Cookie `conti_session` se crea y elimina correctamente
 
 ---
 

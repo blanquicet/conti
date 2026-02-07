@@ -5,7 +5,7 @@
 
 ## 🎯 Summary
 
-Successfully integrated comprehensive audit logging into **all 8 backend services** in the Gastos application. Every CRUD operation across the entire application now creates audit trail entries with full snapshots for debugging.
+Successfully integrated comprehensive audit logging into **all 8 backend services** in the Conti application. Every CRUD operation across the entire application now creates audit trail entries with full snapshots for debugging.
 
 ## 📊 Services Integrated (8/8 ✅)
 
@@ -162,7 +162,7 @@ budgetsService := budgets.NewService(budgetsRepo, categoriesRepo, householdRepo,
 ## ✅ Compilation Status
 
 ```bash
-$ cd backend && go build -o /tmp/gastos-api ./cmd/api
+$ cd backend && go build -o /tmp/conti-api ./cmd/api
 # ✅ Success - no errors
 ```
 

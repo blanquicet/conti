@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/households"
-	"github.com/blanquicet/gastos/backend/internal/paymentmethods"
+	"github.com/blanquicet/conti/backend/internal/households"
+	"github.com/blanquicet/conti/backend/internal/paymentmethods"
 )
 
 var (

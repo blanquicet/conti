@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/blanquicet/gastos/backend/internal/auth"
+	"github.com/blanquicet/conti/backend/internal/auth"
 )
 
 // Store provides session management functionality.
