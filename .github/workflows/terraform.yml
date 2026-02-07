@@ -14,6 +14,7 @@
 name: Terraform
 
 on:
+  workflow_dispatch:  # Allow manual trigger
   push:
     paths:
       - 'infra/**'
