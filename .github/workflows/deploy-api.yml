@@ -66,7 +66,7 @@ jobs:
       - name: Run database migrations
         working-directory: backend
         env:
-          DATABASE_URL: postgres://gastos:gastos_test_password@localhost:5432/gastos_test?sslmode=disable
+          DATABASE_URL: postgres://conti:conti_test_password@localhost:5432/conti_test?sslmode=disable
         run: |
           migrate -path ./migrations -database "$DATABASE_URL" up
           echo "✅ Migrations applied successfully"
@@ -74,7 +74,7 @@ jobs:
       - name: Run unit tests
         working-directory: backend
         env:
-          DATABASE_URL: postgres://gastos:gastos_test_password@localhost:5432/gastos_test?sslmode=disable
+          DATABASE_URL: postgres://conti:conti_test_password@localhost:5432/conti_test?sslmode=disable
         run: go test -v -race ./...
 
   build-docker-image:
@@ -179,13 +179,13 @@ jobs:
             postgres:
               image: postgres:16
               environment:
-                POSTGRES_USER: gastos
-                POSTGRES_PASSWORD: gastos_test_password
-                POSTGRES_DB: gastos_test
+                POSTGRES_USER: conti
+                POSTGRES_PASSWORD: conti_test_password
+                POSTGRES_DB: conti_test
               ports:
                 - "5432:5432"
               healthcheck:
-                test: ["CMD-SHELL", "pg_isready -U gastos"]
+                test: ["CMD-SHELL", "pg_isready -U conti"]
                 interval: 5s
                 timeout: 5s
                 retries: 5
@@ -196,7 +196,7 @@ jobs:
                 postgres:
                   condition: service_healthy
               environment:
-                DATABASE_URL: postgres://gastos:gastos_test_password@postgres:5432/gastos_test?sslmode=disable
+                DATABASE_URL: postgres://conti:conti_test_password@postgres:5432/conti_test?sslmode=disable
                 RATE_LIMIT_ENABLED: "false"
                 SESSION_COOKIE_SECURE: "false"
               ports:
@@ -212,7 +212,7 @@ jobs:
 
       - name: Run migrations
         env:
-          DATABASE_URL: postgres://gastos:gastos_test_password@localhost:5432/gastos_test?sslmode=disable
+          DATABASE_URL: postgres://conti:conti_test_password@localhost:5432/conti_test?sslmode=disable
         run: |
           cd backend
           migrate -path ./migrations -database "$DATABASE_URL" up
@@ -221,7 +221,7 @@ jobs:
       - name: Run API integration test
         working-directory: backend/tests/api-integration
         env:
-          DATABASE_URL: postgres://gastos:gastos_test_password@localhost:5432/gastos_test?sslmode=disable
+          DATABASE_URL: postgres://conti:conti_test_password@localhost:5432/conti_test?sslmode=disable
           CI: 'true'
         run: |
           chmod +x ${{ matrix.test-file }}
@@ -313,13 +313,13 @@ jobs:
             postgres:
               image: postgres:16
               environment:
-                POSTGRES_USER: gastos
-                POSTGRES_PASSWORD: gastos_test_password
-                POSTGRES_DB: gastos_test
+                POSTGRES_USER: conti
+                POSTGRES_PASSWORD: conti_test_password
+                POSTGRES_DB: conti_test
               ports:
                 - "5432:5432"
               healthcheck:
-                test: ["CMD-SHELL", "pg_isready -U gastos"]
+                test: ["CMD-SHELL", "pg_isready -U conti"]
                 interval: 5s
                 timeout: 5s
                 retries: 5
@@ -330,7 +330,7 @@ jobs:
                 postgres:
                   condition: service_healthy
               environment:
-                DATABASE_URL: postgres://gastos:gastos_test_password@postgres:5432/gastos_test?sslmode=disable
+                DATABASE_URL: postgres://conti:conti_test_password@postgres:5432/conti_test?sslmode=disable
                 RATE_LIMIT_ENABLED: "false"
                 SESSION_COOKIE_SECURE: "false"
                 STATIC_DIR: "/app/frontend"
@@ -349,7 +349,7 @@ jobs:
 
       - name: Run migrations
         env:
-          DATABASE_URL: postgres://gastos:gastos_test_password@localhost:5432/gastos_test?sslmode=disable
+          DATABASE_URL: postgres://conti:conti_test_password@localhost:5432/conti_test?sslmode=disable
         run: |
           cd backend
           migrate -path ./migrations -database "$DATABASE_URL" up
@@ -369,7 +369,7 @@ jobs:
           CI: 'true'
           HEADLESS: 'true'
           API_URL: 'http://localhost:8080'
-          DATABASE_URL: 'postgres://gastos:gastos_test_password@localhost:5432/gastos_test?sslmode=disable'
+          DATABASE_URL: 'postgres://conti:conti_test_password@localhost:5432/conti_test?sslmode=disable'
         run: node e2e/${{ matrix.test-file }}
 
       - name: Upload test artifacts
