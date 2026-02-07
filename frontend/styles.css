@@ -560,7 +560,7 @@ input, select, textarea, button {
 }
 
 /* Mobile responsiveness for auth */
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .auth-wrapper {
     padding: 20px;
     padding-left: max(20px, env(safe-area-inset-left));
@@ -2162,6 +2162,12 @@ button.loading::after {
   margin: 0 auto;
 }
 
+@media (max-width: 600px) {
+  .dashboard-content {
+    padding: 24px 15px;
+  }
+}
+
 /* Month Selector */
 .month-selector {
   display: flex;
@@ -3615,7 +3621,7 @@ button.loading::after {
 }
 
 /* Responsive adjustments */
-@media (max-width: 640px) {
+@media (max-width: 600px) {
   .expense-group-card {
     padding: 16px;
     border-radius: 12px;
