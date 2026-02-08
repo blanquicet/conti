@@ -758,16 +758,8 @@ async function handleInviteSubmit(e) {
       throw new Error(data.error || 'Error al enviar invitación');
     }
 
-    const data = await response.json();
-    
-    // Check if user was auto-added (has member ID but no token)
-    if (data.id && !data.token) {
-      await showSuccess('Miembro agregado', `El usuario ${email} ha sido agregado al hogar automáticamente.`);
-      // Reload to show new member
-      await loadHousehold();
-    } else {
-      await showSuccess('Invitación creada', `Se ha creado una invitación para ${email}. Será notificado cuando implementemos el sistema de emails.`);
-    }
+    // Always show invitation sent message (all users must accept via email now)
+    await showSuccess('Invitación enviada', `Se envió la invitación a ${email}. Debe aceptarla desde el link en su correo.`);
     
     document.getElementById('invite-form-container').style.display = 'none';
     document.getElementById('invite-email').value = '';

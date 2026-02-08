@@ -9,12 +9,13 @@ const { Pool } = pg;
  * 1. Register two users
  * 2. User 1: Create household
  * 3. User 1: Add contact
- * 4. User 1: Invite User 2 (auto-accept)
- * 5. User 2: Verify household membership
- * 6. User 1: Promote User 2 to owner
- * 7. User 1: Demote User 2 back to member
- * 8. User 1: Remove User 2
- * 9. User 1: Delete household
+ * 4. User 1: Invite User 2 (via email)
+ * 5. User 2: Accept invitation via link
+ * 6. User 2: Verify household membership
+ * 7. User 1: Promote User 2 to owner
+ * 8. User 1: Demote User 2 back to member
+ * 9. User 1: Remove User 2
+ * 10. User 1: Delete household
  */
 
 async function testHouseholdManagement() {
@@ -152,7 +153,7 @@ async function testHouseholdManagement() {
     console.log('✅ Contact added: Maria External');
 
     // ==================================================================
-    // STEP 5: User 1 - Invite User 2 (Auto-accept)
+    // STEP 5: User 1 - Invite User 2 (via email)
     // ==================================================================
     console.log('📧 Step 5: User 1 inviting User 2...');
     
@@ -167,19 +168,51 @@ async function testHouseholdManagement() {
     await page1.waitForSelector('.modal');
     await page1.waitForTimeout(500);
     await page1.locator('.modal button').click(); // Click OK
-    await page1.waitForTimeout(2000); // Wait for reload
+    await page1.waitForTimeout(1000);
     
-    // Verify User 2 appears in members list
-    const memberEmails = await page1.locator('.member-email').allTextContents();
-    if (!memberEmails.some(email => email.includes(user2Email))) {
-      throw new Error('User 2 not found in members list');
+    console.log('✅ Invitation sent to User 2');
+    
+    // Get invitation token from database
+    const tokenResult = await pool.query(
+      `SELECT token FROM household_invitations 
+       WHERE email = $1 AND accepted_at IS NULL 
+       ORDER BY created_at DESC LIMIT 1`,
+      [user2Email]
+    );
+    
+    if (tokenResult.rows.length === 0) {
+      throw new Error('Invitation token not found in database');
     }
-    console.log('✅ User 2 auto-added as member');
+    const inviteToken = tokenResult.rows[0].token;
+    console.log('✅ Got invitation token from database');
+    
+    // User 2 accepts invitation via link
+    console.log('🔗 Step 5b: User 2 accepting invitation...');
+    await page2.goto(`${apiUrl}/invite?token=${encodeURIComponent(inviteToken)}`);
+    await page2.waitForTimeout(2000);
+    
+    // Wait for confirmation modal to appear
+    await page2.waitForSelector('#accept-btn', { timeout: 5000 });
+    
+    // Click "Unirme" button
+    await page2.locator('#accept-btn').click();
+    await page2.waitForTimeout(2000);
+    
+    // Verify success
+    const resultText = await page2.locator('.invite-result').textContent();
+    if (!resultText.includes('exitosamente')) {
+      throw new Error('Invitation acceptance failed: ' + resultText);
+    }
+    console.log('✅ User 2 accepted invitation');
 
     // ==================================================================
     // STEP 6: User 2 - Verify Household Membership
     // ==================================================================
     console.log('👀 Step 6: User 2 verifying membership...');
+    
+    // Navigate to home first (User 2 is still on invite page)
+    await page2.goto(apiUrl);
+    await page2.waitForTimeout(2000);
     
     // Go to profile
     await page2.locator('#hamburger-btn').click();
