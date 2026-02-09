@@ -166,7 +166,34 @@ async function testMovementPagoDeuda() {
     await page1.waitForSelector('.modal', { timeout: 5000 });
     await page1.waitForTimeout(500);
     await page1.locator('.modal button').click(); // Click OK
-    await page1.waitForTimeout(2000); // Wait for reload
+    await page1.waitForTimeout(1000);
+    
+    console.log('✅ Invitation sent to User 2');
+    
+    // Get invitation token from database
+    const tokenResult = await pool.query(
+      `SELECT token FROM household_invitations 
+       WHERE email = $1 AND accepted_at IS NULL 
+       ORDER BY created_at DESC LIMIT 1`,
+      [user2Email]
+    );
+    
+    if (tokenResult.rows.length === 0) {
+      throw new Error('No invitation token found for User 2');
+    }
+    
+    const inviteToken = tokenResult.rows[0].token;
+    console.log('✅ Got invitation token from database');
+    
+    // User 2 accepts invitation via link
+    console.log('🔗 User 2 accepting invitation...');
+    await page2.goto(`${appUrl}/invite?token=${encodeURIComponent(inviteToken)}`);
+    await page2.waitForTimeout(2000);
+    
+    // Click the accept button
+    await page2.waitForSelector('#accept-btn', { timeout: 5000 });
+    await page2.locator('#accept-btn').click();
+    await page2.waitForTimeout(2000);
     
     // Verify User 2 is now a household member in the database
     const memberCheck = await pool.query(
@@ -175,25 +202,10 @@ async function testMovementPagoDeuda() {
     );
     
     if (memberCheck.rows.length === 0) {
-      // Check invitations table to see if invitation exists
-      const inviteCheck = await pool.query(
-        'SELECT * FROM household_invitations WHERE household_id = $1 AND email = $2',
-        [householdId, user2Email]
-      );
-      console.error('❌ User 2 not found as household member');
-      console.error('📋 Invitation record:', inviteCheck.rows);
-      
-      // Also check all household members
-      const allMembers = await pool.query(
-        'SELECT user_id, role FROM household_members WHERE household_id = $1',
-        [householdId]
-      );
-      console.error('👥 All household members:', allMembers.rows);
-      
-      throw new Error('User 2 failed to join household');
+      throw new Error('User 2 failed to join household after accepting invitation');
     }
     
-    console.log('✅ User 2 joined household');
+    console.log('✅ User 2 accepted invitation and joined household');
 
     // ==================================================================
     // STEP 3: Add Contact

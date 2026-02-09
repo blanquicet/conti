@@ -209,9 +209,32 @@ async function testPaymentMethods() {
     await page1.getByRole('button', { name: 'Enviar invitación' }).click();
     await page1.waitForTimeout(2000);
     
-    // User 2: Accept invitation (auto-accept in this test)
-    await page2.goto(`${appUrl}/hogar`);
-    await page2.waitForTimeout(1000);
+    // Close success modal
+    await page1.waitForSelector('.modal', { timeout: 5000 });
+    await page1.locator('.modal button').click();
+    await page1.waitForTimeout(500);
+    
+    // Get invitation token from database
+    const tokenResult = await pool.query(
+      `SELECT token FROM household_invitations 
+       WHERE email = $1 AND accepted_at IS NULL 
+       ORDER BY created_at DESC LIMIT 1`,
+      [user2Email]
+    );
+    
+    if (tokenResult.rows.length === 0) {
+      throw new Error('No invitation token found for User 2');
+    }
+    
+    const inviteToken = tokenResult.rows[0].token;
+    
+    // User 2: Accept invitation via link
+    await page2.goto(`${appUrl}/invite?token=${encodeURIComponent(inviteToken)}`);
+    await page2.waitForTimeout(2000);
+    
+    await page2.waitForSelector('#accept-btn', { timeout: 5000 });
+    await page2.locator('#accept-btn').click();
+    await page2.waitForTimeout(2000);
     
     console.log('✅ User 2 joined household');
 
