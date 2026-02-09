@@ -6250,8 +6250,8 @@ export async function setup() {
         if (household) {
           // Show success modal and wait for user to click OK
           await showSuccess('¡Hogar creado!', `Tu hogar <strong>${household.name}</strong> ha sido creado exitosamente.`);
-          // Then force full page reload
-          window.location.href = '/';
+          // Navigate to profile to complete setup
+          window.location.href = '/perfil';
         }
       });
     }
