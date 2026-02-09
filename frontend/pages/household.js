@@ -888,7 +888,15 @@ async function handleLeaveMember() {
  * Handle promote member
  */
 async function handlePromoteMember(userId) {
-  if (!await showConfirmation('Promover a dueño', '¿Promover este miembro a dueño del hogar?', 'Promover')) return;
+  const message = `
+    <p><strong>¿Cuál es la diferencia?</strong></p>
+    <ul style="text-align: left; margin: 12px 0; padding-left: 20px;">
+      <li><strong>Miembro:</strong> Puede ver y registrar movimientos del hogar.</li>
+      <li><strong>Dueño:</strong> Además puede invitar personas, gestionar miembros, y eliminar el hogar.</li>
+    </ul>
+    <p>¿Deseas promover este miembro a dueño?</p>
+  `;
+  if (!await showConfirmation('Promover a dueño', message, 'Promover')) return;
 
   try {
     const response = await fetch(`${API_URL}/households/${household.id}/members/${userId}/role`, {
