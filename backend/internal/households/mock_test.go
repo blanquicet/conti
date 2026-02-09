@@ -377,3 +377,9 @@ func (m *MockAuditService) LogAsync(ctx context.Context, input *audit.LogInput) 
 func (m *MockAuditService) LogFromRequest(r *http.Request, input *audit.LogInput) error { return nil }
 func (m *MockAuditService) Query(ctx context.Context, filters *audit.ListFilters) ([]*audit.AuditLog, int, error) { return nil, 0, nil }
 func (m *MockAuditService) Cleanup(ctx context.Context, retentionDays int) (int64, error) { return 0, nil }
+
+// MockEmailSender implements email.Sender for testing
+type MockEmailSender struct{}
+
+func (m *MockEmailSender) SendPasswordReset(ctx context.Context, to, token string) error { return nil }
+func (m *MockEmailSender) SendHouseholdInvitation(ctx context.Context, to, token, householdName, inviterName string) error { return nil }
