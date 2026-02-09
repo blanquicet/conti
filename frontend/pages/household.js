@@ -921,7 +921,15 @@ async function handlePromoteMember(userId) {
  * Handle demote member
  */
 async function handleDemoteMember(userId) {
-  if (!await showConfirmation('Cambiar rol', '¿Quitar permisos de dueño a este miembro?', 'Cambiar')) return;
+  const message = `
+    <p><strong>¿Cuál es la diferencia?</strong></p>
+    <ul style="text-align: left; margin: 12px 0; padding-left: 20px;">
+      <li><strong>Dueño:</strong> Puede invitar personas, gestionar miembros, y eliminar el hogar.</li>
+      <li><strong>Miembro:</strong> Solo puede ver y registrar movimientos del hogar.</li>
+    </ul>
+    <p>¿Deseas quitar los permisos de dueño a este miembro?</p>
+  `;
+  if (!await showConfirmation('Quitar como dueño', message, 'Cambiar')) return;
 
   try {
     const response = await fetch(`${API_URL}/households/${household.id}/members/${userId}/role`, {
