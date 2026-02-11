@@ -2948,6 +2948,20 @@ function refreshDisplay() {
   if (tarjetasContainer && activeTab === 'tarjetas') {
     tarjetasContainer.innerHTML = renderCreditCards();
     setupCardsListeners();
+    
+    // Update credit card totals summary
+    const debtAmountEl = document.querySelector('.loans-summary .debt-amount');
+    if (debtAmountEl) {
+      debtAmountEl.textContent = formatCurrency(creditCardsData?.totals?.total_debt || 0);
+    }
+    
+    const availableEl = document.querySelector('.loans-summary .summary-item:last-child .summary-amount');
+    if (availableEl) {
+      availableEl.textContent = formatCurrency(creditCardsData?.available_cash?.total || 0);
+      // Update class for positive/negative styling
+      availableEl.classList.remove('available-positive', 'available-negative');
+      availableEl.classList.add(creditCardsData?.can_pay_all ? 'available-positive' : 'available-negative');
+    }
   }
 
   const totalEl = document.querySelector('.total-amount');
