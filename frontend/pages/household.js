@@ -1371,7 +1371,7 @@ function showGroupModal(groupId) {
           <input type="text" id="group-name" required maxlength="100" value="${existing?.name || ''}" placeholder="ej. Hogar, Transporte">
         </label>
         <div class="field">
-          <span>Icono</span>
+          <span>Icono *</span>
           <div id="icon-grid" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
             ${['🏠','🚗','🏎️','👨','👩','👸','🤴','🏦','📈','🎉','💊','🛒','🎁','💡','🐾','👶','✈️','🍽️','📚','💳','⚕️','🏋️','🎮','💼','🔧','📱','🌐','💰','🏫','💸','📦'].map(e =>
               `<button type="button" class="icon-pick${(existing?.icon || '').startsWith(e) ? ' selected' : ''}" data-icon="${e}"
