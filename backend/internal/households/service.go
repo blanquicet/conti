@@ -934,9 +934,9 @@ func (s *Service) CountLinkRequests(ctx context.Context, userID string) (int, er
 	return s.repo.CountPendingLinkRequests(ctx, userID)
 }
 
-// AcceptLinkRequest accepts a pending link request
-func (s *Service) AcceptLinkRequest(ctx context.Context, userID, contactID string) error {
-	// Verify the contact exists and is linked to this user
+// AcceptLinkRequest accepts a pending link request and creates a reciprocal contact
+func (s *Service) AcceptLinkRequest(ctx context.Context, userID, contactID, contactName string, existingContactID *string) error {
+	// 1. Verify the contact exists and is linked to this user
 	contact, err := s.repo.GetContact(ctx, contactID)
 	if err != nil {
 		return err
@@ -950,10 +950,102 @@ func (s *Service) AcceptLinkRequest(ctx context.Context, userID, contactID strin
 		return ErrLinkRequestNotPending
 	}
 
+	// 2. Find the requester's user ID (the owner of the household that created this contact)
+	members, err := s.repo.GetMembers(ctx, contact.HouseholdID)
+	if err != nil {
+		return err
+	}
+	var requesterUserID string
+	for _, m := range members {
+		if m.Role == "owner" {
+			requesterUserID = m.UserID
+			break
+		}
+	}
+	if requesterUserID == "" && len(members) > 0 {
+		requesterUserID = members[0].UserID
+	}
+	if requesterUserID == "" {
+		return errors.New("could not find requester user")
+	}
+
+	// 3. Get the acceptor's household
+	acceptorHouseholdID, err := s.repo.GetUserHouseholdID(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// 4. Create or update reciprocal contact in acceptor's household
+	if existingContactID != nil && *existingContactID != "" {
+		// Update existing contact with linked_user_id
+		err = s.repo.UpdateContactLinkedUser(ctx, *existingContactID, requesterUserID, "ACCEPTED")
+		if err != nil {
+			return err
+		}
+	} else {
+		// Check if acceptor already has a contact linked to the requester
+		existingContacts, err := s.repo.ListContacts(ctx, acceptorHouseholdID)
+		if err != nil {
+			return err
+		}
+		var alreadyLinked bool
+		for _, c := range existingContacts {
+			if c.LinkedUserID != nil && *c.LinkedUserID == requesterUserID {
+				// Already have a reciprocal contact — just update its status
+				err = s.repo.UpdateContactLinkStatus(ctx, c.ID, "ACCEPTED")
+				if err != nil {
+					return err
+				}
+				alreadyLinked = true
+				break
+			}
+		}
+
+		if !alreadyLinked {
+			// Get requester's email for the new contact
+			requester, err := s.userRepo.GetByID(ctx, requesterUserID)
+			if err != nil {
+				return err
+			}
+
+			// Use provided name or default to requester's member name
+			name := contactName
+			if name == "" {
+				// Find requester's display name from their household
+				for _, m := range members {
+					if m.UserID == requesterUserID {
+						name = m.UserName
+						break
+					}
+				}
+			}
+			if name == "" {
+				name = contact.Name // last resort: name the requester gave this contact
+			}
+
+			now := time.Now()
+			newContact := &Contact{
+				HouseholdID:     acceptorHouseholdID,
+				Name:            name,
+				Email:           &requester.Email,
+				LinkedUserID:    &requesterUserID,
+				LinkStatus:      "ACCEPTED",
+				LinkRequestedAt: &now,
+				LinkRespondedAt: &now,
+				IsActive:        true,
+			}
+			_, err = s.repo.CreateContact(ctx, newContact)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// 5. Update source contact to ACCEPTED
 	return s.repo.UpdateContactLinkStatus(ctx, contactID, "ACCEPTED")
 }
 
-// RejectLinkRequest rejects a pending link request and removes the linked user
+// RejectLinkRequest rejects a pending link request
 func (s *Service) RejectLinkRequest(ctx context.Context, userID, contactID string) error {
 	// Verify the contact exists and is linked to this user
 	contact, err := s.repo.GetContact(ctx, contactID)
@@ -969,19 +1061,6 @@ func (s *Service) RejectLinkRequest(ctx context.Context, userID, contactID strin
 		return ErrLinkRequestNotPending
 	}
 
-	// Set status to REJECTED and clear linked_user_id
-	if err := s.repo.UpdateContactLinkStatus(ctx, contactID, "REJECTED"); err != nil {
-		return err
-	}
-
-	// Clear linked_user_id so the contact is unlinked
-	_, err = s.repo.UpdateContact(ctx, &Contact{
-		ID:           contact.ID,
-		Name:         contact.Name,
-		Email:        contact.Email,
-		Phone:        contact.Phone,
-		LinkedUserID: nil,
-		Notes:        contact.Notes,
-	}, nil)
-	return err
+	// Set status to REJECTED (keep linked_user_id so re-requesting is possible)
+	return s.repo.UpdateContactLinkStatus(ctx, contactID, "REJECTED")
 }

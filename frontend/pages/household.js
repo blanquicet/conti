@@ -127,6 +127,7 @@ async function loadHousehold() {
     // Render content
     contentEl.innerHTML = renderHouseholdContent();
     setupEventHandlers();
+    loadAndRenderLinkRequests();
 
   } catch (error) {
     console.error('Error loading household:', error);
@@ -167,6 +168,8 @@ function renderHouseholdContent() {
         </div>
       </div>
     </div>
+
+    <div id="link-requests-section"></div>
 
     <div class="household-section">
       <div class="section-header">
@@ -325,7 +328,9 @@ function renderContactsList() {
             </div>
           </div>
           <div class="contact-badges">
-            ${contact.is_registered ? '<span class="linked-badge">Registrado</span>' : ''}
+            ${contact.link_status === 'ACCEPTED' ? '<span class="linked-badge linked-accepted">Vinculado</span>' : ''}
+            ${contact.link_status === 'PENDING' ? '<span class="linked-badge linked-pending">Pendiente</span>' : ''}
+            ${contact.link_status === 'REJECTED' ? '<span class="linked-badge linked-rejected">Rechazado</span>' : ''}
             ${!contact.is_active ? '<span class="inactive-badge">Inactivo</span>' : ''}
           </div>
           <div class="contact-actions">
@@ -1680,4 +1685,155 @@ async function handleReactivateCategory(catId) {
   } catch (err) {
     await showError('Error', err.message);
   }
+}
+
+/**
+ * Load and render pending link requests
+ */
+async function loadAndRenderLinkRequests() {
+  const section = document.getElementById('link-requests-section');
+  if (!section) return;
+
+  try {
+    const res = await fetch(`${API_URL}/link-requests`, { credentials: 'include' });
+    if (!res.ok) return;
+
+    const requests = await res.json();
+    if (!requests || requests.length === 0) {
+      section.innerHTML = '';
+      return;
+    }
+
+    section.innerHTML = `
+      <div class="household-section">
+        <div class="section-header">
+          <h3 class="section-title">Solicitudes de vinculación</h3>
+        </div>
+        <p class="section-description">Otros hogares quieren compartir gastos contigo.</p>
+        <div class="link-requests-list">
+          ${requests.map(req => `
+            <div class="link-request-card" data-contact-id="${req.contact_id}">
+              <div class="link-request-info">
+                <strong>${req.requester_name}</strong> (${req.household_name}) quiere compartir gastos contigo
+              </div>
+              <div class="link-request-actions" id="link-actions-${req.contact_id}">
+                <button class="btn-primary btn-small" data-action="accept-link" data-contact-id="${req.contact_id}" data-requester-name="${req.requester_name}">Aceptar</button>
+                <button class="btn-secondary btn-small" data-action="reject-link" data-contact-id="${req.contact_id}">Rechazar</button>
+              </div>
+              <div class="link-request-accept-form" id="accept-form-${req.contact_id}" style="display: none;">
+                <div class="form-group">
+                  <label>¿Con qué nombre quieres guardar a este contacto?</label>
+                  <input type="text" id="accept-name-${req.contact_id}" value="${req.requester_name}" />
+                </div>
+                <div class="form-group">
+                  <label>O vincular con contacto existente</label>
+                  <select id="accept-existing-${req.contact_id}">
+                    <option value="">Crear nuevo contacto</option>
+                    ${contacts.filter(c => !c.linked_user_id && c.is_active).map(c =>
+                      `<option value="${c.id}">${c.name}</option>`
+                    ).join('')}
+                  </select>
+                </div>
+                <div class="link-request-actions">
+                  <button class="btn-primary btn-small" data-action="confirm-accept" data-contact-id="${req.contact_id}">Confirmar</button>
+                  <button class="btn-secondary btn-small" data-action="cancel-accept" data-contact-id="${req.contact_id}">Cancelar</button>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    setupLinkRequestHandlers();
+  } catch (e) {
+    // Ignore errors silently
+  }
+}
+
+function setupLinkRequestHandlers() {
+  // Accept button - show inline form
+  document.querySelectorAll('[data-action="accept-link"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const contactId = btn.dataset.contactId;
+      document.getElementById(`link-actions-${contactId}`).style.display = 'none';
+      document.getElementById(`accept-form-${contactId}`).style.display = 'block';
+    });
+  });
+
+  // Cancel accept
+  document.querySelectorAll('[data-action="cancel-accept"]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const contactId = btn.dataset.contactId;
+      document.getElementById(`link-actions-${contactId}`).style.display = 'flex';
+      document.getElementById(`accept-form-${contactId}`).style.display = 'none';
+    });
+  });
+
+  // Confirm accept
+  document.querySelectorAll('[data-action="confirm-accept"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const contactId = btn.dataset.contactId;
+      const nameInput = document.getElementById(`accept-name-${contactId}`);
+      const existingSelect = document.getElementById(`accept-existing-${contactId}`);
+      const contactName = nameInput.value.trim();
+      const existingContactId = existingSelect.value || null;
+
+      if (!contactName && !existingContactId) {
+        await showError('Error', 'Debes ingresar un nombre o seleccionar un contacto existente.');
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/link-requests/${contactId}/accept`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contact_name: contactName,
+            existing_contact_id: existingContactId,
+          }),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Error al aceptar la solicitud');
+        }
+
+        await showSuccess('Solicitud aceptada', 'El contacto ha sido vinculado.');
+        await loadHousehold();
+      } catch (err) {
+        await showError('Error', err.message);
+      }
+    });
+  });
+
+  // Reject button
+  document.querySelectorAll('[data-action="reject-link"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const contactId = btn.dataset.contactId;
+      const confirmed = await showConfirmation(
+        '¿Rechazar solicitud?',
+        'Esta persona no podrá compartir gastos contigo.'
+      );
+      if (!confirmed) return;
+
+      try {
+        const res = await fetch(`${API_URL}/link-requests/${contactId}/reject`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Error al rechazar la solicitud');
+        }
+
+        await showSuccess('Solicitud rechazada', '');
+        await loadHousehold();
+      } catch (err) {
+        await showError('Error', err.message);
+      }
+    });
+  });
 }

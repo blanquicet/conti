@@ -775,7 +775,15 @@ func (h *Handler) AcceptLinkRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.AcceptLinkRequest(r.Context(), user.ID, contactID); err != nil {
+	var req struct {
+		ContactName       string  `json:"contact_name"`
+		ExistingContactID *string `json:"existing_contact_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		// Body is optional — defaults are handled in service
+	}
+
+	if err := h.service.AcceptLinkRequest(r.Context(), user.ID, contactID, req.ContactName, req.ExistingContactID); err != nil {
 		h.handleServiceError(w, err)
 		return
 	}

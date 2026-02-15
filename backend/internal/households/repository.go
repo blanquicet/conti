@@ -593,13 +593,13 @@ func (r *Repository) UpdateContactLinkStatus(ctx context.Context, contactID stri
 	result, err := r.pool.Exec(ctx, `
 		UPDATE contacts
 		SET link_status = $2, link_responded_at = NOW(), updated_at = NOW()
-		WHERE id = $1 AND link_status = 'PENDING'
+		WHERE id = $1
 	`, contactID, status)
 	if err != nil {
 		return err
 	}
 	if result.RowsAffected() == 0 {
-		return ErrLinkRequestNotPending
+		return ErrContactNotFound
 	}
 	return nil
 }
