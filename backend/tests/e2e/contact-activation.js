@@ -198,7 +198,8 @@ async function testContactActivation() {
     const contactItem = page.locator('.contact-item', { hasText: 'To Deactivate' });
     await contactItem.locator('.three-dots-btn').click();
     await page.waitForTimeout(300);
-    await contactItem.locator('button[data-action="toggle-active"]').click();
+    // Portal menu is rendered on body
+    await page.locator('body > .three-dots-menu button[data-action="toggle-active"]').click();
     
     // Wait for confirmation modal and confirm
     await page.waitForTimeout(500);
@@ -290,8 +291,8 @@ async function testContactActivation() {
     await contactToReactivate.locator('.three-dots-btn').click();
     await page.waitForTimeout(300);
     
-    // Click "Activar" button
-    await contactToReactivate.locator('button[data-action="toggle-active"]').click();
+    // Click "Activar" button (portal menu on body)
+    await page.locator('body > .three-dots-menu button[data-action="toggle-active"]').click();
     
     // Wait for confirmation modal and confirm
     await page.waitForTimeout(500);

@@ -349,8 +349,8 @@ async function testHouseholdValidation() {
     await page.locator('#household-menu-btn').click();
     await page.waitForTimeout(300);
     
-    // Click "Eliminar hogar" in the menu
-    await page.locator('button[data-action="delete-household"]').click();
+    // Click "Eliminar hogar" in portal menu
+    await page.locator('body > .three-dots-menu button[data-action="delete-household"]').click();
     await page.waitForTimeout(500);
     await page.locator('#confirm-input').fill('eliminar');
     await page.waitForTimeout(500);

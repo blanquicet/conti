@@ -204,6 +204,21 @@ return ok, nil
 }
 return false, nil
 }
+func (m *MockHouseholdRepository) FindContactsByLinkedUserID(ctx context.Context, userID, excludeHouseholdID string) ([]households.LinkedContact, error) {
+return nil, nil
+}
+func (m *MockHouseholdRepository) ListPendingLinkRequests(ctx context.Context, userID string) ([]households.LinkRequest, error) {
+return nil, nil
+}
+func (m *MockHouseholdRepository) CountPendingLinkRequests(ctx context.Context, userID string) (int, error) {
+return 0, nil
+}
+func (m *MockHouseholdRepository) UpdateContactLinkStatus(ctx context.Context, contactID string, status string) error {
+return nil
+}
+func (m *MockHouseholdRepository) UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, linkStatus string) error {
+return nil
+}
 
 func generateID(n int) string {
 return "cat-" + string(rune('0'+n))

@@ -251,18 +251,18 @@ async function testHouseholdManagement() {
     for (const item of memberItems) {
       const email = await item.locator('.member-email').textContent();
       if (email.includes(user2Email)) {
-        // Click three-dots menu
+        // Click three-dots menu (opens portal menu on document.body)
         const threeDotsBtn = item.locator('.three-dots-btn');
         if (await threeDotsBtn.count() > 0) {
           await threeDotsBtn.click();
           await page1.waitForTimeout(300);
           
-          // Wait for menu to be visible
-          const menu = item.locator('.three-dots-menu');
+          // Portal menu is rendered on body, not inside .member-item
+          const menu = page1.locator('body > .three-dots-menu');
           await menu.waitFor({ state: 'visible', timeout: 5000 });
           
-          // Click "Promover a dueño" in menu
-          const promoteBtn = item.locator('button[data-action="promote"]');
+          // Click "Promover a dueño" in portal menu
+          const promoteBtn = menu.locator('button[data-action="promote"]');
           await promoteBtn.waitFor({ state: 'visible', timeout: 5000 });
           await promoteBtn.click();
           await page1.waitForTimeout(500);
@@ -313,17 +313,17 @@ async function testHouseholdManagement() {
     for (const item of memberItems2) {
       const email = await item.locator('.member-email').textContent();
       if (email.includes(user2Email)) {
-        // Click three-dots menu
+        // Click three-dots menu (opens portal menu on document.body)
         const threeDotsBtn = item.locator('.three-dots-btn');
         await threeDotsBtn.click();
         await page1.waitForTimeout(300);
         
-        // Wait for menu to be visible
-        const menu = item.locator('.three-dots-menu');
+        // Portal menu is rendered on body, not inside .member-item
+        const menu = page1.locator('body > .three-dots-menu');
         await menu.waitFor({ state: 'visible', timeout: 5000 });
         
-        // Click "Quitar como dueño" in menu
-        const demoteBtn = item.locator('button[data-action="demote"]');
+        // Click "Quitar como dueño" in portal menu
+        const demoteBtn = menu.locator('button[data-action="demote"]');
         await demoteBtn.waitFor({ state: 'visible', timeout: 5000 });
         await demoteBtn.click();
         await page1.waitForTimeout(500);
@@ -374,17 +374,17 @@ async function testHouseholdManagement() {
     for (const item of memberItems3) {
       const email = await item.locator('.member-email').textContent();
       if (email.includes(user2Email)) {
-        // Click three-dots menu
+        // Click three-dots menu (opens portal menu on document.body)
         const threeDotsBtn = item.locator('.three-dots-btn');
         await threeDotsBtn.click();
         await page1.waitForTimeout(300);
         
-        // Wait for menu to be visible
-        const menu = item.locator('.three-dots-menu');
+        // Portal menu is rendered on body, not inside .member-item
+        const menu = page1.locator('body > .three-dots-menu');
         await menu.waitFor({ state: 'visible', timeout: 5000 });
         
-        // Click "Remover" in menu
-        const removeBtn = item.locator('button[data-action="remove"]');
+        // Click "Remover" in portal menu
+        const removeBtn = menu.locator('button[data-action="remove"]');
         await removeBtn.waitFor({ state: 'visible', timeout: 5000 });
         await removeBtn.click();
         await page1.waitForTimeout(500);
@@ -437,8 +437,8 @@ async function testHouseholdManagement() {
     await page1.locator('#household-menu-btn').click();
     await page1.waitForTimeout(300);
     
-    // Click "Eliminar hogar" in the menu
-    await page1.locator('button[data-action="delete-household"]').click();
+    // Click "Eliminar hogar" in the portal menu (on body)
+    await page1.locator('body > .three-dots-menu button[data-action="delete-household"]').click();
     await page1.waitForTimeout(500);
     
     // Type "eliminar" in confirmation

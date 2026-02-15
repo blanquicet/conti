@@ -159,6 +159,21 @@ func (m *MockHouseholdRepository) ListPendingInvitations(ctx context.Context, ho
 func (m *MockHouseholdRepository) IsUserMember(ctx context.Context, householdID, userID string) (bool, error) {
 	return false, nil
 }
+func (m *MockHouseholdRepository) FindContactsByLinkedUserID(ctx context.Context, userID, excludeHouseholdID string) ([]households.LinkedContact, error) {
+	return nil, nil
+}
+func (m *MockHouseholdRepository) ListPendingLinkRequests(ctx context.Context, userID string) ([]households.LinkRequest, error) {
+	return nil, nil
+}
+func (m *MockHouseholdRepository) CountPendingLinkRequests(ctx context.Context, userID string) (int, error) {
+	return 0, nil
+}
+func (m *MockHouseholdRepository) UpdateContactLinkStatus(ctx context.Context, contactID string, status string) error {
+	return nil
+}
+func (m *MockHouseholdRepository) UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, linkStatus string) error {
+	return nil
+}
 
 // MockPaymentMethodsRepository for testing
 type MockPaymentMethodsRepository struct {

@@ -119,7 +119,7 @@ async function testCategoryGroupManagement() {
     // Click three-dots on the group header to add category
     await groupCard.locator('[data-group-menu]').click();
     await page.waitForTimeout(300);
-    await groupCard.locator('.menu-item[data-action="add-category"]').click();
+    await page.locator('body > .three-dots-menu .menu-item[data-action="add-category"]').click();
     await page.waitForTimeout(500);
 
     // Fill category name (group should be pre-selected)
@@ -172,7 +172,7 @@ async function testCategoryGroupManagement() {
     const hogarCard = page.locator('.cat-group-card', { hasText: 'Hogar' });
     await hogarCard.locator('[data-group-menu]').click();
     await page.waitForTimeout(300);
-    await hogarCard.locator('button[data-action="edit-group"]').click();
+    await page.locator('body > .three-dots-menu button[data-action="edit-group"]').click();
     await page.waitForTimeout(500);
 
     // Change name and icon
@@ -216,7 +216,7 @@ async function testCategoryGroupManagement() {
     const mercadoItem = casaCard.locator('.cat-item', { hasText: 'Mercado' });
     await mercadoItem.locator('.three-dots-btn').click();
     await page.waitForTimeout(300);
-    await mercadoItem.locator('button[data-action="edit-category"]').click();
+    await page.locator('body > .three-dots-menu button[data-action="edit-category"]').click();
     await page.waitForTimeout(500);
 
     // Only rename, don't change group
@@ -254,7 +254,7 @@ async function testCategoryGroupManagement() {
     const superItemMove = casaCardMove.locator('.cat-item', { hasText: 'Supermercado' });
     await superItemMove.locator('.three-dots-btn').click();
     await page.waitForTimeout(300);
-    await superItemMove.locator('button[data-action="edit-category"]').click();
+    await page.locator('body > .three-dots-menu button[data-action="edit-category"]').click();
     await page.waitForTimeout(500);
 
     // Only change group, keep name
@@ -347,7 +347,7 @@ async function testCategoryGroupManagement() {
     const superItem = tCardDeact.locator('.cat-item', { hasText: 'Supermercado' });
     await superItem.locator('.three-dots-btn').click();
     await page.waitForTimeout(300);
-    await superItem.locator('button[data-action="deactivate-category"]').click();
+    await page.locator('body > .three-dots-menu button[data-action="deactivate-category"]').click();
     await page.waitForTimeout(500);
     await page.locator('#modal-confirm').click();
     await page.waitForTimeout(2000);
@@ -396,7 +396,7 @@ async function testCategoryGroupManagement() {
     const inactiveItem = tCardReact.locator('.cat-item', { hasText: 'Supermercado' });
     await inactiveItem.locator('.three-dots-btn').click();
     await page.waitForTimeout(300);
-    await inactiveItem.locator('button[data-action="reactivate-category"]').click();
+    await page.locator('body > .three-dots-menu button[data-action="reactivate-category"]').click();
     await page.waitForTimeout(2000);
 
     const reactivated = await pool.query(
@@ -424,7 +424,7 @@ async function testCategoryGroupManagement() {
     const superItem2 = tCardDel.locator('.cat-item', { hasText: 'Supermercado' });
     await superItem2.locator('.three-dots-btn').click();
     await page.waitForTimeout(300);
-    await superItem2.locator('button[data-action="delete-category"]').click();
+    await page.locator('body > .three-dots-menu button[data-action="delete-category"]').click();
     await page.waitForTimeout(500);
 
     // Type "eliminar" if confirmation input is visible
@@ -456,7 +456,7 @@ async function testCategoryGroupManagement() {
     const tCard4 = page.locator('.cat-group-card', { hasText: 'Transporte' });
     await tCard4.locator('[data-group-menu]').click();
     await page.waitForTimeout(300);
-    await tCard4.locator('button[data-action="delete-group"]').click();
+    await page.locator('body > .three-dots-menu button[data-action="delete-group"]').click();
     await page.waitForTimeout(500);
 
     const groupConfirmInput = page.locator('#confirm-input');
@@ -485,7 +485,7 @@ async function testCategoryGroupManagement() {
     const casaCard2 = page.locator('.cat-group-card', { hasText: 'Casa' });
     await casaCard2.locator('[data-group-menu]').click();
     await page.waitForTimeout(300);
-    await casaCard2.locator('.menu-item[data-action="add-category"]').click();
+    await page.locator('body > .three-dots-menu .menu-item[data-action="add-category"]').click();
     await page.waitForTimeout(500);
     await page.locator('#cat-name').fill('Servicios');
     await page.locator('#category-form button[type="submit"]').click();
@@ -495,7 +495,7 @@ async function testCategoryGroupManagement() {
     const casaCard3 = page.locator('.cat-group-card', { hasText: 'Casa' });
     await casaCard3.locator('[data-group-menu]').click();
     await page.waitForTimeout(300);
-    await casaCard3.locator('button[data-action="deactivate-group"]').click();
+    await page.locator('body > .three-dots-menu button[data-action="deactivate-group"]').click();
     await page.waitForTimeout(500);
     await page.locator('#modal-confirm').click();
     await page.waitForTimeout(2000);
@@ -514,7 +514,7 @@ async function testCategoryGroupManagement() {
     const inactiveGroup = page.locator('.cat-group-card', { hasText: 'Casa' });
     await inactiveGroup.locator('[data-group-menu]').click();
     await page.waitForTimeout(300);
-    await inactiveGroup.locator('button[data-action="reactivate-group"]').click();
+    await page.locator('body > .three-dots-menu button[data-action="reactivate-group"]').click();
     await page.waitForTimeout(2000);
 
     const reactivatedGroup = await pool.query(
