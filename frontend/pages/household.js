@@ -1717,8 +1717,7 @@ async function loadAndRenderLinkRequests() {
                 <strong>${req.requester_name}</strong> (${req.household_name}) quiere compartir gastos contigo
               </div>
               <div class="link-request-actions">
-                <button class="btn-primary btn-small" data-action="accept-link" data-contact-id="${req.contact_id}" data-requester-name="${req.requester_name}" data-household-name="${req.household_name}">Aceptar</button>
-                <button class="btn-secondary btn-small" data-action="reject-link" data-contact-id="${req.contact_id}">Rechazar</button>
+                <button class="btn-secondary btn-small" data-action="view-link" data-contact-id="${req.contact_id}" data-requester-name="${req.requester_name}" data-household-name="${req.household_name}">Ver solicitud</button>
               </div>
             </div>
           `).join('')}
@@ -1733,47 +1732,17 @@ async function loadAndRenderLinkRequests() {
 }
 
 function setupLinkRequestHandlers() {
-  // Accept button - open modal
-  document.querySelectorAll('[data-action="accept-link"]').forEach(btn => {
+  document.querySelectorAll('[data-action="view-link"]').forEach(btn => {
     btn.addEventListener('click', () => {
       const contactId = btn.dataset.contactId;
       const requesterName = btn.dataset.requesterName;
       const householdName = btn.dataset.householdName;
-      showAcceptLinkModal(contactId, requesterName, householdName);
-    });
-  });
-
-  // Reject button
-  document.querySelectorAll('[data-action="reject-link"]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const contactId = btn.dataset.contactId;
-      const confirmed = await showConfirmation(
-        '¿Rechazar solicitud?',
-        'Esta persona no podrá compartir gastos contigo.'
-      );
-      if (!confirmed) return;
-
-      try {
-        const res = await fetch(`${API_URL}/link-requests/${contactId}/reject`, {
-          method: 'POST',
-          credentials: 'include',
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || 'Error al rechazar la solicitud');
-        }
-
-        await showSuccess('Solicitud rechazada', '');
-        await loadHousehold();
-      } catch (err) {
-        await showError('Error', err.message);
-      }
+      showLinkRequestModal(contactId, requesterName, householdName);
     });
   });
 }
 
-function showAcceptLinkModal(contactId, requesterName, householdName) {
+function showLinkRequestModal(contactId, requesterName, householdName) {
   const existingOptions = contacts.filter(c => !c.linked_user_id && c.is_active)
     .map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
@@ -1782,12 +1751,21 @@ function showAcceptLinkModal(contactId, requesterName, householdName) {
   overlay.innerHTML = `
     <div class="modal">
       <div class="modal-header">
-        <h3>Aceptar solicitud de vinculación</h3>
+        <h3>Solicitud de vinculación</h3>
       </div>
       <div class="modal-body">
-        <p class="link-request-explanation">Al aceptar, las personas del hogar <strong>${householdName}</strong> podrán ver <em>solo</em> los gastos en los que ellos participen. No tendrán acceso a todos tus movimientos.</p>
+        <p><strong>${requesterName}</strong> del hogar <strong>${householdName}</strong> quiere compartir gastos contigo.</p>
+
+        <p><strong>¿Qué significa aceptar?</strong></p>
+        <ul>
+          <li>Las personas de ese hogar podrán ver <em>solo</em> los gastos en los que ellos participen.</li>
+          <li>No tendrán acceso a todos tus movimientos.</li>
+          <li>Se creará un contacto vinculado en tu hogar.</li>
+        </ul>
+
+        <p><strong>¿Cómo quieres guardar este contacto?</strong></p>
         <div class="form-group">
-          <label>¿Con qué nombre quieres guardar a este contacto?</label>
+          <label>Nombre del contacto</label>
           <input type="text" id="modal-accept-name" value="${requesterName}" />
         </div>
         <div class="form-group">
@@ -1799,25 +1777,24 @@ function showAcceptLinkModal(contactId, requesterName, householdName) {
         </div>
       </div>
       <div class="modal-footer">
+        <button class="btn-secondary" id="modal-reject-btn" style="color:#dc3545;">Rechazar</button>
         <button class="btn-secondary" id="modal-cancel-btn">Cancelar</button>
-        <button class="btn-primary" id="modal-confirm-btn">Confirmar</button>
+        <button class="btn-primary" id="modal-accept-btn">Aceptar</button>
       </div>
     </div>
   `;
   document.body.appendChild(overlay);
 
-  // Close on overlay click
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();
   });
 
   document.getElementById('modal-cancel-btn').addEventListener('click', () => overlay.remove());
 
-  document.getElementById('modal-confirm-btn').addEventListener('click', async () => {
-    const nameInput = document.getElementById('modal-accept-name');
-    const existingSelect = document.getElementById('modal-accept-existing');
-    const contactName = nameInput.value.trim();
-    const existingContactId = existingSelect.value || null;
+  // Accept
+  document.getElementById('modal-accept-btn').addEventListener('click', async () => {
+    const contactName = document.getElementById('modal-accept-name').value.trim();
+    const existingContactId = document.getElementById('modal-accept-existing').value || null;
 
     if (!contactName && !existingContactId) {
       await showError('Error', 'Debes ingresar un nombre o seleccionar un contacto existente.');
@@ -1847,4 +1824,32 @@ function showAcceptLinkModal(contactId, requesterName, householdName) {
       await showError('Error', err.message);
     }
   });
+
+  // Reject
+  document.getElementById('modal-reject-btn').addEventListener('click', async () => {
+    const confirmed = await showConfirmation(
+      '¿Rechazar solicitud?',
+      'Esta persona no podrá compartir gastos contigo.'
+    );
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${API_URL}/link-requests/${contactId}/reject`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Error al rechazar la solicitud');
+      }
+
+      overlay.remove();
+      await showSuccess('Solicitud rechazada', '');
+      await loadHousehold();
+    } catch (err) {
+      await showError('Error', err.message);
+    }
+  });
+}
 }

@@ -1354,17 +1354,6 @@ button.loading::after {
   padding: 6px 14px;
 }
 
-.link-request-explanation {
-  font-size: 13px;
-  color: #555;
-  background: #f0f7ff;
-  border: 1px solid #d0e3f7;
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 12px;
-  line-height: 1.4;
-}
-
 /* Navbar badge */
 .nav-badge {
   background-color: #dc3545;
