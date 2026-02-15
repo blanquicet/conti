@@ -512,69 +512,59 @@ function setupScrollFadeIndicators() {
 function setupEventHandlers() {
   setupScrollFadeIndicators();
 
-  // Household three-dots menu toggle
-  const householdMenuBtn = document.getElementById('household-menu-btn');
-  householdMenuBtn?.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const menu = document.getElementById('household-menu');
-    const isOpen = menu.style.display === 'block';
-    
-    // Close all menus
-    document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
-    
-    // Toggle this menu
-    if (!isOpen) {
-      menu.style.display = 'block';
+  // Portal menu: show menu floating on body so it's never clipped by overflow
+  let portalSourceMenu = null;
+
+  function showPortalMenu(btn, menu) {
+    closePortalMenu();
+    const rect = btn.getBoundingClientRect();
+    const portal = document.createElement('div');
+    portal.id = 'portal-menu';
+    portal.className = 'three-dots-menu';
+    portal.innerHTML = menu.innerHTML;
+    portal.style.cssText = `display:block;position:fixed;top:${rect.bottom + 4}px;right:${window.innerWidth - rect.right}px;z-index:9999;`;
+    document.body.appendChild(portal);
+    const portalRect = portal.getBoundingClientRect();
+    if (portalRect.bottom > window.innerHeight) {
+      portal.style.top = `${rect.top - portalRect.height - 4}px`;
     }
-  });
-
-  // Contact three-dots menu toggle
-  document.querySelectorAll('.three-dots-btn[data-contact-id]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const contactId = e.currentTarget.dataset.contactId;
-      const menu = document.getElementById(`contact-menu-${contactId}`);
-      const isOpen = menu.style.display === 'block';
-      
-      // Close all menus
-      document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
-      
-      // Toggle this menu
-      if (!isOpen) {
-        menu.style.display = 'block';
+    portalSourceMenu = menu;
+    // Forward clicks by index to original menu items
+    portal.addEventListener('click', (e) => {
+      const item = e.target.closest('.menu-item');
+      if (item) {
+        const items = Array.from(portal.querySelectorAll('.menu-item'));
+        const idx = items.indexOf(item);
+        const origItems = Array.from(menu.querySelectorAll('.menu-item'));
+        if (origItems[idx]) origItems[idx].click();
       }
+      closePortalMenu();
     });
-  });
+  }
 
-  // Member three-dots menu toggle
-  document.querySelectorAll('.three-dots-btn[data-member-id]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const memberId = e.currentTarget.dataset.memberId;
-      const menu = document.getElementById(`member-menu-${memberId}`);
-      const isOpen = menu.style.display === 'block';
-      
-      // Close all menus
-      document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
-      
-      // Toggle this menu
-      if (!isOpen) {
-        menu.style.display = 'block';
-      }
-    });
-  });
+  function closePortalMenu() {
+    document.getElementById('portal-menu')?.remove();
+    portalSourceMenu = null;
+  }
 
-  // Close menus when clicking outside
+  // All three-dots buttons: use portal
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.contact-actions') && 
-        !e.target.closest('.household-header-actions') && 
-        !e.target.closest('.member-actions') &&
-        !e.target.closest('.cat-group-right') &&
-        !e.target.closest('.cat-item-actions')) {
-      document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
+    const btn = e.target.closest('.three-dots-btn');
+    if (btn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const menu = btn.nextElementSibling;
+      if (menu?.classList.contains('three-dots-menu')) {
+        if (portalSourceMenu === menu) {
+          closePortalMenu();
+        } else {
+          showPortalMenu(btn, menu);
+        }
+      }
+      return;
+    }
+    if (!e.target.closest('#portal-menu')) {
+      closePortalMenu();
     }
   });
 
@@ -1296,31 +1286,6 @@ function setupCategoriesHandlers() {
     });
   });
 
-  // Group three-dots menu toggle
-  document.querySelectorAll('[data-group-menu]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const gid = btn.dataset.groupMenu;
-      const menu = document.getElementById(`group-menu-${gid}`);
-      const isOpen = menu.style.display === 'block';
-      document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
-      if (!isOpen) menu.style.display = 'block';
-    });
-  });
-
-  // Category three-dots menu toggle
-  document.querySelectorAll('[data-cat-menu]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const cid = btn.dataset.catMenu;
-      const menu = document.getElementById(`cat-menu-${cid}`);
-      const isOpen = menu.style.display === 'block';
-      document.querySelectorAll('.three-dots-menu').forEach(m => m.style.display = 'none');
-      if (!isOpen) menu.style.display = 'block';
-    });
-  });
 
   // Action buttons
   document.querySelectorAll('#categories-content [data-action]').forEach(btn => {
