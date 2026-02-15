@@ -1718,6 +1718,7 @@ async function loadAndRenderLinkRequests() {
                 <div class="member-name">${req.requester_name}</div>
                 <div class="member-email">${req.household_name}</div>
               </div>
+              <span class="link-request-chevron">›</span>
               <span class="link-request-dot"></span>
             </div>
           `).join('')}

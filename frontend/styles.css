@@ -1334,6 +1334,17 @@ button.loading::after {
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
 }
 
+.link-request-chevron {
+  font-size: 22px;
+  color: #9ca3af;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.link-request-card:hover .link-request-chevron {
+  color: #6366f1;
+}
+
 .link-request-dot {
   position: absolute;
   top: -4px;
