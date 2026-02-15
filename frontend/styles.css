@@ -1169,6 +1169,9 @@ button.loading::after {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .member-item {
@@ -1240,6 +1243,9 @@ button.loading::after {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .contact-item {
@@ -1598,6 +1604,8 @@ button.loading::after {
 
 /* Categories & Groups Management */
 #categories-content {
+  max-height: 400px;
+  overflow-y: auto;
   padding-right: 4px;
 }
 
