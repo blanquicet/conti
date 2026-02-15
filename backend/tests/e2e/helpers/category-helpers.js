@@ -59,7 +59,8 @@ export async function createCategoryViaUI(page, appUrl, groupName, categoryName)
   const groupCard = page.locator('.cat-group-card', { hasText: groupName });
   await groupCard.locator('[data-group-menu]').click();
   await page.waitForTimeout(300);
-  await groupCard.locator('.menu-item[data-action="add-category"]').click();
+  // Menu is rendered as a portal on document.body, not inside the group card
+  await page.locator('body > .three-dots-menu .menu-item[data-action="add-category"]').click();
   await page.waitForTimeout(500);
 
   await page.locator('#cat-name').fill(categoryName);

@@ -171,10 +171,10 @@ async function testCrossHouseholdLoans() {
     );
     mariaContactId = contactResult.rows[0].id;
 
-    // Link to Maria's user account
+    // Link to Maria's user account and accept the link
     await pool.query(
-      'UPDATE contacts SET linked_user_id = $1 WHERE id = $2',
-      [mariaUserId, mariaContactId]
+      'UPDATE contacts SET linked_user_id = $1, link_status = $2 WHERE id = $3',
+      [mariaUserId, 'ACCEPTED', mariaContactId]
     );
 
     // Maria adds "Josecito" as contact (different name for the same person!)
@@ -195,10 +195,10 @@ async function testCrossHouseholdLoans() {
     );
     joseContactId = joseContactResult.rows[0].id;
 
-    // Link to Jose's user account
+    // Link to Jose's user account and accept the link
     await pool.query(
-      'UPDATE contacts SET linked_user_id = $1 WHERE id = $2',
-      [joseUserId, joseContactId]
+      'UPDATE contacts SET linked_user_id = $1, link_status = $2 WHERE id = $3',
+      [joseUserId, 'ACCEPTED', joseContactId]
     );
 
     console.log('✅ Linked contacts created (Jose→"Maria Isabel", Maria→"Josecito")');

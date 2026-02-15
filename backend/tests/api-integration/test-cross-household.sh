@@ -118,11 +118,13 @@ CREATE_CONTACT=$(api_call $CURL_FLAGS -X POST $BASE_URL/households/$JOSE_HOUSEHO
 MARIA_CONTACT_ID=$(echo "$CREATE_CONTACT" | jq -r '.id')
 [ -n "$MARIA_CONTACT_ID" ] && [ "$MARIA_CONTACT_ID" != "null" ]
 
-# Link the contact to Maria's user account via DB
+# Link the contact to Maria's user account via DB and set link_status to ACCEPTED
+# (The API sets link_status='PENDING' when email matches, but cross-household debt
+# visibility requires 'ACCEPTED' status)
 if [ -n "$CI" ] || psql "$DATABASE_URL" -c "SELECT 1" &> /dev/null 2>&1; then
-  PAGER=cat psql "$DATABASE_URL" -c "UPDATE contacts SET linked_user_id = '$MARIA_ID' WHERE id = '$MARIA_CONTACT_ID';" > /dev/null 2>&1
+  PAGER=cat psql "$DATABASE_URL" -c "UPDATE contacts SET linked_user_id = '$MARIA_ID', link_status = 'ACCEPTED' WHERE id = '$MARIA_CONTACT_ID';" > /dev/null 2>&1
 else
-  docker compose exec -T postgres psql -U conti -d conti -c "UPDATE contacts SET linked_user_id = '$MARIA_ID' WHERE id = '$MARIA_CONTACT_ID';" > /dev/null 2>&1
+  docker compose exec -T postgres psql -U conti -d conti -c "UPDATE contacts SET linked_user_id = '$MARIA_ID', link_status = 'ACCEPTED' WHERE id = '$MARIA_CONTACT_ID';" > /dev/null 2>&1
 fi
 echo -e "${GREEN}✓ Maria is a linked contact in Jose's household: $MARIA_CONTACT_ID${NC}\n"
 
