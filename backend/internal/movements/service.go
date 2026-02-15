@@ -260,6 +260,31 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 	// Track movements contributing to each debt: map[debtorID][creditorID] = []movements
 	movementDetails := make(map[string]map[string][]DebtMovementDetail)
 
+	// Build contact-to-user translation map for linked contacts in this household
+	// This ensures that debts involving linked contacts use their real user ID,
+	// so they can net correctly with cross-household movements.
+	localContactToUserID := make(map[string]string) // contactID → linked userID
+	localLinkedUserNames := make(map[string]string)  // linked userID → contact name
+	contacts, err := s.householdsRepo.ListContacts(ctx, householdID)
+	if err != nil {
+		s.logger.Warn("failed to list contacts for ID translation", "error", err)
+	} else {
+		for _, c := range contacts {
+			if c.LinkedUserID != nil {
+				localContactToUserID[c.ID] = *c.LinkedUserID
+				localLinkedUserNames[*c.LinkedUserID] = c.Name
+			}
+		}
+	}
+
+	// translateLocalContact translates a contact ID to linked user ID if available
+	translateLocalContact := func(contactID string) (string, bool) {
+		if uid, ok := localContactToUserID[contactID]; ok {
+			return uid, true
+		}
+		return contactID, false
+	}
+
 	for _, m := range movements {
 		currency := m.Currency
 		if currency == "" {
@@ -274,7 +299,11 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 			if m.PayerUserID != nil {
 				payerID = *m.PayerUserID
 			} else if m.PayerContactID != nil {
-				payerID = *m.PayerContactID
+				if translated, ok := translateLocalContact(*m.PayerContactID); ok {
+					payerID = translated
+				} else {
+					payerID = *m.PayerContactID
+				}
 			}
 			
 			if payerID != "" {
@@ -287,7 +316,11 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 					if p.ParticipantUserID != nil {
 						participantID = *p.ParticipantUserID
 					} else if p.ParticipantContactID != nil {
-						participantID = *p.ParticipantContactID
+						if translated, ok := translateLocalContact(*p.ParticipantContactID); ok {
+							participantID = translated
+						} else {
+							participantID = *p.ParticipantContactID
+						}
 					}
 					
 					// Skip if participant is the payer (they don't owe themselves)
@@ -335,13 +368,21 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 			if m.PayerUserID != nil {
 				payerID = *m.PayerUserID
 			} else if m.PayerContactID != nil {
-				payerID = *m.PayerContactID
+				if translated, ok := translateLocalContact(*m.PayerContactID); ok {
+					payerID = translated
+				} else {
+					payerID = *m.PayerContactID
+				}
 			}
 			
 			if m.CounterpartyUserID != nil {
 				counterpartyID = *m.CounterpartyUserID
 			} else if m.CounterpartyContactID != nil {
-				counterpartyID = *m.CounterpartyContactID
+				if translated, ok := translateLocalContact(*m.CounterpartyContactID); ok {
+					counterpartyID = translated
+				} else {
+					counterpartyID = *m.CounterpartyContactID
+				}
 			}
 			
 			if m.CounterpartyName != nil {
@@ -579,6 +620,26 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 						)
 					}
 				}
+			}
+		}
+	}
+
+	// Re-apply local names: own-household member and contact names take priority
+	// over names from cross-household movements. This ensures each household
+	// sees people by the names they chose locally.
+	if members != nil {
+		for _, member := range members {
+			if _, exists := balanceNames[member.UserID]; exists {
+				balanceNames[member.UserID] = member.UserName
+			}
+		}
+	}
+	for cID, linkedUID := range localContactToUserID {
+		// Find the contact name from the contacts list
+		for _, c := range contacts {
+			if c.ID == cID && c.LinkedUserID != nil {
+				balanceNames[linkedUID] = c.Name
+				break
 			}
 		}
 	}

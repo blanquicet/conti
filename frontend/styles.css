@@ -3367,19 +3367,30 @@ button.loading::after {
 }
 
 /* Cross-household debt indicators */
-.cross-household-badge {
-  font-size: 12px;
-  vertical-align: middle;
-}
-
-.cross-household-source {
+.entry-cross-household-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 11px;
-  color: #6366f1;
-  font-weight: 500;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background-color: #dbeafe;
+  color: #1d4ed8;
+  text-transform: none;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
 }
 
-.cross-household-entry {
-  border-left: 3px solid #6366f1;
+.entry-cross-household-badge .badge-icon {
+  flex-shrink: 0;
+}
+
+.entry-cross-household-badge .badge-text {
+  text-align: center;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  min-width: 0;
 }
 
 /* Loans Summary */
@@ -3867,6 +3878,10 @@ button.loading::after {
     max-width: 90px;
     line-height: 1.2;
     text-align: center;
+  }
+
+  .entry-cross-household-badge {
+    max-width: 100px;
   }
   
   /* Disable hover tooltips on mobile (use native title tooltip instead) */

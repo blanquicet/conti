@@ -972,7 +972,7 @@ function renderLoansCards() {
             ${debtorInitials}
           </div>
           <div class="expense-group-info loan-center-info">
-            <div class="expense-group-name">${isSettled ? `${balance.debtor_name} y ${balance.creditor_name} a paz y salvo` : `${balance.debtor_name} debe a ${balance.creditor_name}`}${balance.is_cross_household ? ' <span class="cross-household-badge">🔗</span>' : ''}</div>
+            <div class="expense-group-name">${isSettled ? `${balance.debtor_name} y ${balance.creditor_name} a paz y salvo` : `${balance.debtor_name} debe a ${balance.creditor_name}`}</div>
             <div class="expense-group-amount ${isSettled ? 'settled-amount' : ''}">${isSettled ? '✓' : formatCurrency(balance.amount)}</div>
           </div>
           <div class="loan-avatar" style="background-color: ${creditorColor}">
@@ -1174,9 +1174,14 @@ function renderLoanMovements(debtorId, creditorId, direction) {
         <div class="entry-info">
           <span class="entry-description">${movement.description || typeLabel}</span>
           <span class="entry-amount">${formatCurrency(movement.amount)}</span>
-          <div class="entry-date">${formatDate(movement.movement_date)}${isCross && movement.source_household_name ? ` · <span class="cross-household-source">🔗 ${movement.source_household_name}</span>` : ''}</div>
+          <div class="entry-date">${formatDate(movement.movement_date)}</div>
         </div>
-        ${isCross ? '' : `
+        ${isCross ? `
+        <div class="entry-actions">
+          <span class="entry-cross-household-badge"><span class="badge-icon">🔗</span><span class="badge-text">${movement.source_household_name || ''}</span></span>
+          <button class="three-dots-btn" style="visibility: hidden;">⋮</button>
+        </div>
+        ` : `
         <div class="entry-actions">
           <button class="three-dots-btn" data-movement-id="${movement.movement_id}">⋮</button>
           <div class="three-dots-menu" id="movement-menu-${movement.movement_id}">
