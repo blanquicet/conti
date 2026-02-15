@@ -1721,6 +1721,7 @@ async function loadAndRenderLinkRequests() {
                 <button class="btn-secondary btn-small" data-action="reject-link" data-contact-id="${req.contact_id}">Rechazar</button>
               </div>
               <div class="link-request-accept-form" id="accept-form-${req.contact_id}" style="display: none;">
+                <p class="link-request-explanation">Al aceptar, las personas del hogar <strong>${req.household_name}</strong> podrán ver <em>solo</em> los gastos en los que ellos participen. No tendrán acceso a todos tus movimientos.</p>
                 <div class="form-group">
                   <label>¿Con qué nombre quieres guardar a este contacto?</label>
                   <input type="text" id="accept-name-${req.contact_id}" value="${req.requester_name}" />
