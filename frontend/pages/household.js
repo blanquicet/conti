@@ -169,8 +169,6 @@ function renderHouseholdContent() {
       </div>
     </div>
 
-    <div id="link-requests-section"></div>
-
     <div class="household-section">
       <div class="section-header">
         <h3 class="section-title">Miembros</h3>
@@ -184,6 +182,8 @@ function renderHouseholdContent() {
         ${renderMembersList(isOwner)}
       </div>
     </div>
+
+    <div id="link-requests-section"></div>
 
     <div class="household-section">
       <div class="section-header">
