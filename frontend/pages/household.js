@@ -152,6 +152,8 @@ function renderHouseholdContent() {
   const canLeave = !isLastOwner;
 
   return `
+    <div id="link-requests-section"></div>
+
     <div class="household-section">
       <div class="household-header-card">
         <div class="household-icon-large">🏠</div>
@@ -182,8 +184,6 @@ function renderHouseholdContent() {
         ${renderMembersList(isOwner)}
       </div>
     </div>
-
-    <div id="link-requests-section"></div>
 
     <div class="household-section">
       <div class="section-header">
@@ -1645,24 +1645,17 @@ async function loadAndRenderLinkRequests() {
     }
 
     section.innerHTML = `
-      <div class="household-section">
-        <div class="section-header">
-          <h3 class="section-title">Solicitudes de vinculación</h3>
-        </div>
-        <p class="section-description">Otros hogares quieren compartir gastos contigo.</p>
-        <div class="link-requests-list">
-          ${requests.map(req => `
-            <div class="member-item link-request-card" data-action="view-link" data-contact-id="${req.contact_id}" data-requester-name="${req.requester_name}" data-household-name="${req.household_name}" style="cursor:pointer;position:relative;">
-              <div class="member-avatar">${req.requester_name?.charAt(0).toUpperCase() || '?'}</div>
-              <div class="member-info">
-                <div class="member-name">${req.requester_name}</div>
-                <div class="member-email">${req.household_name}</div>
-              </div>
-              <span class="link-request-chevron">›</span>
-              <span class="link-request-dot"></span>
+      <div class="link-request-banner-stack">
+        ${requests.map(req => `
+          <div class="link-request-banner" data-action="view-link" data-contact-id="${req.contact_id}" data-requester-name="${req.requester_name}" data-household-name="${req.household_name}">
+            <div class="link-request-banner-icon">🔗</div>
+            <div class="link-request-banner-content">
+              <div class="link-request-banner-title">${req.requester_name} quiere compartir gastos contigo</div>
+              <div class="link-request-banner-subtitle">${req.household_name}</div>
             </div>
-          `).join('')}
-        </div>
+            <div class="link-request-banner-arrow">›</div>
+          </div>
+        `).join('')}
       </div>
     `;
 
