@@ -336,7 +336,7 @@ function renderContactsList() {
               <button class="menu-item" data-action="toggle-active" data-contact-id="${contact.id}" data-is-active="${contact.is_active}">
                 ${contact.is_active ? 'Desactivar' : 'Activar'}
               </button>
-              ${contact.link_status === 'NONE' && contact.email ? `<button class="menu-item" data-action="request-link" data-contact-id="${contact.id}">Vincular</button>` : ''}
+              ${(contact.link_status === 'NONE' || contact.link_status === 'REJECTED') && contact.email ? `<button class="menu-item" data-action="request-link" data-contact-id="${contact.id}">Vincular</button>` : ''}
               ${contact.link_status === 'ACCEPTED' || contact.link_status === 'PENDING' ? `<button class="menu-item menu-item-danger" data-action="unlink-contact" data-contact-id="${contact.id}">Desvincular</button>` : ''}
               <button class="menu-item" data-action="edit-contact" data-contact-id="${contact.id}">Editar</button>
               <button class="menu-item menu-item-danger" data-action="delete-contact" data-contact-id="${contact.id}">Eliminar</button>
