@@ -1841,7 +1841,7 @@ function showLinkRequestModal(contactId, requesterName, householdName) {
       }
 
       overlay.remove();
-      await showSuccess('Solicitud rechazada', '');
+      await showSuccess('Solicitud rechazada', `No se compartirán movimientos con ${householdName}.`);
       await loadHousehold();
       if (typeof window.updateNavbarBadge === 'function') window.updateNavbarBadge();
     } catch (err) {
