@@ -191,9 +191,6 @@ function renderHouseholdContent() {
         <button id="add-contact-btn" class="btn-secondary btn-small">+ Agregar contacto</button>
       </div>
       <p class="section-description">Personas con las que tienes transacciones ocasionales (amigos, familia externa, etc.). Solo ven movimientos donde participan.</p>
-      <div id="contact-form-container" style="display: none;">
-        ${renderContactForm()}
-      </div>
       <div class="scroll-fade-container">
         ${renderContactsList()}
       </div>
@@ -339,6 +336,8 @@ function renderContactsList() {
               <button class="menu-item" data-action="toggle-active" data-contact-id="${contact.id}" data-is-active="${contact.is_active}">
                 ${contact.is_active ? 'Desactivar' : 'Activar'}
               </button>
+              ${contact.link_status === 'NONE' && contact.email ? `<button class="menu-item" data-action="request-link" data-contact-id="${contact.id}">Vincular</button>` : ''}
+              ${contact.link_status === 'ACCEPTED' || contact.link_status === 'PENDING' ? `<button class="menu-item menu-item-danger" data-action="unlink-contact" data-contact-id="${contact.id}">Desvincular</button>` : ''}
               <button class="menu-item" data-action="edit-contact" data-contact-id="${contact.id}">Editar</button>
               <button class="menu-item menu-item-danger" data-action="delete-contact" data-contact-id="${contact.id}">Eliminar</button>
             </div>
@@ -446,51 +445,174 @@ function renderInviteForm() {
 /**
  * Render contact form
  */
-function renderContactForm(contact = null) {
-  return `
-    <div class="form-card">
-      <h4>${contact ? 'Editar contacto' : 'Agregar contacto'}</h4>
+function showContactModal(contact = null) {
+  const isEdit = !!contact;
+  const title = isEdit ? 'Editar contacto' : 'Agregar contacto';
+
+  document.getElementById('contact-modal')?.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'contact-modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 420px;">
+      <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">${title}</h3>
       <div id="contact-error" class="error-message" style="display: none;"></div>
-      <form id="contact-form" class="grid">
-        <div class="field">
-          <label>
-            <span>Nombre *</span>
-            <input type="text" id="contact-name" required maxlength="100" value="${contact?.name || ''}" placeholder="Nombre del contacto" />
-          </label>
-        </div>
-        <div class="field">
-          <label>
-            <span>Email</span>
-            <input type="email" id="contact-email" value="${contact?.email || ''}" placeholder="email@ejemplo.com (opcional)" />
-            <span class="field-hint" id="email-hint" style="display: none; color: #dc2626;">Formato de email inválido</span>
-          </label>
-        </div>
-        <div class="field">
-          <label>
-            <span>Teléfono</span>
-            <input type="tel" id="contact-phone" value="${contact?.phone || ''}" placeholder="3001234567 o +573001234567 (opcional)" />
-            <span class="field-hint" id="phone-hint" style="display: none; color: #dc2626;">Formato: 10-14 dígitos o +[país][número]</span>
-          </label>
-        </div>
-        <div class="field">
-          <label>
-            <span>Notas</span>
-            <textarea id="contact-notes" rows="2" placeholder="Notas adicionales (opcional)">${contact?.notes || ''}</textarea>
-          </label>
-        </div>
-        <div class="form-actions">
-          <button type="submit" class="btn-primary">${contact ? 'Guardar' : 'Agregar'}</button>
-          <button type="button" id="cancel-contact-btn" class="btn-secondary">Cancelar</button>
+      <form id="contact-form" style="display: flex; flex-direction: column; gap: 16px;">
+        <label class="field">
+          <span>Nombre *</span>
+          <input type="text" id="contact-name" required maxlength="100" value="${contact?.name || ''}" placeholder="Nombre del contacto">
+        </label>
+        <label class="field">
+          <span>Email</span>
+          <input type="email" id="contact-email" value="${contact?.email || ''}" placeholder="email@ejemplo.com (opcional)">
+          <span class="field-hint" id="email-hint" style="display: none; color: #dc2626;">Formato de email inválido</span>
+        </label>
+        <label class="field">
+          <span>Teléfono</span>
+          <input type="tel" id="contact-phone" value="${contact?.phone || ''}" placeholder="3001234567 o +573001234567 (opcional)">
+          <span class="field-hint" id="phone-hint" style="display: none; color: #dc2626;">Formato: 10-14 dígitos o +[país][número]</span>
+        </label>
+        <label class="field">
+          <span>Notas</span>
+          <textarea id="contact-notes" rows="2" placeholder="Notas adicionales (opcional)">${contact?.notes || ''}</textarea>
+        </label>
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+          <button type="button" class="btn-secondary" id="contact-cancel">Cancelar</button>
+          <button type="submit" class="btn-primary">${isEdit ? 'Guardar' : 'Agregar'}</button>
         </div>
       </form>
-    </div>
-  `;
+    </div>`;
+  document.body.appendChild(modal);
+
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  document.getElementById('contact-cancel').addEventListener('click', () => modal.remove());
+  document.getElementById('contact-name').focus();
+
+  // Validation handlers
+  const emailInput = document.getElementById('contact-email');
+  const phoneInput = document.getElementById('contact-phone');
+  emailInput?.addEventListener('blur', validateContactEmail);
+  emailInput?.addEventListener('input', () => {
+    const hint = document.getElementById('email-hint');
+    if (hint && emailInput.value.trim() === '') {
+      hint.style.display = 'none';
+      emailInput.classList.remove('invalid', 'valid');
+    }
+  });
+  phoneInput?.addEventListener('blur', validateContactPhone);
+  phoneInput?.addEventListener('input', () => {
+    const hint = document.getElementById('phone-hint');
+    if (hint && phoneInput.value.trim() === '') {
+      hint.style.display = 'none';
+      phoneInput.classList.remove('invalid', 'valid');
+    }
+  });
+
+  // Submit handler
+  document.getElementById('contact-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = document.getElementById('contact-name').value.trim();
+    const email = document.getElementById('contact-email').value.trim();
+    const phone = document.getElementById('contact-phone').value.trim();
+    const notes = document.getElementById('contact-notes').value.trim();
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const errorEl = document.getElementById('contact-error');
+
+    if (errorEl) { errorEl.style.display = 'none'; errorEl.textContent = ''; }
+
+    if (!name) { showModal('Error', 'El nombre es requerido'); return; }
+    if (email && !validateContactEmail()) {
+      if (errorEl) { errorEl.textContent = 'Por favor corrija el formato del email'; errorEl.style.display = 'block'; }
+      return;
+    }
+    if (phone && !validateContactPhone()) {
+      if (errorEl) { errorEl.textContent = 'Por favor corrija el formato del teléfono'; errorEl.style.display = 'block'; }
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.classList.add('loading');
+
+    try {
+      let requestLink = false;
+
+      // For new contacts with email, check if registered and ask to link
+      if (!isEdit && email) {
+        try {
+          const checkResp = await fetch(`${API_URL}/contacts/check-email?email=${encodeURIComponent(email)}`, { credentials: 'include' });
+          if (checkResp.ok) {
+            const checkData = await checkResp.json();
+            if (checkData.is_registered) {
+              // Show confirmation step
+              submitBtn.disabled = false;
+              submitBtn.classList.remove('loading');
+              requestLink = await showLinkConfirmation(modal, checkData.display_name);
+              if (requestLink === null) return; // user cancelled the whole modal
+              submitBtn.disabled = true;
+              submitBtn.classList.add('loading');
+            }
+          }
+        } catch (_) { /* check-email failure is non-blocking */ }
+      }
+
+      const url = isEdit
+        ? `${API_URL}/households/${household.id}/contacts/${contact.id}`
+        : `${API_URL}/households/${household.id}/contacts`;
+      const method = isEdit ? 'PATCH' : 'POST';
+      const body = { name, email: email || null, phone: phone || null, notes: notes || null };
+      if (requestLink) body.request_link = true;
+
+      const response = await fetch(url, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || `Error al ${isEdit ? 'actualizar' : 'agregar'} contacto`);
+      }
+
+      modal.remove();
+      await loadHousehold();
+    } catch (error) {
+      if (errorEl) { errorEl.textContent = error.message; errorEl.style.display = 'block'; }
+      else showModal('Error', error.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('loading');
+    }
+  });
 }
 
 /**
- * Setup scroll fade indicators on scrollable list containers.
- * Shows a bottom gradient when the list can be scrolled further down.
+ * Show link confirmation step inside the contact modal.
+ * Returns: true (link), false (don't link), null (cancel)
  */
+function showLinkConfirmation(modal, displayName) {
+  return new Promise((resolve) => {
+    const content = modal.querySelector('.modal-content');
+    const form = document.getElementById('contact-form');
+    form.style.display = 'none';
+
+    const confirm = document.createElement('div');
+    confirm.id = 'link-confirm';
+    confirm.innerHTML = `
+      <div style="text-align: center; margin-bottom: 16px;">
+        <div style="font-size: 32px; margin-bottom: 8px;">🔗</div>
+        <p style="font-weight: 600; margin: 0 0 8px;">Este correo pertenece a <strong>${displayName}</strong></p>
+        <p style="color: #6b7280; font-size: 14px; margin: 0;">
+          Vincular permite ver gastos compartidos entre hogares en la sección de Préstamos.
+        </p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button type="button" class="btn-primary" id="link-yes" style="width: 100%;">Sí, enviar solicitud de vinculación</button>
+        <button type="button" class="btn-secondary" id="link-no" style="width: 100%;">No, solo guardar contacto</button>
+        <button type="button" style="background: none; border: none; color: #6b7280; cursor: pointer; padding: 8px; font-size: 13px;" id="link-back">← Volver al formulario</button>
+      </div>`;
+    content.appendChild(confirm);
+
+    document.getElementById('link-yes').addEventListener('click', () => { confirm.remove(); form.style.display = ''; resolve(true); });
+    document.getElementById('link-no').addEventListener('click', () => { confirm.remove(); form.style.display = ''; resolve(false); });
+    document.getElementById('link-back').addEventListener('click', () => { confirm.remove(); form.style.display = ''; resolve(null); });
+  });
+}
 function setupScrollFadeIndicators() {
   document.querySelectorAll('.scroll-fade-container').forEach(container => {
     const scrollable = container.querySelector('.members-list, .contacts-list, #categories-content');
@@ -578,15 +700,7 @@ function setupEventHandlers() {
   // Add contact button
   const addContactBtn = document.getElementById('add-contact-btn');
   addContactBtn?.addEventListener('click', () => {
-    const container = document.getElementById('contact-form-container');
-    
-    if (container.style.display === 'block') {
-      container.style.display = 'none';
-    } else {
-      container.innerHTML = renderContactForm();
-      container.style.display = 'block';
-      setupContactFormHandlers();
-    }
+    showContactModal();
   });
 
   // All action buttons (including those in three-dots menus)
@@ -611,6 +725,8 @@ function setupEventHandlers() {
       else if (action === 'toggle-active') await handleToggleContactActive(contactId, e.target.dataset.isActive === 'true');
       else if (action === 'edit-contact') handleEditContact(contactId);
       else if (action === 'delete-contact') await handleDeleteContact(contactId);
+      else if (action === 'request-link') await handleRequestLink(contactId);
+      else if (action === 'unlink-contact') await handleUnlinkContact(contactId);
     });
   });
 
@@ -633,7 +749,6 @@ function setupEventHandlers() {
     document.getElementById('invite-form-container').style.display = 'none';
   });
 
-  setupContactFormHandlers();
   setupCategoriesHandlers();
 }
 
@@ -665,48 +780,6 @@ function validateInviteEmail() {
   }
   
   return isValid;
-}
-
-/**
- * Setup contact form validation handlers (without submit handler)
- */
-function setupContactFormValidationHandlers() {
-  // Setup real-time validation
-  const emailInput = document.getElementById('contact-email');
-  const phoneInput = document.getElementById('contact-phone');
-  
-  emailInput?.addEventListener('blur', validateContactEmail);
-  emailInput?.addEventListener('input', () => {
-    // Clear error on input
-    const hint = document.getElementById('email-hint');
-    if (hint && emailInput.value.trim() === '') {
-      hint.style.display = 'none';
-      emailInput.classList.remove('invalid', 'valid');
-    }
-  });
-  
-  phoneInput?.addEventListener('blur', validateContactPhone);
-  phoneInput?.addEventListener('input', () => {
-    // Clear error on input
-    const hint = document.getElementById('phone-hint');
-    if (hint && phoneInput.value.trim() === '') {
-      hint.style.display = 'none';
-      phoneInput.classList.remove('invalid', 'valid');
-    }
-  });
-  
-  document.getElementById('cancel-contact-btn')?.addEventListener('click', () => {
-    document.getElementById('contact-form-container').style.display = 'none';
-  });
-}
-
-/**
- * Setup contact form handlers for creating new contacts
- */
-function setupContactFormHandlers() {
-  const contactForm = document.getElementById('contact-form');
-  contactForm?.addEventListener('submit', handleContactSubmit);
-  setupContactFormValidationHandlers();
 }
 
 /**
@@ -817,72 +890,6 @@ async function handleInviteSubmit(e) {
   } catch (error) {
     errorEl.textContent = error.message;
     errorEl.style.display = 'block';
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.classList.remove('loading');
-  }
-}
-
-/**
- * Handle contact form submission
- */
-async function handleContactSubmit(e) {
-  e.preventDefault();
-  const name = document.getElementById('contact-name').value.trim();
-  const email = document.getElementById('contact-email').value.trim();
-  const phone = document.getElementById('contact-phone').value.trim();
-  const notes = document.getElementById('contact-notes').value.trim();
-  const submitBtn = e.target.querySelector('button[type="submit"]');
-  const errorEl = document.getElementById('contact-error');
-
-  // Hide previous errors
-  if (errorEl) {
-    errorEl.style.display = 'none';
-    errorEl.textContent = '';
-  }
-
-  if (!name) {
-    showModal('Error', 'El nombre es requerido');
-    return;
-  }
-
-  // Validate email if provided
-  if (email && !validateContactEmail()) {
-    if (errorEl) {
-      errorEl.textContent = 'Por favor corrija el formato del email';
-      errorEl.style.display = 'block';
-    }
-    return;
-  }
-
-  // Validate phone if provided
-  if (phone && !validateContactPhone()) {
-    if (errorEl) {
-      errorEl.textContent = 'Por favor corrija el formato del teléfono';
-      errorEl.style.display = 'block';
-    }
-    return;
-  }
-
-  submitBtn.disabled = true;
-  submitBtn.classList.add('loading');
-
-  try {
-    const response = await fetch(`${API_URL}/households/${household.id}/contacts`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email: email || null, phone: phone || null, notes: notes || null })
-    });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Error al agregar contacto');
-    }
-
-    await loadHousehold();
-  } catch (error) {
-    showModal('Error', error.message);
   } finally {
     submitBtn.disabled = false;
     submitBtn.classList.remove('loading');
@@ -1007,74 +1014,87 @@ async function handleDemoteMember(userId) {
 function handleEditContact(contactId) {
   const contact = contacts.find(c => c.id === contactId);
   if (!contact) return;
-
-  const container = document.getElementById('contact-form-container');
-  container.innerHTML = renderContactForm(contact);
-  container.style.display = 'block';
-
-  // Setup validation handlers ONLY (not the submit handler that creates new contacts)
-  setupContactFormValidationHandlers();
-
-  const form = document.getElementById('contact-form');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await handleUpdateContact(contactId);
-  });
+  showContactModal(contact);
 }
 
 /**
- * Handle update contact
+ * Handle request link for an existing contact
  */
-async function handleUpdateContact(contactId) {
-  const name = document.getElementById('contact-name').value.trim();
-  const email = document.getElementById('contact-email').value.trim();
-  const phone = document.getElementById('contact-phone').value.trim();
-  const notes = document.getElementById('contact-notes').value.trim();
-  const submitBtn = document.querySelector('#contact-form button[type="submit"]');
-
-  if (!name) {
-    showModal('Error', 'El nombre es requerido');
-    return;
-  }
-
-  // Validate email if provided
-  if (email && !validateContactEmail()) {
-    return;
-  }
-
-  // Validate phone if provided
-  if (phone && !validateContactPhone()) {
-    return;
-  }
-
-  submitBtn.disabled = true;
-  submitBtn.classList.add('loading');
+async function handleRequestLink(contactId) {
+  const contact = contacts.find(c => c.id === contactId);
+  if (!contact || !contact.email) return;
 
   try {
-    const response = await fetch(`${API_URL}/households/${household.id}/contacts/${contactId}`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email: email || null, phone: phone || null, notes: notes || null })
+    // Check if email is registered
+    const checkRes = await fetch(`${API_URL}/contacts/check-email?email=${encodeURIComponent(contact.email)}`, {
+      credentials: 'include'
     });
+    if (!checkRes.ok) throw new Error('Error al verificar correo');
+    const checkData = await checkRes.json();
 
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || 'Error al actualizar contacto');
+    if (!checkData.is_registered) {
+      await showError('No registrado', 'Este correo no está registrado en la app.');
+      return;
     }
 
+    // Confirm linking
+    const confirmed = await showConfirmation(
+      '¿Vincular contacto?',
+      `El correo ${contact.email} pertenece a ${checkData.display_name}. Se enviará una solicitud de vinculación. Esto permitirá ver gastos compartidos entre hogares.`
+    );
+    if (!confirmed) return;
+
+    // Send link request
+    const res = await fetch(`${API_URL}/contacts/${contactId}/request-link`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Error al enviar solicitud');
+    }
+
+    await showSuccess('Solicitud enviada', 'Se ha enviado la solicitud de vinculación.');
     await loadHousehold();
-  } catch (error) {
-    showModal('Error', error.message);
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.classList.remove('loading');
+  } catch (err) {
+    await showError('Error', err.message);
   }
 }
 
 /**
- * Handle delete contact
+ * Handle unlink contact
  */
+async function handleUnlinkContact(contactId) {
+  const contact = contacts.find(c => c.id === contactId);
+  if (!contact) return;
+
+  const isPending = contact.link_status === 'PENDING';
+  const title = isPending ? '¿Cancelar solicitud?' : '¿Desvincular contacto?';
+  const message = isPending
+    ? `Se cancelará la solicitud de vinculación para ${contact.name}.`
+    : `Al desvincular a ${contact.name}:\n• Ya no verás gastos compartidos entre hogares en Préstamos\n• El contacto seguirá existiendo\n• Los movimientos existentes no se verán afectados\n• También se desvinculará del otro lado`;
+
+  const confirmed = await showConfirmation(title, message);
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`${API_URL}/contacts/${contactId}/unlink`, {
+      method: 'POST',
+      credentials: 'include'
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Error al desvincular');
+    }
+
+    await showSuccess('Desvinculado', isPending ? 'Solicitud cancelada.' : `${contact.name} ha sido desvinculado.`);
+    await loadHousehold();
+    // Update navbar badge
+    if (typeof window.updateNavbarBadge === 'function') window.updateNavbarBadge();
+  } catch (err) {
+    await showError('Error', err.message);
+  }
+}
 /**
  * Handle toggle contact active/inactive
  */
@@ -1133,6 +1153,7 @@ async function handleDeleteContact(contactId) {
     await showError('Error', error.message);
   }
 }
+
 
 /**
  * Handle leave household (from header button)
@@ -1628,24 +1649,40 @@ async function handleReactivateCategory(catId) {
 }
 
 /**
- * Load and render pending link requests
+ * Load and render pending link requests and unlink banners
  */
 async function loadAndRenderLinkRequests() {
   const section = document.getElementById('link-requests-section');
   if (!section) return;
 
   try {
-    const res = await fetch(`${API_URL}/link-requests`, { credentials: 'include' });
-    if (!res.ok) return;
+    // Unlink banners from contacts data (already loaded)
+    const unlinkedContacts = contacts.filter(c => c.was_unlinked_at);
 
-    const requests = await res.json();
-    if (!requests || requests.length === 0) {
+    // Link requests from API
+    let requests = [];
+    const res = await fetch(`${API_URL}/link-requests`, { credentials: 'include' });
+    if (res.ok) {
+      requests = await res.json() || [];
+    }
+
+    if (unlinkedContacts.length === 0 && requests.length === 0) {
       section.innerHTML = '';
       return;
     }
 
     section.innerHTML = `
       <div class="link-request-banner-stack">
+        ${unlinkedContacts.map(contact => `
+          <div class="link-request-banner unlink-banner" data-action="dismiss-unlink" data-contact-id="${contact.id}">
+            <div class="link-request-banner-icon">🔓</div>
+            <div class="link-request-banner-content">
+              <div class="link-request-banner-title">${contact.name} fue desvinculado por el otro hogar</div>
+              <div class="link-request-banner-subtitle">El contacto sigue existiendo, tus movimientos no se afectan</div>
+            </div>
+            <div class="link-request-banner-arrow">✕</div>
+          </div>
+        `).join('')}
         ${requests.map(req => `
           <div class="link-request-banner" data-action="view-link" data-contact-id="${req.contact_id}" data-requester-name="${req.requester_name}" data-household-name="${req.household_name}">
             <div class="link-request-banner-icon">🔗</div>
@@ -1672,6 +1709,28 @@ function setupLinkRequestHandlers() {
       const requesterName = btn.dataset.requesterName;
       const householdName = btn.dataset.householdName;
       showLinkRequestModal(contactId, requesterName, householdName);
+    });
+  });
+
+  // Dismiss unlink banners
+  document.querySelectorAll('[data-action="dismiss-unlink"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const contactId = btn.dataset.contactId;
+      try {
+        const res = await fetch(`${API_URL}/contacts/${contactId}/dismiss-unlink`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (!res.ok) throw new Error('Error al descartar');
+        btn.remove();
+        // If stack is now empty, clear section
+        const stack = document.querySelector('.link-request-banner-stack');
+        if (stack && stack.children.length === 0) {
+          document.getElementById('link-requests-section').innerHTML = '';
+        }
+      } catch (e) {
+        // Silently fail
+      }
     });
   });
 }

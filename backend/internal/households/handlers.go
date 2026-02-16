@@ -49,10 +49,11 @@ type UpdateMemberRoleRequest struct {
 }
 
 type CreateContactRequest struct {
-	Name  string  `json:"name"`
-	Email *string `json:"email,omitempty"`
-	Phone *string `json:"phone,omitempty"`
-	Notes *string `json:"notes,omitempty"`
+	Name        string  `json:"name"`
+	Email       *string `json:"email,omitempty"`
+	Phone       *string `json:"phone,omitempty"`
+	Notes       *string `json:"notes,omitempty"`
+	RequestLink bool    `json:"request_link,omitempty"`
 }
 
 type UpdateContactRequest struct {
@@ -130,6 +131,12 @@ func (h *Handler) handleServiceError(w http.ResponseWriter, err error) {
 		h.respondError(w, "no autorizado", http.StatusForbidden)
 	case errors.Is(err, ErrContactNotLinked):
 		h.respondError(w, "el contacto no está vinculado a una cuenta de usuario", http.StatusBadRequest)
+	case errors.Is(err, ErrContactAlreadyLinked):
+		h.respondError(w, "el contacto ya está vinculado", http.StatusConflict)
+	case errors.Is(err, ErrContactNoEmail):
+		h.respondError(w, "el contacto no tiene correo electrónico", http.StatusBadRequest)
+	case errors.Is(err, ErrEmailNotRegistered):
+		h.respondError(w, "el correo no está registrado en la app", http.StatusNotFound)
 	case errors.Is(err, ErrLinkRequestNotPending):
 		h.respondError(w, "la solicitud de vinculación no está pendiente", http.StatusBadRequest)
 	case errors.Is(err, ErrInvalidRole):
@@ -495,6 +502,7 @@ func (h *Handler) CreateContact(w http.ResponseWriter, r *http.Request) {
 		Phone:       req.Phone,
 		Notes:       req.Notes,
 		UserID:      user.ID,
+		RequestLink: req.RequestLink,
 	})
 	if err != nil {
 		h.handleServiceError(w, err)
@@ -811,4 +819,96 @@ func (h *Handler) RejectLinkRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.respondJSON(w, map[string]string{"status": "rejected"}, http.StatusOK)
+}
+
+// CheckEmail handles GET /contacts/check-email?email=X
+func (h *Handler) CheckEmail(w http.ResponseWriter, r *http.Request) {
+	_, err := h.getUserFromRequest(r)
+	if err != nil {
+		h.respondError(w, "no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		h.respondError(w, "email requerido", http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.service.CheckEmail(r.Context(), email)
+	if err != nil {
+		h.respondJSON(w, map[string]interface{}{"is_registered": false}, http.StatusOK)
+		return
+	}
+
+	h.respondJSON(w, result, http.StatusOK)
+}
+
+// RequestLink handles POST /contacts/{contact_id}/request-link
+func (h *Handler) RequestLink(w http.ResponseWriter, r *http.Request) {
+	user, err := h.getUserFromRequest(r)
+	if err != nil {
+		h.respondError(w, "no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	contactID := r.PathValue("contact_id")
+	if contactID == "" {
+		h.respondError(w, "ID de contacto requerido", http.StatusBadRequest)
+		return
+	}
+
+	err = h.service.RequestLink(r.Context(), user.ID, contactID)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	h.respondJSON(w, map[string]string{"status": "pending"}, http.StatusOK)
+}
+
+// UnlinkContact handles POST /contacts/{contact_id}/unlink
+func (h *Handler) UnlinkContact(w http.ResponseWriter, r *http.Request) {
+	user, err := h.getUserFromRequest(r)
+	if err != nil {
+		h.respondError(w, "no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	contactID := r.PathValue("contact_id")
+	if contactID == "" {
+		h.respondError(w, "ID de contacto requerido", http.StatusBadRequest)
+		return
+	}
+
+	err = h.service.UnlinkContact(r.Context(), user.ID, contactID)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	h.respondJSON(w, map[string]string{"status": "unlinked"}, http.StatusOK)
+}
+
+// DismissUnlinkBanner handles POST /contacts/{contact_id}/dismiss-unlink
+func (h *Handler) DismissUnlinkBanner(w http.ResponseWriter, r *http.Request) {
+	user, err := h.getUserFromRequest(r)
+	if err != nil {
+		h.respondError(w, "no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	contactID := r.PathValue("contact_id")
+	if contactID == "" {
+		h.respondError(w, "ID de contacto requerido", http.StatusBadRequest)
+		return
+	}
+
+	err = h.service.DismissUnlinkBanner(r.Context(), user.ID, contactID)
+	if err != nil {
+		h.handleServiceError(w, err)
+		return
+	}
+
+	h.respondJSON(w, map[string]string{"status": "dismissed"}, http.StatusOK)
 }

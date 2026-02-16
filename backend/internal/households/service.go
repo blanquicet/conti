@@ -461,6 +461,7 @@ type CreateContactInput struct {
 	Phone       *string
 	Notes       *string
 	UserID      string // User making the request
+	RequestLink bool   // If true, send a link request when email matches a registered user
 }
 
 // Validate validates the input
@@ -534,17 +535,15 @@ func (s *Service) CreateContact(ctx context.Context, input *CreateContactInput) 
 		LinkStatus:  "NONE",
 	}
 
-	// Auto-link if email matches a registered user
-	if input.Email != nil && *input.Email != "" {
+	// Only link if explicitly requested
+	if input.RequestLink && input.Email != nil && *input.Email != "" {
 		user, err := s.userRepo.GetByEmail(ctx, *input.Email)
 		if err == nil {
-			// User found, set linked_user_id and PENDING status
 			contact.LinkedUserID = &user.ID
 			contact.LinkStatus = "PENDING"
 			now := time.Now()
 			contact.LinkRequestedAt = &now
 		}
-		// Ignore error if user not found - contact will be unlinked
 	}
 
 	created, err := s.repo.CreateContact(ctx, contact)
@@ -552,12 +551,10 @@ func (s *Service) CreateContact(ctx context.Context, input *CreateContactInput) 
 		return nil, err
 	}
 
-	// Send link request email if we auto-linked
+	// Send link request email if linked
 	if created.LinkStatus == "PENDING" && created.Email != nil {
-		// Get household name for email
 		household, hErr := s.repo.GetByID(ctx, input.HouseholdID)
 		if hErr == nil {
-			// Get requester name
 			requester, rErr := s.userRepo.GetByID(ctx, input.UserID)
 			if rErr == nil {
 				_ = s.emailSender.SendLinkRequest(ctx, *created.Email, requester.Name, household.Name, "")
@@ -654,14 +651,6 @@ func (s *Service) UpdateContact(ctx context.Context, input *UpdateContactInput) 
 		// For now, we'll handle this in the repository layer
 	}
 
-	// Auto-link if email matches a registered user
-	if input.Email != nil && *input.Email != "" {
-		user, err := s.userRepo.GetByEmail(ctx, *input.Email)
-		if err == nil {
-			contact.LinkedUserID = &user.ID
-		}
-	}
-
 	return s.repo.UpdateContact(ctx, contact, input.IsActive)
 }
 
@@ -688,11 +677,148 @@ func (s *Service) DeleteContact(ctx context.Context, contactID, householdID, use
 	return s.repo.DeleteContact(ctx, contactID)
 }
 
+// CheckEmailResult contains the result of checking an email
+type CheckEmailResult struct {
+	IsRegistered bool   `json:"is_registered"`
+	DisplayName  string `json:"display_name,omitempty"`
+}
+
+// CheckEmail checks if an email belongs to a registered user
+func (s *Service) CheckEmail(ctx context.Context, email string) (*CheckEmailResult, error) {
+	user, err := s.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		return &CheckEmailResult{IsRegistered: false}, nil
+	}
+	return &CheckEmailResult{
+		IsRegistered: true,
+		DisplayName:  user.Name,
+	}, nil
+}
+
+// RequestLink sends a link request for an existing contact
+func (s *Service) RequestLink(ctx context.Context, userID, contactID string) error {
+	// Get the contact
+	contact, err := s.repo.GetContact(ctx, contactID)
+	if err != nil {
+		return err
+	}
+
+	// Check user is a member of the contact's household
+	_, err = s.repo.GetMemberByUserID(ctx, contact.HouseholdID, userID)
+	if err != nil {
+		if errors.Is(err, ErrMemberNotFound) {
+			return ErrNotAuthorized
+		}
+		return err
+	}
+
+	// Contact must have an email
+	if contact.Email == nil || *contact.Email == "" {
+		return ErrContactNoEmail
+	}
+
+	// Contact must not already be linked or pending
+	if contact.LinkStatus == "PENDING" || contact.LinkStatus == "ACCEPTED" {
+		return ErrContactAlreadyLinked
+	}
+
+	// Check email is registered
+	user, err := s.userRepo.GetByEmail(ctx, *contact.Email)
+	if err != nil {
+		return ErrEmailNotRegistered
+	}
+
+	// Set linked_user_id + PENDING via dedicated method
+	err = s.repo.UpdateContactLinkedUser(ctx, contact.ID, user.ID, "PENDING")
+	if err != nil {
+		return err
+	}
+
+	// Send link request email
+	household, hErr := s.repo.GetByID(ctx, contact.HouseholdID)
+	if hErr == nil {
+		requester, rErr := s.userRepo.GetByID(ctx, userID)
+		if rErr == nil {
+			_ = s.emailSender.SendLinkRequest(ctx, *contact.Email, requester.Name, household.Name, "")
+		}
+	}
+
+	return nil
+}
+
 // PromoteContactInput contains the data needed to promote a contact to member
 type PromoteContactInput struct {
 	ContactID   string
 	HouseholdID string
 	UserID      string // User making the request
+}
+
+// UnlinkContact unlinks a contact bilaterally
+func (s *Service) UnlinkContact(ctx context.Context, userID, contactID string) error {
+	// Get the contact
+	contact, err := s.repo.GetContact(ctx, contactID)
+	if err != nil {
+		return err
+	}
+
+	// Check user is a member of the contact's household
+	_, err = s.repo.GetMemberByUserID(ctx, contact.HouseholdID, userID)
+	if err != nil {
+		if errors.Is(err, ErrMemberNotFound) {
+			return ErrNotAuthorized
+		}
+		return err
+	}
+
+	// Must be linked (ACCEPTED or PENDING)
+	if contact.LinkStatus != "ACCEPTED" && contact.LinkStatus != "PENDING" {
+		return ErrContactNotLinked
+	}
+
+	// If ACCEPTED, find and unlink the reciprocal contact
+	if contact.LinkStatus == "ACCEPTED" && contact.LinkedUserID != nil {
+		// Find the linked user's household
+		linkedHouseholdID, hErr := s.repo.GetUserHouseholdID(ctx, *contact.LinkedUserID)
+		if hErr == nil {
+			// Find reciprocal contact (in linked user's household, linked to requesting user's user)
+			// The requesting user is a member of contact.HouseholdID, find which user
+			members, mErr := s.repo.GetMembers(ctx, contact.HouseholdID)
+			if mErr == nil {
+				for _, m := range members {
+					reciprocal, rErr := s.repo.FindContactByLinkedUserID(ctx, linkedHouseholdID, m.UserID)
+					if rErr == nil && reciprocal != nil {
+						// Set was_unlinked_at on reciprocal so other user sees banner
+						_ = s.repo.SetWasUnlinkedAt(ctx, reciprocal.ID)
+						// Unlink reciprocal
+						_ = s.repo.UnlinkContact(ctx, reciprocal.ID)
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Unlink local contact
+	return s.repo.UnlinkContact(ctx, contactID)
+}
+
+// DismissUnlinkBanner clears the was_unlinked_at notification
+func (s *Service) DismissUnlinkBanner(ctx context.Context, userID, contactID string) error {
+	contact, err := s.repo.GetContact(ctx, contactID)
+	if err != nil {
+		return err
+	}
+
+	// Check user is a member of the contact's household
+	_, err = s.repo.GetMemberByUserID(ctx, contact.HouseholdID, userID)
+	if err != nil {
+		if errors.Is(err, ErrMemberNotFound) {
+			return ErrNotAuthorized
+		}
+		return err
+	}
+
+	return s.repo.DismissUnlinkBanner(ctx, contactID)
 }
 
 // PromoteContactToMember promotes a linked contact to household member (owner only)

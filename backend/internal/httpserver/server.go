@@ -334,6 +334,12 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	mux.HandleFunc("PATCH /households/{household_id}/contacts/{contact_id}", householdHandler.UpdateContact)
 	mux.HandleFunc("DELETE /households/{household_id}/contacts/{contact_id}", householdHandler.DeleteContact)
 	mux.HandleFunc("POST /households/{household_id}/contacts/{contact_id}/promote", householdHandler.PromoteContact)
+
+	// Contact linking endpoints
+	mux.HandleFunc("GET /contacts/check-email", householdHandler.CheckEmail)
+	mux.HandleFunc("POST /contacts/{contact_id}/request-link", householdHandler.RequestLink)
+	mux.HandleFunc("POST /contacts/{contact_id}/unlink", householdHandler.UnlinkContact)
+	mux.HandleFunc("POST /contacts/{contact_id}/dismiss-unlink", householdHandler.DismissUnlinkBanner)
 	
 	// Invitation endpoints
 	mux.HandleFunc("POST /households/{id}/invitations", householdHandler.CreateInvitation)

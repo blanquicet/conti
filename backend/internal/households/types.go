@@ -16,6 +16,9 @@ var (
 	ErrCannotRemoveLastOwner  = errors.New("cannot remove last owner")
 	ErrNotAuthorized          = errors.New("not authorized")
 	ErrContactNotLinked       = errors.New("contact is not linked to a user account")
+	ErrContactAlreadyLinked   = errors.New("contact is already linked")
+	ErrContactNoEmail         = errors.New("contact has no email")
+	ErrEmailNotRegistered     = errors.New("email is not registered")
 	ErrInvalidRole            = errors.New("invalid role")
 	ErrLinkRequestNotPending  = errors.New("link request is not pending")
 )
@@ -85,6 +88,7 @@ type Contact struct {
 	LinkStatus      string     `json:"link_status"`
 	LinkRequestedAt *time.Time `json:"link_requested_at,omitempty"`
 	LinkRespondedAt *time.Time `json:"link_responded_at,omitempty"`
+	WasUnlinkedAt   *time.Time `json:"was_unlinked_at,omitempty"`
 	IsActive        bool       `json:"is_active"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
@@ -188,6 +192,10 @@ type HouseholdRepository interface {
 	CountPendingLinkRequests(ctx context.Context, userID string) (int, error)
 	UpdateContactLinkStatus(ctx context.Context, contactID string, status string) error
 	UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, linkStatus string) error
+	UnlinkContact(ctx context.Context, contactID string) error
+	SetWasUnlinkedAt(ctx context.Context, contactID string) error
+	DismissUnlinkBanner(ctx context.Context, contactID string) error
+	FindContactByLinkedUserID(ctx context.Context, householdID string, linkedUserID string) (*Contact, error)
 	
 	// Invitation management
 	CreateInvitation(ctx context.Context, householdID, email, token, invitedBy string) (*HouseholdInvitation, error)

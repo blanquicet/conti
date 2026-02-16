@@ -457,7 +457,7 @@ func TestCreateContact(t *testing.T) {
 			checkAutoLinked: false,
 		},
 		{
-			name: "auto-link when email matches user",
+			name: "no auto-link when email matches user",
 			input: &CreateContactInput{
 				HouseholdID: household.ID,
 				Name:        "User 2",
@@ -465,7 +465,7 @@ func TestCreateContact(t *testing.T) {
 				UserID:      user1.ID,
 			},
 			wantErr:         false,
-			checkAutoLinked: true,
+			checkAutoLinked: false,
 		},
 		{
 			name: "empty name",
@@ -542,13 +542,14 @@ func TestPromoteContactToMember(t *testing.T) {
 
 	repo.AddMember(context.Background(), household.ID, member.ID, RoleMember)
 
-	// Create linked contact
+	// Create linked contact (with explicit link request)
 	linkedEmail := linkedUser.Email
 	linkedContact, _ := svc.CreateContact(context.Background(), &CreateContactInput{
 		HouseholdID: household.ID,
 		Name:        "Linked Contact",
 		Email:       &linkedEmail,
 		UserID:      owner.ID,
+		RequestLink: true,
 	})
 
 	// Create unlinked contact

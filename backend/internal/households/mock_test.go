@@ -315,6 +315,22 @@ func (m *MockHouseholdRepository) UpdateContactLinkedUser(ctx context.Context, c
 	return nil
 }
 
+func (m *MockHouseholdRepository) UnlinkContact(ctx context.Context, contactID string) error {
+	return nil
+}
+
+func (m *MockHouseholdRepository) SetWasUnlinkedAt(ctx context.Context, contactID string) error {
+	return nil
+}
+
+func (m *MockHouseholdRepository) DismissUnlinkBanner(ctx context.Context, contactID string) error {
+	return nil
+}
+
+func (m *MockHouseholdRepository) FindContactByLinkedUserID(ctx context.Context, householdID string, linkedUserID string) (*Contact, error) {
+	return nil, ErrContactNotFound
+}
+
 
 // MockUserRepository is a mock implementation for testing
 type MockUserRepository struct {

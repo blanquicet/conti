@@ -12,16 +12,22 @@ const { Pool } = pg;
  * 3. Each household shows names as stored locally (contact names, not foreign names)
  * 
  * Flow:
- * 1. Register Jose, create household, add categories + payment method
- * 2. Register Maria, create her own household with categories + payment method
- * 3. Jose adds Maria as contact (link via DB); Maria adds Jose as contact (link via DB)
- * 4. Jose creates SPLIT $2M (Maria 50%) → Maria owes Jose $1M
- * 5. Maria creates SPLIT $600K (Jose 50%) → Jose owes Maria $300K
- * 6. Jose views Préstamos: ONE card showing Maria owes $700K (netted: $1M - $300K)
- * 7. Maria views Préstamos: ONE card showing she owes $700K, with 🔗 badge on cross-household movement
- * 8. Names verified: Jose sees "Maria Isabel" (his contact), Maria sees "Josecito" (her contact)
- * 9. Cross-household movements have NO edit/delete buttons
- * 10. Cleanup
+ * 1. Register Jose, create household
+ * 2. Register Maria, create her own household
+ * 3. Jose adds Maria as contact → link confirmation → "Sí, enviar solicitud" → PENDING
+ *    Maria navigates to Hogar → sees banner → clicks → accept modal → names Jose "Josecito" → accepts
+ * 4. Jose adds payment method + categories
+ * 5. Maria adds payment method + categories
+ * 6. Jose creates SPLIT $2M (Maria 50%) → Maria owes Jose $1M
+ * 7. Maria creates SPLIT $600K (Jose 50%) → Jose owes Maria $300K
+ * 8. Jose views Préstamos: ONE card showing Maria owes $700K (netted: $1M - $300K)
+ * 9. Jose can edit/delete own movements
+ * 10. Maria views Préstamos: ONE card showing she owes $700K
+ * 11. Maria expands: 🔗 badge on cross-household, read-only, edit/delete on own
+ * 12. Jose unlinks Maria → "Vinculado" badge disappears
+ * 13. Maria sees unlink banner → dismisses it
+ * 14. Cross-household movements no longer visible for either side
+ * 15. Cleanup
  */
 
 async function submitFormAndConfirm(page) {
@@ -153,7 +159,7 @@ async function testCrossHouseholdLoans() {
     // ==================================================================
     console.log('📝 Step 3: Adding linked contacts...');
 
-    // Jose adds "Maria Isabel" as contact
+    // Jose adds "Maria Isabel" as contact and requests linking
     await josePage.goto(`${appUrl}/hogar`);
     await josePage.waitForTimeout(2000);
 
@@ -163,6 +169,8 @@ async function testCrossHouseholdLoans() {
     await josePage.locator('#contact-name').fill('Maria Isabel');
     await josePage.locator('#contact-email').fill(mariaEmail);
     await josePage.getByRole('button', { name: 'Agregar', exact: true }).click();
+    // Link confirmation dialog appears (email is registered)
+    await josePage.locator('#link-yes').click({ timeout: 5000 });
     await josePage.waitForTimeout(3000);
 
     const contactResult = await pool.query(
@@ -171,35 +179,26 @@ async function testCrossHouseholdLoans() {
     );
     mariaContactId = contactResult.rows[0].id;
 
-    // Link to Maria's user account and accept the link
-    await pool.query(
-      'UPDATE contacts SET linked_user_id = $1, link_status = $2 WHERE id = $3',
-      [mariaUserId, 'ACCEPTED', mariaContactId]
-    );
-
-    // Maria adds "Josecito" as contact (different name for the same person!)
+    // Maria navigates to Hogar, sees the link request banner, and accepts
     await mariaPage.goto(`${appUrl}/hogar`);
     await mariaPage.waitForTimeout(2000);
 
-    await mariaPage.getByRole('button', { name: '+ Agregar contacto' }).click();
+    // Click the link request banner
+    const banner = mariaPage.locator('.link-request-banner').filter({ hasText: 'quiere compartir gastos' });
+    await banner.click({ timeout: 10000 });
     await mariaPage.waitForTimeout(500);
 
-    await mariaPage.locator('#contact-name').fill('Josecito');
-    await mariaPage.locator('#contact-email').fill(joseEmail);
-    await mariaPage.getByRole('button', { name: 'Agregar', exact: true }).click();
+    // In the accept modal, set the contact name to "Josecito" and accept
+    await mariaPage.locator('#modal-accept-name').fill('Josecito');
+    await mariaPage.locator('#modal-accept-btn').click({ timeout: 5000 });
     await mariaPage.waitForTimeout(3000);
 
+    // Get the reciprocal contact ID (Maria's contact for Jose)
     const joseContactResult = await pool.query(
-      'SELECT id FROM contacts WHERE household_id = $1 AND name = $2',
-      [mariaHouseholdId, 'Josecito']
+      'SELECT id FROM contacts WHERE household_id = $1 AND linked_user_id = $2',
+      [mariaHouseholdId, joseUserId]
     );
     joseContactId = joseContactResult.rows[0].id;
-
-    // Link to Jose's user account and accept the link
-    await pool.query(
-      'UPDATE contacts SET linked_user_id = $1, link_status = $2 WHERE id = $3',
-      [joseUserId, 'ACCEPTED', joseContactId]
-    );
 
     console.log('✅ Linked contacts created (Jose→"Maria Isabel", Maria→"Josecito")');
 
@@ -497,6 +496,105 @@ async function testCrossHouseholdLoans() {
     console.log(`  ✓ Maria has edit/delete on her own movement(s)`);
 
     console.log('✅ Level 3 badges and read-only verified');
+
+    // ==================================================================
+    // STEP 12: Jose unlinks Maria contact
+    // ==================================================================
+    console.log('📝 Step 12: Jose unlinks Maria...');
+
+    await josePage.goto(`${appUrl}/hogar`);
+    await josePage.waitForTimeout(2000);
+
+    // Find Maria Isabel contact and click three-dots
+    const mariaContactItem = josePage.locator('.contact-item').filter({ hasText: 'Maria Isabel' });
+    await mariaContactItem.locator('.three-dots-btn').click();
+    await josePage.waitForTimeout(500);
+
+    // Click "Desvincular" in the portal menu
+    await josePage.locator('#portal-menu .menu-item[data-action="unlink-contact"]').click({ timeout: 5000 });
+    await josePage.waitForTimeout(500);
+
+    // Confirmation dialog appears — click confirm
+    await josePage.locator('#modal-confirm').click({ timeout: 5000 });
+    await josePage.waitForTimeout(500);
+
+    // Success dialog — click OK
+    await josePage.locator('#modal-ok').click({ timeout: 5000 });
+    await josePage.waitForTimeout(2000);
+
+    // Verify "Vinculado" badge is gone on Maria Isabel contact
+    const mariaContactAfterUnlink = josePage.locator('.contact-item').filter({ hasText: 'Maria Isabel' });
+    const linkedBadge = await mariaContactAfterUnlink.locator('.linked-accepted').count();
+    if (linkedBadge > 0) {
+      throw new Error('Maria Isabel should no longer show "Vinculado" badge after unlink');
+    }
+    console.log('  ✓ Jose: Maria Isabel no longer shows "Vinculado" badge');
+
+    console.log('✅ Jose unlinked Maria');
+
+    // ==================================================================
+    // STEP 13: Maria sees unlink banner
+    // ==================================================================
+    console.log('📝 Step 13: Maria sees unlink banner...');
+
+    await mariaPage.goto(`${appUrl}/hogar`);
+    await mariaPage.waitForTimeout(2000);
+
+    // Maria should see an unlink notification banner
+    const unlinkBanner = mariaPage.locator('.unlink-banner');
+    const unlinkBannerCount = await unlinkBanner.count();
+    if (unlinkBannerCount === 0) {
+      throw new Error('Maria should see an unlink notification banner');
+    }
+    const unlinkBannerText = await unlinkBanner.first().textContent();
+    console.log(`  ✓ Maria sees unlink banner: "${unlinkBannerText.trim().substring(0, 60)}..."`);
+
+    // Dismiss the banner
+    await unlinkBanner.first().click();
+    await mariaPage.waitForTimeout(1000);
+
+    // Banner should be gone
+    const bannerAfterDismiss = await mariaPage.locator('.unlink-banner').count();
+    if (bannerAfterDismiss > 0) {
+      throw new Error('Unlink banner should be dismissed after clicking');
+    }
+    console.log('  ✓ Maria dismissed the unlink banner');
+
+    console.log('✅ Maria unlink notification verified');
+
+    // ==================================================================
+    // STEP 14: Cross-household movements no longer visible after unlink
+    // ==================================================================
+    console.log('📝 Step 14: Verifying cross-household movements gone after unlink...');
+
+    // Maria checks Préstamos — should only see her own movement, no cross-household
+    await mariaPage.goto(appUrl);
+    await mariaPage.waitForTimeout(2000);
+
+    await mariaPage.locator('button[data-tab="prestamos"]').click();
+    await mariaPage.waitForTimeout(3000);
+
+    // After unlink, Maria should NOT see any cross-household badges
+    const crossBadgesAfterUnlink = await mariaPage.locator('.entry-cross-household-badge').count();
+    if (crossBadgesAfterUnlink > 0) {
+      throw new Error('Cross-household badges should NOT appear after unlink');
+    }
+    console.log('  ✓ No cross-household badges after unlink');
+
+    // Jose also checks Préstamos — should not see cross-household movements from Maria
+    await josePage.goto(appUrl);
+    await josePage.waitForTimeout(2000);
+
+    await josePage.locator('button[data-tab="prestamos"]').click();
+    await josePage.waitForTimeout(3000);
+
+    const joseCrossBadgesAfterUnlink = await josePage.locator('.entry-cross-household-badge').count();
+    if (joseCrossBadgesAfterUnlink > 0) {
+      throw new Error('Jose should not see cross-household badges after unlink');
+    }
+    console.log('  ✓ Jose: no cross-household badges after unlink');
+
+    console.log('✅ Cross-household movements no longer visible after unlink');
 
     // ==================================================================
     // CLEANUP

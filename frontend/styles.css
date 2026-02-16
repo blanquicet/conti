@@ -1408,6 +1408,19 @@ button.loading::after {
   }
 }
 
+.unlink-banner {
+  background: linear-gradient(135deg, #374151, #4b5563);
+}
+
+.unlink-banner:hover {
+  background: linear-gradient(135deg, #4b5563, #6b7280);
+}
+
+.unlink-banner .link-request-banner-arrow {
+  font-size: 18px;
+  font-weight: bold;
+}
+
 /* Navbar badge */
 .nav-badge {
   background-color: #dc3545;

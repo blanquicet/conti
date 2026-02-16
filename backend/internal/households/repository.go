@@ -317,7 +317,7 @@ func (r *Repository) CreateContact(ctx context.Context, contact *Contact) (*Cont
 	err := r.pool.QueryRow(ctx, `
 		INSERT INTO contacts (household_id, name, email, phone, linked_user_id, notes, is_active, link_status, link_requested_at, link_responded_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, is_active, created_at, updated_at
+		RETURNING id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, was_unlinked_at, is_active, created_at, updated_at
 	`, contact.HouseholdID, contact.Name, contact.Email, contact.Phone, contact.LinkedUserID, contact.Notes, contact.IsActive,
 		contact.LinkStatus, contact.LinkRequestedAt, contact.LinkRespondedAt).Scan(
 		&c.ID,
@@ -330,6 +330,7 @@ func (r *Repository) CreateContact(ctx context.Context, contact *Contact) (*Cont
 		&c.LinkStatus,
 		&c.LinkRequestedAt,
 		&c.LinkRespondedAt,
+		&c.WasUnlinkedAt,
 		&c.IsActive,
 		&c.CreatedAt,
 		&c.UpdatedAt,
@@ -345,7 +346,7 @@ func (r *Repository) CreateContact(ctx context.Context, contact *Contact) (*Cont
 func (r *Repository) GetContact(ctx context.Context, id string) (*Contact, error) {
 	var c Contact
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, is_active, created_at, updated_at
+		SELECT id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, was_unlinked_at, is_active, created_at, updated_at
 		FROM contacts
 		WHERE id = $1
 	`, id).Scan(
@@ -359,6 +360,7 @@ func (r *Repository) GetContact(ctx context.Context, id string) (*Contact, error
 		&c.LinkStatus,
 		&c.LinkRequestedAt,
 		&c.LinkRespondedAt,
+		&c.WasUnlinkedAt,
 		&c.IsActive,
 		&c.CreatedAt,
 		&c.UpdatedAt,
@@ -384,7 +386,7 @@ func (r *Repository) UpdateContact(ctx context.Context, contact *Contact, isActi
 			UPDATE contacts
 			SET name = $2, email = $3, phone = $4, linked_user_id = $5, notes = $6, is_active = $7, updated_at = NOW()
 			WHERE id = $1
-			RETURNING id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, is_active, created_at, updated_at
+			RETURNING id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, was_unlinked_at, is_active, created_at, updated_at
 		`
 		args = []interface{}{contact.ID, contact.Name, contact.Email, contact.Phone, contact.LinkedUserID, contact.Notes, *isActive}
 	} else {
@@ -393,7 +395,7 @@ func (r *Repository) UpdateContact(ctx context.Context, contact *Contact, isActi
 			UPDATE contacts
 			SET name = $2, email = $3, phone = $4, linked_user_id = $5, notes = $6, updated_at = NOW()
 			WHERE id = $1
-			RETURNING id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, is_active, created_at, updated_at
+			RETURNING id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, was_unlinked_at, is_active, created_at, updated_at
 		`
 		args = []interface{}{contact.ID, contact.Name, contact.Email, contact.Phone, contact.LinkedUserID, contact.Notes}
 	}
@@ -411,6 +413,7 @@ func (r *Repository) UpdateContact(ctx context.Context, contact *Contact, isActi
 		&c.LinkStatus,
 		&c.LinkRequestedAt,
 		&c.LinkRespondedAt,
+		&c.WasUnlinkedAt,
 		&isActiveFromDB,
 		&c.CreatedAt,
 		&c.UpdatedAt,
@@ -441,7 +444,7 @@ func (r *Repository) DeleteContact(ctx context.Context, id string) error {
 // ListContacts retrieves all contacts for a household
 func (r *Repository) ListContacts(ctx context.Context, householdID string) ([]*Contact, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, is_active, created_at, updated_at
+		SELECT id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, was_unlinked_at, is_active, created_at, updated_at
 		FROM contacts
 		WHERE household_id = $1
 		ORDER BY name ASC
@@ -465,6 +468,7 @@ func (r *Repository) ListContacts(ctx context.Context, householdID string) ([]*C
 			&c.LinkStatus,
 			&c.LinkRequestedAt,
 			&c.LinkRespondedAt,
+			&c.WasUnlinkedAt,
 			&c.IsActive,
 			&c.CreatedAt,
 			&c.UpdatedAt,
@@ -487,7 +491,7 @@ func (r *Repository) ListContacts(ctx context.Context, householdID string) ([]*C
 func (r *Repository) FindContactByEmail(ctx context.Context, householdID, email string) (*Contact, error) {
 	var c Contact
 	err := r.pool.QueryRow(ctx, `
-		SELECT id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, is_active, created_at, updated_at
+		SELECT id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, was_unlinked_at, is_active, created_at, updated_at
 		FROM contacts
 		WHERE household_id = $1 AND email = $2
 	`, householdID, email).Scan(
@@ -501,6 +505,7 @@ func (r *Repository) FindContactByEmail(ctx context.Context, householdID, email 
 		&c.LinkStatus,
 		&c.LinkRequestedAt,
 		&c.LinkRespondedAt,
+		&c.WasUnlinkedAt,
 		&c.IsActive,
 		&c.CreatedAt,
 		&c.UpdatedAt,
@@ -619,6 +624,74 @@ func (r *Repository) UpdateContactLinkedUser(ctx context.Context, contactID stri
 		return ErrContactNotFound
 	}
 	return nil
+}
+
+// UnlinkContact clears the linked_user_id and resets link status
+func (r *Repository) UnlinkContact(ctx context.Context, contactID string) error {
+	result, err := r.pool.Exec(ctx, `
+		UPDATE contacts
+		SET linked_user_id = NULL, link_status = 'NONE', link_requested_at = NULL, link_responded_at = NULL, updated_at = NOW()
+		WHERE id = $1
+	`, contactID)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return ErrContactNotFound
+	}
+	return nil
+}
+
+// SetWasUnlinkedAt sets was_unlinked_at on a contact (notification for the other side)
+func (r *Repository) SetWasUnlinkedAt(ctx context.Context, contactID string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE contacts SET was_unlinked_at = NOW(), updated_at = NOW() WHERE id = $1
+	`, contactID)
+	return err
+}
+
+// DismissUnlinkBanner clears was_unlinked_at on a contact
+func (r *Repository) DismissUnlinkBanner(ctx context.Context, contactID string) error {
+	_, err := r.pool.Exec(ctx, `
+		UPDATE contacts SET was_unlinked_at = NULL, updated_at = NOW() WHERE id = $1
+	`, contactID)
+	return err
+}
+
+// FindContactByLinkedUserID finds a contact in a household that links to a specific user
+func (r *Repository) FindContactByLinkedUserID(ctx context.Context, householdID, linkedUserID string) (*Contact, error) {
+	var c Contact
+	var isActiveFromDB bool
+	err := r.pool.QueryRow(ctx, `
+		SELECT id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, was_unlinked_at, is_active, created_at, updated_at
+		FROM contacts
+		WHERE household_id = $1 AND linked_user_id = $2
+		LIMIT 1
+	`, householdID, linkedUserID).Scan(
+		&c.ID,
+		&c.HouseholdID,
+		&c.Name,
+		&c.Email,
+		&c.Phone,
+		&c.LinkedUserID,
+		&c.Notes,
+		&c.LinkStatus,
+		&c.LinkRequestedAt,
+		&c.LinkRespondedAt,
+		&c.WasUnlinkedAt,
+		&isActiveFromDB,
+		&c.CreatedAt,
+		&c.UpdatedAt,
+	)
+	if err == pgx.ErrNoRows {
+		return nil, ErrContactNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	c.IsActive = isActiveFromDB
+	c.IsRegistered = c.LinkedUserID != nil
+	return &c, nil
 }
 
 // CreateInvitation creates a new household invitation
