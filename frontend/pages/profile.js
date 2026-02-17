@@ -238,7 +238,7 @@ function renderAccountsList() {
             <div class="contact-name">${account.name}</div>
             ${account.institution ? `<div class="contact-details">${account.institution}${account.last4 ? ` • ••• ${account.last4}` : ''}</div>` : ''}
             ${account.current_balance !== undefined ? `<div class="contact-details">Balance: ${formatCurrency(account.current_balance)}</div>` : ''}
-            ${linkedDebitCard ? `<div class="contact-details" style="color: #059669;">💳 ${linkedDebitCard}</div>` : ''}
+            ${linkedDebitCard ? `<div class="contact-details">💳 ${linkedDebitCard}</div>` : ''}
           </div>
           <div class="contact-actions">
             <button class="three-dots-btn" data-account-id="${account.id}">⋮</button>
@@ -321,7 +321,7 @@ function renderPaymentMethodsList() {
             ${pm.last4 ? `<div class="contact-details">••• ${pm.last4}</div>` : ''}
             <div class="contact-details">${PAYMENT_METHOD_TYPES[pm.type] || pm.type}</div>
             ${pm.institution ? `<div class="contact-details">${pm.institution}</div>` : ''}
-            ${linkedAccount ? `<div class="contact-details" style="color: #059669;">💰 ${linkedAccount}</div>` : ''}
+            ${linkedAccount ? `<div class="contact-details">💰 ${linkedAccount}</div>` : ''}
           </div>
           <div class="contact-badges">
             ${pm.is_shared_with_household ? '<span class="member-role role-owner" title="Compartido con el hogar">Compartido</span>' : ''}
