@@ -50,12 +50,13 @@ type CreatePaymentMethodRequest struct {
 }
 
 type UpdatePaymentMethodRequest struct {
-Name                  *string `json:"name,omitempty"`
-IsSharedWithHousehold *bool   `json:"is_shared_with_household,omitempty"`
-Last4                 *string `json:"last4,omitempty"`
-Institution           *string `json:"institution,omitempty"`
-Notes                 *string `json:"notes,omitempty"`
-IsActive              *bool   `json:"is_active,omitempty"`
+	Name                  *string `json:"name,omitempty"`
+	IsSharedWithHousehold *bool   `json:"is_shared_with_household,omitempty"`
+	Last4                 *string `json:"last4,omitempty"`
+	Institution           *string `json:"institution,omitempty"`
+	Notes                 *string `json:"notes,omitempty"`
+	IsActive              *bool   `json:"is_active,omitempty"`
+	LinkedAccountID       *string `json:"linked_account_id,omitempty"`
 }
 
 type ErrorResponse struct {
@@ -242,15 +243,16 @@ return
 }
 
 input := &UpdateInput{
-ID:                    id,
-Name:                  req.Name,
-IsSharedWithHousehold: req.IsSharedWithHousehold,
-Last4:                 req.Last4,
-Institution:           req.Institution,
-Notes:                 req.Notes,
-IsActive:              req.IsActive,
-OwnerID:               user.ID,
-}
+		ID:                    id,
+		Name:                  req.Name,
+		IsSharedWithHousehold: req.IsSharedWithHousehold,
+		Last4:                 req.Last4,
+		Institution:           req.Institution,
+		Notes:                 req.Notes,
+		IsActive:              req.IsActive,
+		LinkedAccountID:       req.LinkedAccountID,
+		OwnerID:               user.ID,
+	}
 
 pm, err := h.service.Update(r.Context(), input)
 if err != nil {

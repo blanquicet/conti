@@ -119,14 +119,15 @@ func (s *Service) Create(ctx context.Context, input *CreateInput) (*PaymentMetho
 
 // UpdateInput contains the data needed to update a payment method
 type UpdateInput struct {
-ID                    string
-Name                  *string
-IsSharedWithHousehold *bool
-Last4                 *string
-Institution           *string
-Notes                 *string
-IsActive              *bool
-OwnerID               string // for authorization
+	ID                    string
+	Name                  *string
+	IsSharedWithHousehold *bool
+	Last4                 *string
+	Institution           *string
+	Notes                 *string
+	IsActive              *bool
+	LinkedAccountID       *string
+	OwnerID               string // for authorization
 }
 
 // Validate validates the input
@@ -192,16 +193,19 @@ if input.Last4 != nil {
 existing.Last4 = input.Last4
 }
 if input.Institution != nil {
-existing.Institution = input.Institution
-}
-if input.Notes != nil {
-existing.Notes = input.Notes
-}
-if input.IsActive != nil {
-existing.IsActive = *input.IsActive
-}
+	existing.Institution = input.Institution
+	}
+	if input.Notes != nil {
+		existing.Notes = input.Notes
+	}
+	if input.IsActive != nil {
+		existing.IsActive = *input.IsActive
+	}
+	if input.LinkedAccountID != nil {
+		existing.LinkedAccountID = input.LinkedAccountID
+	}
 
-updated, err := s.repo.Update(ctx, existing)
+	updated, err := s.repo.Update(ctx, existing)
 if err != nil {
 s.auditService.LogAsync(ctx, &audit.LogInput{
 Action:       audit.ActionPaymentMethodUpdated,
