@@ -553,7 +553,7 @@ async function testPaymentMethods() {
     await page1.waitForTimeout(300);
     
     // Click Edit button in dropdown
-    await efectivoItem.locator('.actions-dropdown button[data-action="edit"]').click();
+    await efectivoItem.locator('.actions-dropdown button[data-action="edit-pm"]').click();
     await page1.waitForTimeout(500);
     
     // Change name
@@ -586,7 +586,7 @@ async function testPaymentMethods() {
     await page1.waitForTimeout(300);
     
     // Click Delete button in dropdown
-    await personalItem.locator('.actions-dropdown button[data-action="delete"]').click();
+    await personalItem.locator('.actions-dropdown button[data-action="delete-pm"]').click();
     await page1.waitForTimeout(500);
     
     // Confirm deletion
@@ -617,7 +617,7 @@ async function testPaymentMethods() {
     await page1.waitForTimeout(300);
     
     // Click Delete button in dropdown
-    await sharedItem.locator('.actions-dropdown button[data-action="delete"]').click();
+    await sharedItem.locator('.actions-dropdown button[data-action="delete-pm"]').click();
     await page1.waitForTimeout(500);
     
     await page1.locator('#modal-confirm').click();
@@ -713,7 +713,7 @@ async function testPaymentMethods() {
     await page2.waitForTimeout(300);
     
     // Click Edit button in dropdown
-    await pmItem.locator('.actions-dropdown button[data-action="edit"]').click();
+    await pmItem.locator('.actions-dropdown button[data-action="edit-pm"]').click();
     await page2.waitForTimeout(500);
     
     // Uncheck is_active
