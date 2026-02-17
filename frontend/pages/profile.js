@@ -223,7 +223,7 @@ function renderAccountsList() {
 
   // Find debit cards linked to accounts
   const getLinkedDebitCard = (accountId) => {
-    const debitCard = paymentMethods.find(pm => pm.type === 'debit_card' && pm.account_id === accountId);
+    const debitCard = paymentMethods.find(pm => pm.type === 'debit_card' && pm.linked_account_id === accountId);
     return debitCard ? debitCard.name : null;
   };
 
@@ -304,8 +304,8 @@ function renderPaymentMethodsList() {
 
   // Find account linked to debit card
   const getLinkedAccount = (pm) => {
-    if (pm.type !== 'debit_card' || !pm.account_id) return null;
-    const account = accounts.find(a => a.id === pm.account_id);
+    if (pm.type !== 'debit_card' || !pm.linked_account_id) return null;
+    const account = accounts.find(a => a.id === pm.linked_account_id);
     return account ? account.name : null;
   };
 
@@ -364,8 +364,6 @@ function getPaymentMethodIcon(type) {
 function setupEventListeners() {
   const createBtn = document.getElementById('create-household-btn');
   const viewBtn = document.getElementById('view-household-btn');
-  const addAccountBtn = document.getElementById('add-account-btn');
-  const addPaymentMethodBtn = document.getElementById('add-payment-method-btn');
 
   if (createBtn) {
     createBtn.addEventListener('click', async () => {
@@ -384,17 +382,19 @@ function setupEventListeners() {
     });
   }
 
-  if (addAccountBtn) {
-    addAccountBtn.addEventListener('click', () => {
+  // Add account buttons (may be multiple with same ID in different states)
+  document.querySelectorAll('#add-account-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
       showAccountModal();
     });
-  }
+  });
 
-  if (addPaymentMethodBtn) {
-    addPaymentMethodBtn.addEventListener('click', () => {
+  // Add payment method buttons
+  document.querySelectorAll('#add-payment-method-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
       showPaymentMethodModal();
     });
-  }
+  });
 
   // Menu toggle buttons (for payment methods)
   document.querySelectorAll('[data-menu-id]').forEach(btn => {
@@ -691,13 +691,13 @@ function showPaymentMethodModal(paymentMethod = null) {
             placeholder="1234">
         </label>
 
-        <div id="pm-account-field" style="${paymentMethod?.type === 'debit_card' || !isEdit ? '' : 'display: none;'}">
+        <div id="pm-account-field" style="${paymentMethod?.type === 'debit_card' ? '' : 'display: none;'}">
           <label class="field">
             <span>Cuenta asociada</span>
             <select id="pm-account">
               <option value="">Sin cuenta asociada</option>
               ${savingsAccounts.map(a => `
-                <option value="${a.id}" ${paymentMethod?.account_id === a.id ? 'selected' : ''}>
+                <option value="${a.id}" ${paymentMethod?.linked_account_id === a.id ? 'selected' : ''}>
                   ${a.name}
                 </option>
               `).join('')}
@@ -792,7 +792,7 @@ function showPaymentMethodModal(paymentMethod = null) {
       last4,
       institution,
       notes,
-      account_id: type === 'debit_card' ? accountId : null
+      linked_account_id: type === 'debit_card' ? accountId : null
     };
 
     if (isEdit) {
