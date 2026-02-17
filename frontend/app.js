@@ -79,8 +79,35 @@ function initRouter() {
     }
     
     const appEl = document.getElementById('app');
-    appEl.innerHTML = HomePage.render(user);
-    await HomePage.setup();
+    
+    // Show loading overlay while setup runs
+    appEl.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px;">
+        <div class="spinner" style="width: 40px; height: 40px; border-width: 4px;"></div>
+        <p style="color: #6b7280; font-size: 16px;">Cargando...</p>
+      </div>
+    `;
+    
+    try {
+      // Render the page content
+      appEl.innerHTML = HomePage.render(user);
+      
+      // Setup event listeners (this is async and must complete for UI to work)
+      await HomePage.setup();
+    } catch (error) {
+      console.error('Error loading home page:', error);
+      appEl.innerHTML = `
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; gap: 16px; padding: 20px;">
+          <div style="font-size: 48px;">❌</div>
+          <p style="color: #dc2626; font-size: 18px; font-weight: 600;">Error al cargar la página</p>
+          <p style="color: #6b7280; font-size: 14px; text-align: center;">${error.message || 'Por favor recarga la página'}</p>
+          <button onclick="window.location.reload()" style="padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px;">
+            Recargar
+          </button>
+        </div>
+      `;
+      return;
+    }
     
     const loadingEl = document.getElementById('loading');
     if (loadingEl) loadingEl.style.display = 'none';

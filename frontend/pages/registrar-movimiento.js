@@ -103,7 +103,7 @@ export function render(user) {
       <main class="card">
         <header class="header">
           <a href="/" class="back-link" id="back-to-home">
-            ← Volver a Hogar
+            ← Volver
           </a>
           <div class="header-row">
             <h1 id="pageTitle">${title}</h1>
