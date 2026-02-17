@@ -17,8 +17,6 @@ let currentUser = null;
 let currentHousehold = null;
 let accounts = [];
 let paymentMethods = [];
-let editingAccount = null;
-let editingPaymentMethod = null;
 
 // Account type labels in Spanish
 const ACCOUNT_TYPES = {
@@ -223,34 +221,41 @@ function renderAccountsList() {
     </div>
   ` : '';
 
+  // Find debit cards linked to accounts
+  const getLinkedDebitCard = (accountId) => {
+    const debitCard = paymentMethods.find(pm => pm.type === 'debit_card' && pm.account_id === accountId);
+    return debitCard ? debitCard.name : null;
+  };
+
   const accountList = accounts.length > 0 ? `
     <div class="contact-list">
-      ${accounts.map(account => `
+      ${accounts.map(account => {
+        const linkedDebitCard = getLinkedDebitCard(account.id);
+        return `
         <div class="contact-item">
           <div class="contact-avatar">${getAccountIcon(account.type)}</div>
           <div class="contact-info">
             <div class="contact-name">${account.name}</div>
             ${account.institution ? `<div class="contact-details">${account.institution}${account.last4 ? ` • ••• ${account.last4}` : ''}</div>` : ''}
             ${account.current_balance !== undefined ? `<div class="contact-details">Balance: ${formatCurrency(account.current_balance)}</div>` : ''}
+            ${linkedDebitCard ? `<div class="contact-details" style="color: #059669;">💳 ${linkedDebitCard}</div>` : ''}
           </div>
           <div class="contact-actions">
             <button class="three-dots-btn" data-account-id="${account.id}">⋮</button>
             <div class="three-dots-menu" id="account-menu-${account.id}">
-              <button class="menu-item" data-action="edit" data-id="${account.id}">Editar</button>
-              <button class="menu-item" data-action="delete" data-id="${account.id}">Eliminar</button>
+              <button class="menu-item" data-action="edit-account" data-id="${account.id}">Editar</button>
+              <button class="menu-item" data-action="delete-account" data-id="${account.id}">Eliminar</button>
             </div>
           </div>
         </div>
-      `).join('')}
+      `}).join('')}
     </div>
+    <button id="add-account-btn" class="btn-secondary" style="margin-top: 16px; width: 100%;">+ Agregar cuenta</button>
   ` : '';
 
   return `
     ${emptyState}
     ${accountList}
-    <div id="account-form-container" style="display: none;">
-      ${renderAccountForm()}
-    </div>
   `;
 }
 
@@ -298,9 +303,18 @@ function renderPaymentMethodsList() {
     </div>
   ` : '';
 
+  // Find account linked to debit card
+  const getLinkedAccount = (pm) => {
+    if (pm.type !== 'debit_card' || !pm.account_id) return null;
+    const account = accounts.find(a => a.id === pm.account_id);
+    return account ? account.name : null;
+  };
+
   const paymentList = paymentMethods.length > 0 ? `
     <div class="contacts-list">
-      ${paymentMethods.map(pm => `
+      ${paymentMethods.map(pm => {
+        const linkedAccount = getLinkedAccount(pm);
+        return `
         <div class="contact-item">
           <div class="contact-avatar">${getPaymentMethodIcon(pm.type)}</div>
           <div class="contact-info">
@@ -308,6 +322,7 @@ function renderPaymentMethodsList() {
             ${pm.last4 ? `<div class="contact-details">••• ${pm.last4}</div>` : ''}
             <div class="contact-details">${PAYMENT_METHOD_TYPES[pm.type] || pm.type}</div>
             ${pm.institution ? `<div class="contact-details">${pm.institution}</div>` : ''}
+            ${linkedAccount ? `<div class="contact-details" style="color: #059669;">💰 ${linkedAccount}</div>` : ''}
           </div>
           <div class="contact-badges">
             ${pm.is_shared_with_household ? '<span class="member-role role-owner" title="Compartido con el hogar">Compartido</span>' : ''}
@@ -316,19 +331,17 @@ function renderPaymentMethodsList() {
           <div class="contact-actions-menu">
             <button class="btn-menu" data-menu-id="${pm.id}">⋮</button>
             <div class="actions-dropdown" id="menu-${pm.id}" style="display: none;">
-              <button class="dropdown-item" data-action="edit" data-id="${pm.id}">Editar</button>
-              <button class="dropdown-item text-danger" data-action="delete" data-id="${pm.id}">Eliminar</button>
+              <button class="dropdown-item" data-action="edit-pm" data-id="${pm.id}">Editar</button>
+              <button class="dropdown-item text-danger" data-action="delete-pm" data-id="${pm.id}">Eliminar</button>
             </div>
           </div>
         </div>
-      `).join('')}
+      `}).join('')}
     </div>
+    <button id="add-payment-method-btn" class="btn-secondary" style="margin-top: 16px; width: 100%;">+ Agregar método de pago</button>
   ` : '';
 
   return `
-    <div id="payment-method-form-container" style="display: none;">
-      ${renderPaymentMethodForm()}
-    </div>
     ${emptyState}
     ${paymentList}
   `;
@@ -375,29 +388,13 @@ function setupEventListeners() {
 
   if (addAccountBtn) {
     addAccountBtn.addEventListener('click', () => {
-      editingAccount = null;
-      const container = document.getElementById('account-form-container');
-      if (container.style.display === 'block') {
-        container.style.display = 'none';
-      } else {
-        container.innerHTML = renderAccountForm();
-        container.style.display = 'block';
-        setupAccountFormHandlers();
-      }
+      showAccountModal();
     });
   }
 
   if (addPaymentMethodBtn) {
     addPaymentMethodBtn.addEventListener('click', () => {
-      editingPaymentMethod = null;
-      const container = document.getElementById('payment-method-form-container');
-      if (container.style.display === 'block') {
-        container.style.display = 'none';
-      } else {
-        container.innerHTML = renderPaymentMethodForm();
-        container.style.display = 'block';
-        setupFormHandlers();
-      }
+      showPaymentMethodModal();
     });
   }
 
@@ -462,16 +459,10 @@ function setupEventListeners() {
       // Close menu
       document.querySelectorAll('.actions-dropdown, .three-dots-menu').forEach(m => m.style.display = 'none');
 
-      // Check if it's in a three-dots-menu (account) or not (payment method)
-      const isAccount = e.currentTarget.closest('.three-dots-menu');
-      
-      if (isAccount) {
-        if (action === 'edit') await handleEditAccount(id);
-        else if (action === 'delete') await handleDeleteAccount(id);
-      } else {
-        if (action === 'edit') await handleEditPaymentMethod(id);
-        else if (action === 'delete') await handleDeletePaymentMethod(id);
-      }
+      if (action === 'edit-account') await handleEditAccount(id);
+      else if (action === 'delete-account') await handleDeleteAccount(id);
+      else if (action === 'edit-pm') await handleEditPaymentMethod(id);
+      else if (action === 'delete-pm') await handleDeletePaymentMethod(id);
     });
   });
 }
@@ -489,16 +480,23 @@ function formatDate(dateString) {
 }
 
 /**
- * Render account form (create or edit)
+ * Show account modal (create or edit)
  */
-function renderAccountForm(account = null) {
-  const isEdit = account !== null;
-  
-  return `
-    <div class="form-card">
-      <h4>${isEdit ? 'Editar cuenta' : 'Agregar cuenta'}</h4>
-      <form id="account-form" class="grid">
-        <label class="field col-span-2">
+function showAccountModal(account = null) {
+  const isEdit = !!account;
+  const title = isEdit ? 'Editar cuenta' : 'Agregar cuenta';
+
+  document.getElementById('account-modal')?.remove();
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'account-modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 420px;">
+      <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">${title}</h3>
+      <div id="account-error" class="error-message" style="display: none;"></div>
+      <form id="account-form" style="display: flex; flex-direction: column; gap: 16px;">
+        <label class="field">
           <span>Tipo de cuenta *</span>
           <select id="account-type" required ${isEdit ? 'disabled' : ''}>
             <option value="">Selecciona un tipo</option>
@@ -508,157 +506,64 @@ function renderAccountForm(account = null) {
               </option>
             `).join('')}
           </select>
-          ${isEdit ? '<small class="hint">El tipo no se puede cambiar después de crear la cuenta</small>' : ''}
+          ${isEdit ? '<small class="hint" style="color: #6b7280; font-size: 12px;">El tipo no se puede cambiar</small>' : ''}
         </label>
 
-        <label class="field col-span-2">
+        <label class="field">
           <span>Nombre *</span>
           <input type="text" id="account-name" required maxlength="100" 
             value="${account?.name || ''}" 
-            placeholder="ej: Cuenta de ahorros Bancolombia" />
+            placeholder="ej: Cuenta de ahorros Bancolombia">
         </label>
         
-        <div class="field-row col-span-2">
-          <label class="field">
+        <div style="display: flex; gap: 12px;">
+          <label class="field" style="flex: 1;">
             <span>Institución</span>
             <input type="text" id="account-institution" maxlength="100" 
               value="${account?.institution || ''}" 
-              placeholder="ej: Bancolombia (opcional)" />
+              placeholder="ej: Bancolombia">
           </label>
           
-          <label class="field">
+          <label class="field" style="flex: 1;">
             <span>Últimos 4 dígitos</span>
             <input type="text" id="account-last4" maxlength="4" pattern="\\d{4}"
               value="${account?.last4 || ''}" 
-              placeholder="1234 (opcional)" />
+              placeholder="1234">
           </label>
         </div>
 
-        <label class="field col-span-2">
+        <label class="field">
           <span>Balance inicial</span>
           <input type="number" id="account-balance" step="0.01" min="0"
             value="${account?.initial_balance || 0}" 
-            placeholder="0 (opcional)" />
-          <small class="hint">El balance con que inicia la cuenta</small>
+            placeholder="0">
+          <small class="hint" style="color: #6b7280; font-size: 12px;">El balance con que inicia la cuenta</small>
         </label>
 
-        <label class="field col-span-2">
+        <label class="field">
           <span>Notas</span>
           <textarea id="account-notes" rows="2" maxlength="500" placeholder="Notas adicionales (opcional)">${account?.notes || ''}</textarea>
         </label>
 
-        <div class="field-row col-span-2">
-          <button type="button" id="cancel-account-btn" class="btn-secondary">Cancelar</button>
-          <button type="submit" class="btn-primary">${isEdit ? 'Actualizar' : 'Guardar'}</button>
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+          <button type="button" class="btn-secondary" id="account-cancel">Cancelar</button>
+          <button type="submit" class="btn-primary">${isEdit ? 'Guardar' : 'Agregar'}</button>
         </div>
       </form>
-    </div>
-  `;
-}
+    </div>`;
+  document.body.appendChild(modal);
 
-/**
- * Render payment method form (create or edit)
- */
-function renderPaymentMethodForm(paymentMethod = null) {
-  const isEdit = paymentMethod !== null;
-  
-  return `
-    <div class="form-card">
-      <h4>${isEdit ? 'Editar método de pago' : 'Agregar método de pago'}</h4>
-      <form id="payment-method-form" class="grid">
-        <div class="field-row col-span-2">
-          <label class="field">
-            <span>Nombre *</span>
-            <input type="text" id="pm-name" required maxlength="100" 
-              value="${paymentMethod?.name || ''}" 
-              placeholder="ej: Tarjeta Débito Bancolombia" />
-          </label>
-          
-          <label class="field">
-            <span>Tipo *</span>
-            <select id="pm-type" required>
-              <option value="">Selecciona un tipo</option>
-              ${Object.entries(PAYMENT_METHOD_TYPES).map(([value, label]) => `
-                <option value="${value}" ${paymentMethod?.type === value ? 'selected' : ''}>
-                  ${label}
-                </option>
-              `).join('')}
-            </select>
-          </label>
-        </div>
-        
-        <div class="field-row col-span-2">
-          <label class="field">
-            <span>Institución</span>
-            <input type="text" id="pm-institution" maxlength="100" 
-              value="${paymentMethod?.institution || ''}" 
-              placeholder="ej: Bancolombia, Nequi (opcional)" />
-          </label>
-          
-          <label class="field">
-            <span>Últimos 4 dígitos</span>
-            <input type="text" id="pm-last4" maxlength="4" pattern="\\d{4}"
-              value="${paymentMethod?.last4 || ''}" 
-              placeholder="ej: 1234 (opcional)" />
-            <small class="hint">Solo números, 4 dígitos</small>
-          </label>
-        </div>
-        
-        <label class="field col-span-2">
-          <span>Notas</span>
-          <textarea id="pm-notes" rows="2" placeholder="Notas adicionales (opcional)">${paymentMethod?.notes || ''}</textarea>
-        </label>
-        
-        <div class="field col-span-2">
-          <label class="checkbox-label">
-            <input type="checkbox" id="pm-shared" ${paymentMethod?.is_shared_with_household ? 'checked' : ''} />
-            <span>Compartir con el hogar (todos los miembros pueden usar este método)</span>
-          </label>
-        </div>
-        
-        ${isEdit ? `
-          <div class="field col-span-2">
-            <label class="checkbox-label">
-              <input type="checkbox" id="pm-active" ${paymentMethod?.is_active !== false ? 'checked' : ''} />
-              <span>Activo (disponible para registrar movimientos)</span>
-            </label>
-          </div>
-        ` : ''}
-        
-        <div class="form-actions col-span-2">
-          <button type="submit" class="btn-primary">${isEdit ? 'Guardar cambios' : 'Agregar'}</button>
-          <button type="button" id="cancel-pm-btn" class="btn-secondary">Cancelar</button>
-        </div>
-      </form>
-    </div>
-  `;
-}
-
-/**
- * Setup form handlers
- */
-/**
- * Setup account form handlers
- */
-function setupAccountFormHandlers() {
+  // Setup form handlers
   const form = document.getElementById('account-form');
-  const cancelBtn = document.getElementById('cancel-account-btn');
-
-  form?.addEventListener('submit', handleSubmitAccount);
-  cancelBtn?.addEventListener('click', () => {
-    document.getElementById('account-form-container').style.display = 'none';
-    editingAccount = null;
-  });
-
-  // Auto-suggest account name based on type and institution
+  const cancelBtn = document.getElementById('account-cancel');
   const typeSelect = document.getElementById('account-type');
   const institutionInput = document.getElementById('account-institution');
   const nameInput = document.getElementById('account-name');
+  const last4Input = document.getElementById('account-last4');
 
+  // Auto-suggest account name based on type and institution
   function suggestName() {
-    if (editingAccount) return; // Don't auto-suggest when editing
-    
-    // Only auto-suggest if name field is empty
+    if (isEdit) return; // Don't auto-suggest when editing
     if (nameInput.value.trim() !== '') return;
     
     const type = typeSelect?.value;
@@ -675,72 +580,263 @@ function setupAccountFormHandlers() {
 
   typeSelect?.addEventListener('change', suggestName);
   institutionInput?.addEventListener('blur', suggestName);
+  
+  // Last4 validation - only digits
+  last4Input?.addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+  });
+
+  cancelBtn.addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('account-error');
+    errorEl.style.display = 'none';
+
+    const accountType = document.getElementById('account-type').value;
+    const name = document.getElementById('account-name').value.trim();
+    const institution = document.getElementById('account-institution').value.trim() || null;
+    const last4 = document.getElementById('account-last4').value.trim() || null;
+    const initialBalance = parseFloat(document.getElementById('account-balance').value) || 0;
+    const notes = document.getElementById('account-notes').value.trim() || null;
+
+    if (!name || !accountType) {
+      errorEl.textContent = 'Por favor completa todos los campos requeridos';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const payload = { name, institution, last4, initial_balance: initialBalance, notes };
+    if (!isEdit) {
+      payload.type = accountType;
+      payload.owner_id = currentUser.id;
+    }
+
+    try {
+      const url = isEdit ? `${API_URL}/accounts/${account.id}` : `${API_URL}/accounts`;
+      const method = isEdit ? 'PATCH' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Error al guardar la cuenta');
+      }
+
+      modal.remove();
+      showSuccess(isEdit ? 'Cuenta actualizada' : 'Cuenta creada', 'Los cambios se guardaron correctamente');
+      await loadProfile();
+
+    } catch (error) {
+      console.error('Error saving account:', error);
+      errorEl.textContent = error.message;
+      errorEl.style.display = 'block';
+    }
+  });
 }
 
 /**
- * Handle account form submission
+ * Show payment method modal (create or edit)
  */
-async function handleSubmitAccount(e) {
-  e.preventDefault();
+function showPaymentMethodModal(paymentMethod = null) {
+  const isEdit = !!paymentMethod;
+  const title = isEdit ? 'Editar método de pago' : 'Agregar método de pago';
 
-  const accountType = document.getElementById('account-type').value;
-  const name = document.getElementById('account-name').value.trim();
-  const institution = document.getElementById('account-institution').value.trim() || null;
-  const last4 = document.getElementById('account-last4').value.trim() || null;
-  const initialBalance = parseFloat(document.getElementById('account-balance').value) || 0;
-  const notes = document.getElementById('account-notes').value.trim() || null;
+  document.getElementById('pm-modal')?.remove();
 
-  if (!name || !accountType) {
-    showError('Por favor completa todos los campos requeridos');
-    return;
-  }
+  // Get savings accounts for linking debit cards
+  const savingsAccounts = accounts.filter(a => a.type === 'savings' || a.type === 'checking');
 
-  const payload = {
-    name,
-    institution,
-    last4,
-    initial_balance: initialBalance,
-    notes
-  };
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'pm-modal';
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 420px;">
+      <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;">${title}</h3>
+      <div id="pm-error" class="error-message" style="display: none;"></div>
+      <form id="pm-form" style="display: flex; flex-direction: column; gap: 16px;">
+        <div style="display: flex; gap: 12px;">
+          <label class="field" style="flex: 1;">
+            <span>Nombre *</span>
+            <input type="text" id="pm-name" required maxlength="100" 
+              value="${paymentMethod?.name || ''}" 
+              placeholder="ej: Tarjeta Débito Bancolombia">
+          </label>
+          
+          <label class="field" style="flex: 1;">
+            <span>Tipo *</span>
+            <select id="pm-type" required ${isEdit ? 'disabled' : ''}>
+              <option value="">Selecciona un tipo</option>
+              ${Object.entries(PAYMENT_METHOD_TYPES).map(([value, label]) => `
+                <option value="${value}" ${paymentMethod?.type === value ? 'selected' : ''}>
+                  ${label}
+                </option>
+              `).join('')}
+            </select>
+          </label>
+        </div>
+        
+        <div style="display: flex; gap: 12px;">
+          <label class="field" style="flex: 1;">
+            <span>Institución</span>
+            <input type="text" id="pm-institution" maxlength="100" 
+              value="${paymentMethod?.institution || ''}" 
+              placeholder="ej: Bancolombia, Nequi">
+          </label>
+          
+          <label class="field" style="flex: 1;">
+            <span>Últimos 4 dígitos</span>
+            <input type="text" id="pm-last4" maxlength="4" pattern="\\d{4}"
+              value="${paymentMethod?.last4 || ''}" 
+              placeholder="1234">
+          </label>
+        </div>
 
-  // Only include type and owner_id when creating (not editing)
-  if (!editingAccount) {
-    payload.type = accountType;
-    payload.owner_id = currentUser.id;
-  }
+        <div id="pm-account-field" style="${paymentMethod?.type === 'debit_card' || !isEdit ? '' : 'display: none;'}">
+          <label class="field">
+            <span>Cuenta asociada</span>
+            <select id="pm-account">
+              <option value="">Sin cuenta asociada</option>
+              ${savingsAccounts.map(a => `
+                <option value="${a.id}" ${paymentMethod?.account_id === a.id ? 'selected' : ''}>
+                  ${a.name}
+                </option>
+              `).join('')}
+            </select>
+            <small class="hint" style="color: #6b7280; font-size: 12px;">Los gastos con esta tarjeta se descontarán del balance de la cuenta</small>
+          </label>
+        </div>
+        
+        <label class="field">
+          <span>Notas</span>
+          <textarea id="pm-notes" rows="2" placeholder="Notas adicionales (opcional)">${paymentMethod?.notes || ''}</textarea>
+        </label>
+        
+        <div class="field">
+          <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="pm-shared" ${paymentMethod?.is_shared_with_household ? 'checked' : ''}>
+            <span>Compartir con el hogar</span>
+          </label>
+        </div>
+        
+        ${isEdit ? `
+          <div class="field">
+            <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="pm-active" ${paymentMethod?.is_active !== false ? 'checked' : ''}>
+              <span>Activo (disponible para registrar movimientos)</span>
+            </label>
+          </div>
+        ` : ''}
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+          <button type="button" class="btn-secondary" id="pm-cancel">Cancelar</button>
+          <button type="submit" class="btn-primary">${isEdit ? 'Guardar' : 'Agregar'}</button>
+        </div>
+      </form>
+    </div>`;
+  document.body.appendChild(modal);
 
-  try {
-    const url = editingAccount 
-      ? `${API_URL}/accounts/${editingAccount.id}`
-      : `${API_URL}/accounts`;
+  // Setup form handlers
+  const form = document.getElementById('pm-form');
+  const cancelBtn = document.getElementById('pm-cancel');
+  const typeSelect = document.getElementById('pm-type');
+  const accountField = document.getElementById('pm-account-field');
+  const last4Input = document.getElementById('pm-last4');
 
-    const method = editingAccount ? 'PATCH' : 'POST';
+  // Show/hide account field based on type
+  typeSelect?.addEventListener('change', (e) => {
+    if (e.target.value === 'debit_card') {
+      accountField.style.display = '';
+    } else {
+      accountField.style.display = 'none';
+      document.getElementById('pm-account').value = '';
+    }
+  });
+  
+  // Last4 validation - only digits
+  last4Input?.addEventListener('input', (e) => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
+  });
 
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(payload)
-    });
+  cancelBtn.addEventListener('click', () => modal.remove());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(errorText || 'Error al guardar la cuenta');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errorEl = document.getElementById('pm-error');
+    errorEl.style.display = 'none';
+
+    const name = document.getElementById('pm-name').value.trim();
+    const type = document.getElementById('pm-type').value;
+    const institution = document.getElementById('pm-institution').value.trim() || null;
+    const last4 = document.getElementById('pm-last4').value.trim() || null;
+    const notes = document.getElementById('pm-notes').value.trim() || null;
+    const isShared = document.getElementById('pm-shared').checked;
+    const isActive = document.getElementById('pm-active')?.checked;
+    const accountId = document.getElementById('pm-account').value || null;
+
+    if (!name || !type) {
+      errorEl.textContent = 'Por favor completa los campos requeridos';
+      errorEl.style.display = 'block';
+      return;
     }
 
-    showSuccess(
-      editingAccount ? 'Cuenta actualizada' : 'Cuenta creada',
-      editingAccount ? 'La cuenta se actualizó correctamente' : 'La cuenta se creó correctamente'
-    );
+    if (last4 && last4.length !== 4) {
+      errorEl.textContent = 'Los últimos 4 dígitos deben ser exactamente 4 números';
+      errorEl.style.display = 'block';
+      return;
+    }
 
-    document.getElementById('account-form-container').style.display = 'none';
-    editingAccount = null;
-    await loadProfile();
+    const data = {
+      name,
+      is_shared_with_household: isShared,
+      last4,
+      institution,
+      notes,
+      account_id: type === 'debit_card' ? accountId : null
+    };
 
-  } catch (error) {
-    console.error('Error saving account:', error);
-    showError('Error al guardar la cuenta', error.message);
-  }
+    if (isEdit) {
+      data.is_active = isActive;
+    } else {
+      data.type = type;
+    }
+
+    try {
+      const url = isEdit ? `${API_URL}/payment-methods/${paymentMethod.id}` : `${API_URL}/payment-methods`;
+      const method = isEdit ? 'PATCH' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Error al guardar');
+      }
+
+      modal.remove();
+      showSuccess(
+        isEdit ? 'Método de pago actualizado' : 'Método de pago creado',
+        'Los cambios se guardaron correctamente'
+      );
+      await loadProfile();
+
+    } catch (error) {
+      console.error('Error saving payment method:', error);
+      errorEl.textContent = error.message;
+      errorEl.style.display = 'block';
+    }
+  });
 }
 
 /**
@@ -749,12 +845,7 @@ async function handleSubmitAccount(e) {
 async function handleEditAccount(id) {
   const account = accounts.find(a => a.id === id);
   if (!account) return;
-
-  editingAccount = account;
-  const container = document.getElementById('account-form-container');
-  container.innerHTML = renderAccountForm(account);
-  container.style.display = 'block';
-  setupAccountFormHandlers();
+  showAccountModal(account);
 }
 
 /**
@@ -801,107 +892,13 @@ async function handleDeleteAccount(id) {
   }
 }
 
-function setupFormHandlers() {
-  const form = document.getElementById('payment-method-form');
-  const cancelBtn = document.getElementById('cancel-pm-btn');
-  
-  form?.addEventListener('submit', handleSubmitPaymentMethod);
-  cancelBtn?.addEventListener('click', () => {
-    document.getElementById('payment-method-form-container').style.display = 'none';
-    editingPaymentMethod = null;
-  });
-  
-  // Last4 validation - only digits
-  const last4Input = document.getElementById('pm-last4');
-  last4Input?.addEventListener('input', (e) => {
-    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
-  });
-}
-
-/**
- * Handle form submit
- */
-async function handleSubmitPaymentMethod(e) {
-  e.preventDefault();
-  
-  const name = document.getElementById('pm-name').value.trim();
-  const type = document.getElementById('pm-type').value;
-  const institution = document.getElementById('pm-institution').value.trim();
-  const last4 = document.getElementById('pm-last4').value.trim();
-  const notes = document.getElementById('pm-notes').value.trim();
-  const isShared = document.getElementById('pm-shared').checked;
-  const isActive = document.getElementById('pm-active')?.checked;
-  
-  if (!name || !type) {
-    showError('Por favor completa los campos requeridos');
-    return;
-  }
-  
-  if (last4 && last4.length !== 4) {
-    showError('Los últimos 4 dígitos deben ser exactamente 4 números');
-    return;
-  }
-  
-  const data = {
-    name,
-    is_shared_with_household: isShared,
-    last4: last4 || null,
-    institution: institution || null,
-    notes: notes || null
-  };
-  
-  if (editingPaymentMethod) {
-    data.is_active = isActive;
-  } else {
-    // Type is only sent when creating a new payment method
-    data.type = type;
-  }
-  
-  try {
-    const url = editingPaymentMethod 
-      ? `${API_URL}/payment-methods/${editingPaymentMethod.id}`
-      : `${API_URL}/payment-methods`;
-    
-    const method = editingPaymentMethod ? 'PATCH' : 'POST';
-    
-    const response = await fetch(url, {
-      method,
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(data)
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Error al guardar');
-    }
-    
-    showSuccess(
-      editingPaymentMethod ? 'Método de pago actualizado' : 'Método de pago creado',
-      'Tus cambios han sido guardados correctamente.'
-    );
-    await loadProfile();
-    document.getElementById('payment-method-form-container').style.display = 'none';
-    editingPaymentMethod = null;
-    
-  } catch (error) {
-    console.error('Error saving payment method:', error);
-    showError(error.message);
-  }
-}
-
 /**
  * Handle edit payment method
  */
 async function handleEditPaymentMethod(id) {
   const pm = paymentMethods.find(p => p.id === id);
   if (!pm) return;
-  
-  editingPaymentMethod = pm;
-  const container = document.getElementById('payment-method-form-container');
-  container.innerHTML = renderPaymentMethodForm(pm);
-  container.style.display = 'block';
-  setupFormHandlers();
+  showPaymentMethodModal(pm);
 }
 
 /**
