@@ -85,10 +85,11 @@ type Contact struct {
 	Phone           *string    `json:"phone,omitempty"`
 	LinkedUserID    *string    `json:"linked_user_id,omitempty"`
 	Notes           *string    `json:"notes,omitempty"`
-	LinkStatus      string     `json:"link_status"`
-	LinkRequestedAt *time.Time `json:"link_requested_at,omitempty"`
-	LinkRespondedAt *time.Time `json:"link_responded_at,omitempty"`
-	WasUnlinkedAt   *time.Time `json:"was_unlinked_at,omitempty"`
+	LinkStatus            string     `json:"link_status"`
+	LinkRequestedAt       *time.Time `json:"link_requested_at,omitempty"`
+	LinkRespondedAt       *time.Time `json:"link_responded_at,omitempty"`
+	LinkRequestedByUserID *string    `json:"link_requested_by_user_id,omitempty"`
+	WasUnlinkedAt         *time.Time `json:"was_unlinked_at,omitempty"`
 	IsActive        bool       `json:"is_active"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
@@ -191,7 +192,7 @@ type HouseholdRepository interface {
 	ListPendingLinkRequests(ctx context.Context, userID string) ([]LinkRequest, error)
 	CountPendingLinkRequests(ctx context.Context, userID string) (int, error)
 	UpdateContactLinkStatus(ctx context.Context, contactID string, status string) error
-	UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, linkStatus string) error
+	UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, requestedByUserID string, linkStatus string) error
 	UnlinkContact(ctx context.Context, contactID string) error
 	SetWasUnlinkedAt(ctx context.Context, contactID string) error
 	DismissUnlinkBanner(ctx context.Context, contactID string) error

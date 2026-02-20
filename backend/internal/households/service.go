@@ -541,6 +541,7 @@ func (s *Service) CreateContact(ctx context.Context, input *CreateContactInput) 
 		if err == nil {
 			contact.LinkedUserID = &user.ID
 			contact.LinkStatus = "PENDING"
+			contact.LinkRequestedByUserID = &input.UserID // Track who sent the request
 			now := time.Now()
 			contact.LinkRequestedAt = &now
 		}
@@ -729,7 +730,8 @@ func (s *Service) RequestLink(ctx context.Context, userID, contactID string) err
 	}
 
 	// Set linked_user_id + PENDING via dedicated method
-	err = s.repo.UpdateContactLinkedUser(ctx, contact.ID, user.ID, "PENDING")
+	// userID is the one making the request, user.ID is the linked target
+	err = s.repo.UpdateContactLinkedUser(ctx, contact.ID, user.ID, userID, "PENDING")
 	if err != nil {
 		return err
 	}
@@ -1104,7 +1106,8 @@ func (s *Service) AcceptLinkRequest(ctx context.Context, userID, contactID, cont
 	// 4. Create or update reciprocal contact in acceptor's household
 	if existingContactID != nil && *existingContactID != "" {
 		// Update existing contact with linked_user_id
-		err = s.repo.UpdateContactLinkedUser(ctx, *existingContactID, requesterUserID, "ACCEPTED")
+		// When accepting, the original requester is the one who initiated
+		err = s.repo.UpdateContactLinkedUser(ctx, *existingContactID, requesterUserID, requesterUserID, "ACCEPTED")
 		if err != nil {
 			return err
 		}

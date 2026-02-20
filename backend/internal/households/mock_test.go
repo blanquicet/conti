@@ -311,7 +311,7 @@ func (m *MockHouseholdRepository) UpdateContactLinkStatus(ctx context.Context, c
 	return nil
 }
 
-func (m *MockHouseholdRepository) UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, linkStatus string) error {
+func (m *MockHouseholdRepository) UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, requestedByUserID string, linkStatus string) error {
 	return nil
 }
 

@@ -171,7 +171,7 @@ func (m *MockHouseholdRepository) CountPendingLinkRequests(ctx context.Context, 
 func (m *MockHouseholdRepository) UpdateContactLinkStatus(ctx context.Context, contactID string, status string) error {
 	return nil
 }
-func (m *MockHouseholdRepository) UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, linkStatus string) error {
+func (m *MockHouseholdRepository) UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, requestedByUserID string, linkStatus string) error {
 	return nil
 }
 func (m *MockHouseholdRepository) UnlinkContact(ctx context.Context, contactID string) error {

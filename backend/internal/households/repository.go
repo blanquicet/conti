@@ -315,11 +315,11 @@ func (r *Repository) CountOwners(ctx context.Context, householdID string) (int, 
 func (r *Repository) CreateContact(ctx context.Context, contact *Contact) (*Contact, error) {
 	var c Contact
 	err := r.pool.QueryRow(ctx, `
-		INSERT INTO contacts (household_id, name, email, phone, linked_user_id, notes, is_active, link_status, link_requested_at, link_responded_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, was_unlinked_at, is_active, created_at, updated_at
+		INSERT INTO contacts (household_id, name, email, phone, linked_user_id, notes, is_active, link_status, link_requested_at, link_responded_at, link_requested_by_user_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, household_id, name, email, phone, linked_user_id, notes, link_status, link_requested_at, link_responded_at, was_unlinked_at, link_requested_by_user_id, is_active, created_at, updated_at
 	`, contact.HouseholdID, contact.Name, contact.Email, contact.Phone, contact.LinkedUserID, contact.Notes, contact.IsActive,
-		contact.LinkStatus, contact.LinkRequestedAt, contact.LinkRespondedAt).Scan(
+		contact.LinkStatus, contact.LinkRequestedAt, contact.LinkRespondedAt, contact.LinkRequestedByUserID).Scan(
 		&c.ID,
 		&c.HouseholdID,
 		&c.Name,
@@ -331,6 +331,7 @@ func (r *Repository) CreateContact(ctx context.Context, contact *Contact) (*Cont
 		&c.LinkRequestedAt,
 		&c.LinkRespondedAt,
 		&c.WasUnlinkedAt,
+		&c.LinkRequestedByUserID,
 		&c.IsActive,
 		&c.CreatedAt,
 		&c.UpdatedAt,
@@ -559,8 +560,7 @@ func (r *Repository) ListPendingLinkRequests(ctx context.Context, userID string)
 		SELECT c.id, c.name, u.name, h.name, c.household_id, c.link_requested_at
 		FROM contacts c
 		JOIN households h ON c.household_id = h.id
-		JOIN household_members hm ON hm.household_id = h.id AND hm.role = 'owner'
-		JOIN users u ON u.id = hm.user_id
+		JOIN users u ON u.id = c.link_requested_by_user_id
 		WHERE c.linked_user_id = $1
 		  AND c.link_status = 'PENDING'
 		ORDER BY c.link_requested_at DESC
@@ -617,14 +617,14 @@ func (r *Repository) UpdateContactLinkStatus(ctx context.Context, contactID stri
 	return nil
 }
 
-// UpdateContactLinkedUser sets linked_user_id and link_status on a contact
-func (r *Repository) UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, linkStatus string) error {
+// UpdateContactLinkedUser sets linked_user_id, link_requested_by_user_id, and link_status on a contact
+func (r *Repository) UpdateContactLinkedUser(ctx context.Context, contactID string, linkedUserID string, requestedByUserID string, linkStatus string) error {
 	now := time.Now()
 	result, err := r.pool.Exec(ctx, `
 		UPDATE contacts
-		SET linked_user_id = $2, link_status = $3, link_requested_at = $4, updated_at = NOW()
+		SET linked_user_id = $2, link_requested_by_user_id = $3, link_status = $4, link_requested_at = $5, updated_at = NOW()
 		WHERE id = $1
-	`, contactID, linkedUserID, linkStatus, now)
+	`, contactID, linkedUserID, requestedByUserID, linkStatus, now)
 	if err != nil {
 		return err
 	}
@@ -638,7 +638,7 @@ func (r *Repository) UpdateContactLinkedUser(ctx context.Context, contactID stri
 func (r *Repository) UnlinkContact(ctx context.Context, contactID string) error {
 	result, err := r.pool.Exec(ctx, `
 		UPDATE contacts
-		SET linked_user_id = NULL, link_status = 'NONE', link_requested_at = NULL, link_responded_at = NULL, updated_at = NOW()
+		SET linked_user_id = NULL, link_requested_by_user_id = NULL, link_status = 'NONE', link_requested_at = NULL, link_responded_at = NULL, updated_at = NOW()
 		WHERE id = $1
 	`, contactID)
 	if err != nil {
