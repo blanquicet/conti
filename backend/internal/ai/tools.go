@@ -34,7 +34,7 @@ func ToolDefinitions() []Tool {
 				"type": "object",
 				"properties": map[string]any{
 					"month":    monthParam,
-					"category": map[string]any{"type": "string", "description": "Optional category name to filter by (e.g. 'Mercado', 'Salidas juntos')"},
+					"category": map[string]any{"type": "string", "description": "Optional filter: category name or group name. Groups contain multiple categories."},
 				},
 				"required": []string{"month"},
 			},
@@ -81,7 +81,7 @@ func ToolDefinitions() []Tool {
 				"properties": map[string]any{
 					"month1":   map[string]any{"type": "string", "description": "First month in YYYY-MM format"},
 					"month2":   map[string]any{"type": "string", "description": "Second month in YYYY-MM format"},
-					"category": map[string]any{"type": "string", "description": "Optional category name to filter by"},
+					"category": map[string]any{"type": "string", "description": "Optional filter: category name or group name"},
 				},
 				"required": []string{"month1", "month2"},
 			},
@@ -95,6 +95,7 @@ type Evidence struct {
 	Description string  `json:"description"`
 	Amount      float64 `json:"amount"`
 	Date        string  `json:"date"`
+	Group       string  `json:"group,omitempty"`
 	Category    string  `json:"category,omitempty"`
 }
 
@@ -148,26 +149,29 @@ func (te *ToolExecutor) getMovementsSummary(ctx context.Context, householdID str
 	}
 
 	type catSummary struct {
+		Group string  `json:"group"`
 		Name  string  `json:"name"`
 		Total float64 `json:"total"`
 		Count int     `json:"count"`
 	}
 
-	// Query by category
-	query := `SELECT COALESCE(c.name, 'Sin categoría') as category_name, 
+	// Query by category, including group name for disambiguation
+	query := `SELECT COALESCE(cg.name, '') as group_name,
+	                 COALESCE(c.name, 'Sin categoría') as category_name, 
 	                 SUM(m.amount) as total, COUNT(*) as count
 	          FROM movements m
 	          LEFT JOIN categories c ON m.category_id = c.id
+	          LEFT JOIN category_groups cg ON c.category_group_id = cg.id
 	          WHERE m.household_id = $1 
 	            AND m.movement_date >= $2 AND m.movement_date < $3
 	            AND m.type IN ('HOUSEHOLD', 'SPLIT')`
 	qArgs := []any{householdID, start, end}
 
 	if category != "" {
-		query += ` AND c.name ILIKE $4`
+		query += ` AND (c.name ILIKE $4 OR cg.name ILIKE $4)`
 		qArgs = append(qArgs, "%"+category+"%")
 	}
-	query += ` GROUP BY c.name ORDER BY total DESC`
+	query += ` GROUP BY cg.name, c.name ORDER BY total DESC`
 
 	rows, err := te.pool.Query(ctx, query, qArgs...)
 	if err != nil {
@@ -180,7 +184,7 @@ func (te *ToolExecutor) getMovementsSummary(ctx context.Context, householdID str
 	var grandCount int
 	for rows.Next() {
 		var cs catSummary
-		if err := rows.Scan(&cs.Name, &cs.Total, &cs.Count); err != nil {
+		if err := rows.Scan(&cs.Group, &cs.Name, &cs.Total, &cs.Count); err != nil {
 			return nil, err
 		}
 		categories = append(categories, cs)
@@ -278,6 +282,7 @@ func (te *ToolExecutor) getBudgetStatus(ctx context.Context, householdID string,
 	}
 
 	type budgetRow struct {
+		Group    string  `json:"group"`
 		Category string  `json:"category"`
 		Budget   float64 `json:"budget"`
 		Spent    float64 `json:"spent"`
@@ -285,10 +290,12 @@ func (te *ToolExecutor) getBudgetStatus(ctx context.Context, householdID string,
 	}
 
 	rows, err := te.pool.Query(ctx,
-		`SELECT c.name,
+		`SELECT COALESCE(cg.name, '') as group_name,
+		        c.name,
 		        COALESCE(mb.amount, 0) as budget,
 		        COALESCE(spent.total, 0) as spent
 		 FROM categories c
+		 LEFT JOIN category_groups cg ON c.category_group_id = cg.id
 		 LEFT JOIN monthly_budgets mb ON mb.category_id = c.id 
 		      AND mb.month = $2 AND mb.household_id = $1
 		 LEFT JOIN (
@@ -311,7 +318,7 @@ func (te *ToolExecutor) getBudgetStatus(ctx context.Context, householdID string,
 	var totalBudget, totalSpent float64
 	for rows.Next() {
 		var b budgetRow
-		if err := rows.Scan(&b.Category, &b.Budget, &b.Spent); err != nil {
+		if err := rows.Scan(&b.Group, &b.Category, &b.Budget, &b.Spent); err != nil {
 			return nil, err
 		}
 		b.Diff = b.Budget - b.Spent
@@ -379,12 +386,13 @@ func (te *ToolExecutor) compareMonths(ctx context.Context, householdID string, a
 		query := `SELECT COALESCE(SUM(m.amount), 0), COUNT(*)
 		          FROM movements m
 		          LEFT JOIN categories c ON m.category_id = c.id
+		          LEFT JOIN category_groups cg ON c.category_group_id = cg.id
 		          WHERE m.household_id = $1
 		            AND m.movement_date >= $2 AND m.movement_date < $3
 		            AND m.type IN ('HOUSEHOLD', 'SPLIT')`
 		qArgs := []any{householdID, start, end}
 		if category != "" {
-			query += ` AND c.name ILIKE $4`
+			query += ` AND (c.name ILIKE $4 OR cg.name ILIKE $4)`
 			qArgs = append(qArgs, "%"+category+"%")
 		}
 
@@ -422,21 +430,20 @@ func (te *ToolExecutor) compareMonths(ctx context.Context, householdID string, a
 
 func (te *ToolExecutor) queryEvidence(ctx context.Context, householdID string, start, end time.Time, category string, limit int) ([]Evidence, error) {
 	query := `SELECT m.id::text, COALESCE(m.description, ''), m.amount, 
-	                 m.movement_date::text, COALESCE(c.name, 'Sin categoría')
+	                 m.movement_date::text, COALESCE(cg.name, ''), COALESCE(c.name, 'Sin categoría')
 	          FROM movements m
 	          LEFT JOIN categories c ON m.category_id = c.id
+	          LEFT JOIN category_groups cg ON c.category_group_id = cg.id
 	          WHERE m.household_id = $1 
 	            AND m.movement_date >= $2 AND m.movement_date < $3
 	            AND m.type IN ('HOUSEHOLD', 'SPLIT')`
 	qArgs := []any{householdID, start, end}
 
 	if category != "" {
-		query += ` AND c.name ILIKE $4`
+		query += ` AND (c.name ILIKE $4 OR cg.name ILIKE $4)`
 		qArgs = append(qArgs, "%"+category+"%")
-		query += fmt.Sprintf(` ORDER BY m.amount DESC LIMIT %d`, limit)
-	} else {
-		query += fmt.Sprintf(` ORDER BY m.amount DESC LIMIT %d`, limit)
 	}
+	query += fmt.Sprintf(` ORDER BY m.amount DESC LIMIT %d`, limit)
 
 	rows, err := te.pool.Query(ctx, query, qArgs...)
 	if err != nil {
@@ -447,7 +454,7 @@ func (te *ToolExecutor) queryEvidence(ctx context.Context, householdID string, s
 	var evidence []Evidence
 	for rows.Next() {
 		var e Evidence
-		if err := rows.Scan(&e.ID, &e.Description, &e.Amount, &e.Date, &e.Category); err != nil {
+		if err := rows.Scan(&e.ID, &e.Description, &e.Amount, &e.Date, &e.Group, &e.Category); err != nil {
 			return nil, err
 		}
 		evidence = append(evidence, e)
