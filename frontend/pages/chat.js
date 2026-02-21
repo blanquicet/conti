@@ -165,8 +165,61 @@ export function setup() {
 
   function formatAssistantMessage(text) {
     let html = escapeHtml(text);
+
+    // Markdown tables: detect lines with | separators
+    const lines = html.split('\n');
+    let result = [];
+    let inTable = false;
+    let tableRows = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      const isTableRow = line.startsWith('|') && line.endsWith('|') && line.includes('|');
+      const isSeparator = /^\|[\s\-:|]+\|$/.test(line);
+
+      if (isTableRow) {
+        if (!inTable) { inTable = true; tableRows = []; }
+        if (!isSeparator) {
+          const cells = line.split('|').slice(1, -1).map(c => c.trim());
+          tableRows.push(cells);
+        }
+      } else {
+        if (inTable) {
+          result.push(buildTable(tableRows));
+          inTable = false;
+          tableRows = [];
+        }
+        result.push(line);
+      }
+    }
+    if (inTable) result.push(buildTable(tableRows));
+
+    html = result.join('\n');
+
+    // Headers: ### text
+    html = html.replace(/^### (.+)$/gm, '<strong style="font-size:15px">$1</strong>');
+    // Bold: **text**
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Lists: - item
+    html = html.replace(/^- (.+)$/gm, '• $1');
+    // Line breaks
     html = html.replace(/\n/g, '<br>');
     return html;
+  }
+
+  function buildTable(rows) {
+    if (rows.length === 0) return '';
+    const header = rows[0];
+    const body = rows.slice(1);
+    let t = '<table class="chat-table"><thead><tr>';
+    header.forEach(h => { t += `<th>${h}</th>`; });
+    t += '</tr></thead><tbody>';
+    body.forEach(row => {
+      t += '<tr>';
+      row.forEach(cell => { t += `<td>${cell}</td>`; });
+      t += '</tr>';
+    });
+    t += '</tbody></table>';
+    return t;
   }
 }

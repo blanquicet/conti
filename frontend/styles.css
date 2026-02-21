@@ -4809,3 +4809,28 @@ input[type="number"] {
 
 .chat-input-area button:hover { background: #059669; }
 .chat-input-area button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Chat tables */
+.chat-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 8px 0;
+  overflow-x: auto;
+  display: block;
+}
+.chat-table thead th {
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 2px solid #e5e7eb;
+  font-weight: 600;
+  color: #374151;
+  white-space: nowrap;
+}
+.chat-table tbody td {
+  padding: 5px 10px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #4b5563;
+}
+.chat-table tbody tr:last-child td { border-bottom: none; }
+.chat-table tbody tr:hover td { background: #f9fafb; }
