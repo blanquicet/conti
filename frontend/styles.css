@@ -4715,8 +4715,8 @@ input[type="number"] {
 }
 
 .chat-message.user .chat-bubble {
-  background: #111827;
-  color: #f9fafb;
+  background: #10b981;
+  color: #fff;
   border-bottom-right-radius: 6px;
   max-width: 75%;
 }
