@@ -1,54 +1,51 @@
 /**
  * Chat Page — Financial Assistant
  * 
- * Modern chat UI that sends messages to POST /chat
- * and displays the assistant's responses.
+ * Premium chat UI inspired by editorial/Squarespace aesthetics.
+ * Clean typography, ample whitespace, subtle animations.
  */
 
-const API_URL = window.API_URL || '';
+import { API_URL } from '../config.js';
 
 export function render() {
   return `
     <div class="chat-page">
       <header class="chat-header">
         <button class="back-btn" id="chat-back-btn">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
         </button>
-        <div class="chat-header-info">
-          <div class="chat-avatar">✨</div>
-          <div>
-            <h1>Asistente Financiero</h1>
-            <span class="chat-status" id="chat-status">En línea</span>
-          </div>
-        </div>
+        <span class="chat-header-title">Asistente</span>
+        <span class="chat-header-dot" id="chat-status-dot"></span>
       </header>
 
       <div class="chat-messages" id="chat-messages">
         <div class="chat-welcome" id="chat-welcome">
-          <div class="chat-welcome-icon">✨</div>
-          <h2>¡Hola! Soy tu asistente financiero</h2>
-          <p>Pregúntame sobre tus gastos, ingresos o presupuesto</p>
+          <span class="chat-welcome-label">Asistente financiero</span>
+          <h2>¿En qué puedo<br>ayudarte hoy?</h2>
+          <p>Consulta tus gastos, ingresos y presupuesto con lenguaje natural.</p>
           <div class="chat-suggestions" id="chat-suggestions">
-            <button class="chat-chip" data-msg="¿Cuánto gasté en mercado este mes?">🛒 Gastos en mercado</button>
-            <button class="chat-chip" data-msg="¿Cuál es mi top 5 de gastos este mes?">📊 Top 5 gastos</button>
-            <button class="chat-chip" data-msg="¿Cómo va mi presupuesto este mes?">💰 Mi presupuesto</button>
-            <button class="chat-chip" data-msg="Compara enero y febrero 2026">📈 Comparar meses</button>
+            <button class="chat-chip" data-msg="¿Cuánto gasté en mercado este mes?">Gastos en mercado</button>
+            <button class="chat-chip" data-msg="¿Cuál es mi top 5 de gastos este mes?">Top 5 gastos</button>
+            <button class="chat-chip" data-msg="¿Cómo va mi presupuesto este mes?">Estado del presupuesto</button>
+            <button class="chat-chip" data-msg="Compara enero y febrero 2026">Comparar meses</button>
           </div>
         </div>
       </div>
 
-      <form class="chat-input-area" id="chat-form">
-        <input 
-          type="text" 
-          id="chat-input" 
-          placeholder="Pregunta algo..." 
-          autocomplete="off"
-          autofocus
-        />
-        <button type="submit" id="chat-send-btn" aria-label="Enviar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="m22 2-11 11"/></svg>
-        </button>
-      </form>
+      <div class="chat-input-wrap">
+        <form class="chat-input-area" id="chat-form">
+          <input 
+            type="text" 
+            id="chat-input" 
+            placeholder="Escribe tu pregunta..." 
+            autocomplete="off"
+            autofocus
+          />
+          <button type="submit" id="chat-send-btn" aria-label="Enviar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+      </div>
     </div>
   `;
 }
@@ -59,7 +56,7 @@ export function setup() {
   const messagesEl = document.getElementById('chat-messages');
   const backBtn = document.getElementById('chat-back-btn');
   const welcome = document.getElementById('chat-welcome');
-  const statusEl = document.getElementById('chat-status');
+  const statusDot = document.getElementById('chat-status-dot');
 
   backBtn.addEventListener('click', () => {
     window.history.back();
@@ -78,18 +75,14 @@ export function setup() {
     const message = input.value.trim();
     if (!message) return;
 
-    // Hide welcome on first message
     if (welcome) welcome.style.display = 'none';
 
-    // Add user message
     appendMessage('user', message);
     input.value = '';
     input.disabled = true;
     document.getElementById('chat-send-btn').disabled = true;
 
-    // Show typing indicator
-    statusEl.textContent = 'Escribiendo...';
-    statusEl.classList.add('typing');
+    statusDot.classList.add('active');
     const loadingId = showTypingIndicator();
 
     try {
@@ -117,8 +110,7 @@ export function setup() {
       input.disabled = false;
       document.getElementById('chat-send-btn').disabled = false;
       input.focus();
-      statusEl.textContent = 'En línea';
-      statusEl.classList.remove('typing');
+      statusDot.classList.remove('active');
     }
   });
 
@@ -129,7 +121,16 @@ export function setup() {
     div.id = id;
 
     const formatted = role === 'assistant' ? formatAssistantMessage(content) : escapeHtml(content);
-    div.innerHTML = `<div class="chat-bubble">${formatted}</div>`;
+
+    if (role === 'assistant') {
+      div.innerHTML = `
+        <div class="chat-bubble-row">
+          <div class="chat-ai-mark">AI</div>
+          <div class="chat-bubble">${formatted}</div>
+        </div>`;
+    } else {
+      div.innerHTML = `<div class="chat-bubble">${formatted}</div>`;
+    }
 
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -141,7 +142,11 @@ export function setup() {
     const div = document.createElement('div');
     div.className = 'chat-message assistant';
     div.id = id;
-    div.innerHTML = `<div class="chat-bubble typing-bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>`;
+    div.innerHTML = `
+      <div class="chat-bubble-row">
+        <div class="chat-ai-mark">AI</div>
+        <div class="chat-bubble typing-bubble"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      </div>`;
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return id;
@@ -159,11 +164,8 @@ export function setup() {
   }
 
   function formatAssistantMessage(text) {
-    // Escape HTML first
     let html = escapeHtml(text);
-    // Bold: **text**
     html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // Line breaks
     html = html.replace(/\n/g, '<br>');
     return html;
   }
