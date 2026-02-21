@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -434,6 +435,11 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Chat endpoint (requires Azure OpenAI config, auth via Managed Identity)
 	if cfg.AzureOpenAIEndpoint != "" {
+		logger.Info("attempting to create AI client",
+			"endpoint", cfg.AzureOpenAIEndpoint,
+			"deployment", cfg.AzureOpenAIDeployment,
+			"azure_client_id_set", os.Getenv("AZURE_CLIENT_ID") != "",
+		)
 		aiClient, err := ai.NewClient(&ai.Config{
 			Endpoint:   cfg.AzureOpenAIEndpoint,
 			Deployment: cfg.AzureOpenAIDeployment,
