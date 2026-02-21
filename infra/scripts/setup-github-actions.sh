@@ -24,7 +24,7 @@ echo ""
 # Variables
 SUBSCRIPTION_ID="0f6b14e8-ade9-4dc5-9ef9-d0bcbaf5f0d8"
 TENANT_ID="9de9ca20-a74e-40c6-9df8-61b9e313a5b3"
-SP_NAME="github-actions-conti"
+SP_NAME="github-actions-gastos"
 GITHUB_REPO="blanquicet/conti"  # Repositorio de GitHub
 
 # Verificar Azure CLI
@@ -77,6 +77,18 @@ CLIENT_ID=$(echo "$SP_OUTPUT" | jq -r '.clientId')
 CLIENT_SECRET=$(echo "$SP_OUTPUT" | jq -r '.clientSecret')
 
 echo -e "${GREEN}✓ Service Principal creado${NC}"
+
+# Asignar User Access Administrator (necesario para crear role assignments RBAC,
+# por ejemplo: asignar "Cognitive Services OpenAI User" a la Managed Identity)
+echo ""
+echo "Asignando rol 'User Access Administrator' al Service Principal..."
+az role assignment create \
+    --assignee "$CLIENT_ID" \
+    --role "User Access Administrator" \
+    --scope "/subscriptions/$SUBSCRIPTION_ID" \
+    -o none
+
+echo -e "${GREEN}✓ Rol 'User Access Administrator' asignado${NC}"
 echo ""
 
 # Mostrar valores
