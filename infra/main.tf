@@ -248,6 +248,14 @@ resource "azurerm_container_app" "api" {
         name  = "AZURE_OPENAI_API_VERSION"
         value = var.azure_openai_api_version
       }
+
+      dynamic "env" {
+        for_each = var.openai_embeddings_enabled ? [1] : []
+        content {
+          name  = "AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT"
+          value = var.azure_openai_embeddings_deployment
+        }
+      }
     }
   }
 
@@ -313,6 +321,25 @@ resource "azurerm_cognitive_deployment" "chat" {
     name     = "GlobalStandard"
     capacity = var.openai_chat_capacity
   }
+}
+
+resource "azurerm_cognitive_deployment" "embeddings" {
+  count                = var.openai_embeddings_enabled ? 1 : 0
+  name                 = var.azure_openai_embeddings_deployment
+  cognitive_account_id = azurerm_cognitive_account.openai.id
+
+  model {
+    format  = "OpenAI"
+    name    = var.openai_embeddings_model_name
+    version = var.openai_embeddings_model_version
+  }
+
+  sku {
+    name     = "Standard"
+    capacity = var.openai_embeddings_capacity
+  }
+
+  depends_on = [azurerm_cognitive_deployment.chat]
 }
 
 # =============================================================================

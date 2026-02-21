@@ -549,7 +549,11 @@ El backend Go se despliega en **Azure Container Apps**, un servicio serverless p
 | ------- | ------ | --------- |
 | Log Analytics Workspace | `conti-api-logs` | Logs y monitoreo |
 | Container App Environment | `conti-api-env` | Entorno de ejecución |
-| Container App | `conti-api` | La aplicación Go |
+| Container App | `conti-api` | La aplicación Go (con Managed Identity) |
+| Azure OpenAI | `conti-openai` | Modelo GPT-4o-mini para chat financiero |
+| OpenAI Chat Deployment | `gpt-4o-mini` | Deployment del modelo de chat |
+| OpenAI Embeddings Deployment | `text-embedding-3-small` | (Opcional) Deployment de embeddings |
+| RBAC Role Assignment | — | "Cognitive Services OpenAI User" para Container App → OpenAI |
 
 ### Configuración
 
@@ -557,6 +561,26 @@ El backend Go se despliega en **Azure Container Apps**, un servicio serverless p
 - **CPU/Memory**: 0.25 vCPU / 0.5 Gi
 - **Scale**: 0-2 replicas (escala a 0 cuando no hay tráfico)
 - **Ingress**: HTTPS externo en puerto 8080
+
+### Azure OpenAI (Chat Financiero)
+
+El Container App se conecta a Azure OpenAI usando **Managed Identity** (sin API keys):
+
+| Variable de entorno | Origen | Descripción |
+| ------------------- | ------ | ----------- |
+| `AZURE_OPENAI_ENDPOINT` | Output de `azurerm_cognitive_account` | Endpoint URL del recurso OpenAI |
+| `AZURE_OPENAI_CHAT_DEPLOYMENT` | `var.azure_openai_chat_deployment` | Nombre del deployment del chat (default: gpt-4o-mini) |
+| `AZURE_OPENAI_API_VERSION` | `var.azure_openai_api_version` | Versión de la API (default: 2024-10-21) |
+| `AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT` | `var.azure_openai_embeddings_deployment` | (Opcional) Deployment de embeddings |
+
+**GitHub Variables** (no Secrets, configurar en Settings > Variables > Actions):
+
+| Variable | Default | Descripción |
+| -------- | ------- | ----------- |
+| `AZURE_OPENAI_CHAT_DEPLOYMENT` | `gpt-4o-mini` | Nombre del deployment |
+| `AZURE_OPENAI_API_VERSION` | `2024-10-21` | Versión de la API de Azure OpenAI |
+| `AZURE_OPENAI_LOCATION` | `eastus` | Región para el recurso de OpenAI |
+| `AZURE_OPENAI_EMBEDDINGS_DEPLOYMENT` | `text-embedding-3-small` | Deployment de embeddings |
 
 ### URLs
 
@@ -638,6 +662,7 @@ curl https://api.gastos.blanquicet.com.co/health
 | ------- | --------- |
 | PostgreSQL B1ms | ~$15 |
 | Container Apps (scale-to-zero) | ~$0-5 |
+| Azure OpenAI (GPT-4o-mini) | ~$0.05 |
 | Log Analytics | ~$2-3 |
 | Static Web Apps | Gratis |
 | GHCR (público) | Gratis |

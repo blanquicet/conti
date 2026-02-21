@@ -149,3 +149,35 @@ variable "azure_openai_api_version" {
   type        = string
   default     = "2024-10-21"
 }
+
+# Embeddings (optional)
+
+variable "openai_embeddings_enabled" {
+  description = "Whether to create an embeddings deployment"
+  type        = bool
+  default     = false
+}
+
+variable "azure_openai_embeddings_deployment" {
+  description = "Deployment name for the embeddings model"
+  type        = string
+  default     = "text-embedding-3-small"
+}
+
+variable "openai_embeddings_model_name" {
+  description = "OpenAI model name for embeddings"
+  type        = string
+  default     = "text-embedding-3-small"
+}
+
+variable "openai_embeddings_model_version" {
+  description = "OpenAI model version for embeddings"
+  type        = string
+  default     = "1"
+}
+
+variable "openai_embeddings_capacity" {
+  description = "Token-per-minute capacity (in thousands) for embeddings deployment"
+  type        = number
+  default     = 10
+}

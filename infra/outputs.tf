@@ -99,3 +99,8 @@ output "container_app_identity_principal_id" {
   description = "Principal ID of the Container App's system-assigned managed identity"
   value       = azurerm_container_app.api.identity[0].principal_id
 }
+
+output "openai_embeddings_deployment_name" {
+  description = "Embeddings model deployment name (empty if disabled)"
+  value       = var.openai_embeddings_enabled ? azurerm_cognitive_deployment.embeddings[0].name : ""
+}
