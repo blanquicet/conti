@@ -6250,8 +6250,8 @@ export async function setup() {
     });
   }
 
-  // Load household members for filter
-  await loadHouseholdMembers();
+  // Load household members and category groups in parallel
+  await Promise.all([loadHouseholdMembers(), loadCategoryGroups()]);
   
   // If user has no household, show welcome state and return early
   const contentContainer = document.querySelector('.dashboard-content');
@@ -6284,9 +6284,6 @@ export async function setup() {
     return; // Don't load any data
   }
   
-  // Load category groups (needed for filters)
-  await loadCategoryGroups();
-
   // Load data based on active tab (gastos by default)
   if (activeTab === 'gastos') {
     await loadMovementsData();

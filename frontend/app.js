@@ -65,7 +65,11 @@ function initRouter() {
   });
 
   router.route('/', async () => {
-    const { authenticated, user } = await checkAuth();
+    // Start loading home.js in parallel with auth check
+    const [{ authenticated, user }, HomePage] = await Promise.all([
+      checkAuth(),
+      loadPage('home')
+    ]);
     
     if (!authenticated) {
       router.navigate('/login');
@@ -76,8 +80,6 @@ function initRouter() {
     
     const urlParams = new URLSearchParams(window.location.search);
     const reloadParam = urlParams.get('reload');
-
-    const HomePage = await loadPage('home');
     
     if (reloadParam) {
       const tabsToReload = reloadParam.split(',').filter(Boolean);
