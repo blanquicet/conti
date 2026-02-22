@@ -45,6 +45,11 @@ type Config struct {
 	AzureOpenAIEndpoint   string
 	AzureOpenAIDeployment string
 	AzureOpenAIAPIVersion string
+
+	// Azure Speech (for STT, auth via Managed Identity)
+	SpeechRegion     string
+	SpeechLanguage   string
+	SpeechResourceID string
 }
 
 // Load reads configuration from environment variables.
@@ -133,6 +138,14 @@ func Load() (*Config, error) {
 		azureOpenAIAPIVersion = "2024-10-21"
 	}
 
+	// Azure Speech (STT)
+	speechRegion := os.Getenv("SPEECH_REGION")
+	speechLanguage := os.Getenv("SPEECH_LANGUAGE")
+	if speechLanguage == "" {
+		speechLanguage = "es-CO"
+	}
+	speechResourceID := os.Getenv("SPEECH_RESOURCE_ID")
+
 	return &Config{
 		ServerAddr:          serverAddr,
 		DatabaseURL:         databaseURL,
@@ -154,5 +167,8 @@ func Load() (*Config, error) {
 		AzureOpenAIEndpoint:   azureOpenAIEndpoint,
 		AzureOpenAIDeployment: azureOpenAIDeployment,
 		AzureOpenAIAPIVersion: azureOpenAIAPIVersion,
+		SpeechRegion:          speechRegion,
+		SpeechLanguage:        speechLanguage,
+		SpeechResourceID:      speechResourceID,
 	}, nil
 }

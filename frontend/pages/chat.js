@@ -44,7 +44,11 @@ export function render() {
           <button type="submit" id="chat-send-btn" aria-label="Enviar">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
           </button>
+          <button type="button" id="chat-mic-btn" class="chat-mic-btn" aria-label="Grabar voz" title="Hablar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+          </button>
         </form>
+        <div id="chat-recording-status" class="chat-recording-status" style="display:none"></div>
       </div>
     </div>
   `;
@@ -60,6 +64,139 @@ export function setup() {
 
   // Conversation history for multi-turn context
   const conversationHistory = [];
+
+  // --- Voice Recording ---
+  const micBtn = document.getElementById('chat-mic-btn');
+  const recordingStatus = document.getElementById('chat-recording-status');
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let recordingTimer = null;
+  let durationInterval = null;
+  let recordingSeconds = 0;
+
+  // Detect supported format
+  const audioFormats = [
+    { mime: 'audio/mp4',              ext: 'mp4' },
+    { mime: 'audio/webm;codecs=opus', ext: 'webm' },
+    { mime: 'audio/webm',             ext: 'webm' },
+    { mime: 'audio/ogg;codecs=opus',  ext: 'ogg' },
+  ];
+
+  const supportedFormat = typeof MediaRecorder !== 'undefined'
+    ? audioFormats.find(f => MediaRecorder.isTypeSupported(f.mime))
+    : null;
+
+  if (!supportedFormat) {
+    micBtn.title = 'Tu navegador no soporta grabación. Usa el dictado del teclado.';
+    micBtn.style.opacity = '0.3';
+    micBtn.disabled = true;
+  }
+
+  micBtn.addEventListener('click', async () => {
+    if (!supportedFormat) return;
+
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+      // Stop recording
+      mediaRecorder.stop();
+      return;
+    }
+
+    // Start recording
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunks = [];
+      recordingSeconds = 0;
+
+      mediaRecorder = new MediaRecorder(stream, { mimeType: supportedFormat.mime });
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        // Cleanup
+        stream.getTracks().forEach(t => t.stop());
+        clearTimeout(recordingTimer);
+        clearInterval(durationInterval);
+        micBtn.classList.remove('recording');
+
+        const blob = new Blob(audioChunks, { type: supportedFormat.mime });
+        audioChunks = [];
+
+        if (blob.size > 5 * 1024 * 1024) {
+          recordingStatus.textContent = 'Audio muy largo. Intenta de nuevo.';
+          recordingStatus.style.display = 'block';
+          setTimeout(() => { recordingStatus.style.display = 'none'; }, 3000);
+          return;
+        }
+
+        // Transcribe
+        recordingStatus.textContent = 'Transcribiendo...';
+        recordingStatus.style.display = 'block';
+        micBtn.disabled = true;
+        input.disabled = true;
+
+        try {
+          const formData = new FormData();
+          formData.append('audio', blob, `audio.${supportedFormat.ext}`);
+
+          const resp = await fetch(`${API_URL}/stt`, {
+            method: 'POST',
+            body: formData,
+            credentials: 'include',
+            headers: { 'X-Requested-With': 'conti' },
+          });
+
+          const data = await resp.json();
+
+          if (resp.ok && data.text) {
+            input.value = data.text;
+            input.focus();
+          } else if (resp.ok && !data.text) {
+            recordingStatus.textContent = 'No pude entenderte. Intenta de nuevo.';
+            setTimeout(() => { recordingStatus.style.display = 'none'; }, 3000);
+          } else {
+            recordingStatus.textContent = data.error || 'Error al transcribir';
+            setTimeout(() => { recordingStatus.style.display = 'none'; }, 3000);
+          }
+        } catch (err) {
+          recordingStatus.textContent = 'Error de conexión';
+          setTimeout(() => { recordingStatus.style.display = 'none'; }, 3000);
+        } finally {
+          micBtn.disabled = false;
+          input.disabled = false;
+          if (input.value) recordingStatus.style.display = 'none';
+        }
+      };
+
+      mediaRecorder.start();
+      micBtn.classList.add('recording');
+      recordingStatus.textContent = '🎙️ 0s';
+      recordingStatus.style.display = 'block';
+
+      // Duration counter
+      durationInterval = setInterval(() => {
+        recordingSeconds++;
+        recordingStatus.textContent = `🎙️ ${recordingSeconds}s`;
+      }, 1000);
+
+      // Auto-stop at 30 seconds
+      recordingTimer = setTimeout(() => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      }, 30000);
+
+    } catch (err) {
+      if (err.name === 'NotAllowedError') {
+        recordingStatus.textContent = 'Permiso de micrófono denegado';
+      } else {
+        recordingStatus.textContent = 'No se pudo acceder al micrófono';
+      }
+      recordingStatus.style.display = 'block';
+      setTimeout(() => { recordingStatus.style.display = 'none'; }, 3000);
+    }
+  });
 
   backBtn.addEventListener('click', () => {
     window.history.back();

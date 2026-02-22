@@ -29,6 +29,7 @@ import (
 	"github.com/blanquicet/conti/backend/internal/paymentmethods"
 	"github.com/blanquicet/conti/backend/internal/recurringmovements"
 	"github.com/blanquicet/conti/backend/internal/sessions"
+	"github.com/blanquicet/conti/backend/internal/stt"
 	"github.com/blanquicet/conti/backend/internal/users"
 )
 
@@ -457,6 +458,20 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		}
 	} else {
 		logger.Info("chat endpoint disabled (AZURE_OPENAI_ENDPOINT not set)")
+	}
+
+	// Speech-to-text endpoint (always registered, returns 503 if unconfigured)
+	sttConfig := &stt.Config{
+		Region:     cfg.SpeechRegion,
+		Language:   cfg.SpeechLanguage,
+		ResourceID: cfg.SpeechResourceID,
+	}
+	sttHandler := stt.NewHandler(authService, cfg.SessionCookieName, sttConfig, logger)
+	mux.HandleFunc("POST /stt", sttHandler.HandleSTT)
+	if cfg.SpeechRegion != "" {
+		logger.Info("STT endpoint enabled", "region", cfg.SpeechRegion, "language", cfg.SpeechLanguage)
+	} else {
+		logger.Info("STT endpoint registered but unconfigured (SPEECH_REGION not set)")
 	}
 
 	// Serve static files in development mode with SPA fallback

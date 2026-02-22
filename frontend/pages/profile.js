@@ -148,7 +148,7 @@ function renderProfileContent() {
 
     <div class="profile-section">
       <h2 class="section-title">Mis cuentas</h2>
-      <p class="section-description">Donde vive tu dinero: cuentas bancarias y efectivo</p>
+      <p class="section-description">Donde vive tu dinero: cuentas bancarias y efectivo.</p>
       ${(accounts && accounts.length > 0) ? `
         <div style="margin-bottom: 16px;">
           <button id="add-account-btn" class="btn-secondary btn-small">+ Agregar cuenta</button>
@@ -159,7 +159,7 @@ function renderProfileContent() {
 
     <div class="profile-section">
       <h2 class="section-title">Mis métodos de pago</h2>
-      <p class="section-description">Tarjetas y formas de pago que usas para tus gastos</p>
+      <p class="section-description">Tarjetas y formas de pago que usas para tus gastos.</p>
       ${(paymentMethods && paymentMethods.length > 0) ? `
         <div style="margin-bottom: 16px;">
           <button id="add-payment-method-btn" class="btn-secondary btn-small">+ Agregar método</button>

@@ -24,10 +24,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     -o /api ./cmd/api
 
 # Runtime stage
-FROM scratch
+FROM alpine:3.19
 
-# Copy CA certificates
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+# Install only ffmpeg (for STT audio conversion) and CA certs
+RUN apk add --no-cache ca-certificates ffmpeg && rm -rf /var/cache/apk/*
 
 # Copy binary
 COPY --from=builder /api /api

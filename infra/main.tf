@@ -253,6 +253,22 @@ resource "azurerm_container_app" "api" {
           value = var.azure_openai_embeddings_deployment
         }
       }
+
+      # Azure Speech (STT, auth via Managed Identity)
+      env {
+        name  = "SPEECH_REGION"
+        value = var.speech_location
+      }
+
+      env {
+        name  = "SPEECH_LANGUAGE"
+        value = var.speech_language
+      }
+
+      env {
+        name  = "SPEECH_RESOURCE_ID"
+        value = azurerm_cognitive_account.speech.id
+      }
     }
   }
 
@@ -367,4 +383,25 @@ resource "azurerm_role_assignment" "container_app_openai" {
   scope                = azurerm_cognitive_account.openai.id
   role_definition_name = "Cognitive Services OpenAI User"
   principal_id         = azurerm_user_assigned_identity.api.principal_id
+}
+
+resource "azurerm_role_assignment" "container_app_speech" {
+  scope                = azurerm_cognitive_account.speech.id
+  role_definition_name = "Cognitive Services Speech User"
+  principal_id         = azurerm_user_assigned_identity.api.principal_id
+}
+
+# =============================================================================
+# Azure Speech (for STT / Voice Input)
+# =============================================================================
+
+resource "azurerm_cognitive_account" "speech" {
+  name                          = "conti-speech"
+  resource_group_name           = data.azurerm_resource_group.gastos.name
+  location                      = var.speech_location
+  kind                          = "SpeechServices"
+  sku_name                      = "S0"
+  custom_subdomain_name         = "conti-speech"
+  public_network_access_enabled = true
+  tags                          = var.tags
 }

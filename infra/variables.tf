@@ -174,3 +174,19 @@ variable "openai_embeddings_capacity" {
   type        = number
   default     = 10
 }
+
+# =============================================================================
+# Azure Speech (for STT)
+# =============================================================================
+
+variable "speech_location" {
+  description = "Azure region for Speech Services"
+  type        = string
+  default     = "westus2"
+}
+
+variable "speech_language" {
+  description = "Language for speech recognition"
+  type        = string
+  default     = "es-CO"
+}
