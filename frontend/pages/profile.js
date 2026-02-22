@@ -382,9 +382,9 @@ function setupEventListeners() {
     createBtn.addEventListener('click', async () => {
       const household = await showCreateHouseholdModal(API_URL);
       if (household) {
-        showSuccess('¡Hogar creado!', `Tu hogar <strong>${household.name}</strong> ha sido creado exitosamente.`);
-        // Reload the profile page to show the new household
-        router.navigate('/perfil');
+        await showSuccess('¡Hogar creado!', `Tu hogar <strong>${household.name}</strong> ha sido creado exitosamente.`);
+        // Navigate to home where the onboarding wizard will show
+        router.navigate('/');
       }
     });
   }
@@ -408,6 +408,17 @@ function setupEventListeners() {
       showPaymentMethodModal();
     });
   });
+
+  // Auto-open modal from URL action parameter (used by onboarding wizard)
+  const urlParams = new URLSearchParams(window.location.search);
+  const action = urlParams.get('action');
+  if (action === 'add-account') {
+    showAccountModal();
+    window.history.replaceState({}, '', '/perfil');
+  } else if (action === 'add-payment-method') {
+    showPaymentMethodModal();
+    window.history.replaceState({}, '', '/perfil');
+  }
 
   // Menu toggle buttons (for payment methods)
   document.querySelectorAll('[data-menu-id]').forEach(btn => {

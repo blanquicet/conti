@@ -112,6 +112,13 @@ async function testMovementFamiliar() {
     await page.waitForTimeout(1000);
     await page.locator('#modal-ok').click();
     await page.waitForTimeout(2000);
+
+    // Skip onboarding wizard if it appears
+    const wizardSkip = page.locator('[data-testid="skip-wizard"]');
+    if (await wizardSkip.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await wizardSkip.click();
+      await page.waitForTimeout(500);
+    }
     
     // Get household ID from database
     const householdResult = await pool.query('SELECT id FROM households WHERE name = $1', [householdName]);

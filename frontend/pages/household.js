@@ -57,14 +57,16 @@ export function render(user) {
 export async function setup() {
   Navbar.setup();
   
-  // Setup back link
-  const backLink = document.getElementById('back-to-profile');
-  backLink?.addEventListener('click', (e) => {
-    e.preventDefault();
-    router.navigate('/perfil');
-  });
-  
   await loadHousehold();
+
+  // Scroll to section if specified in URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const section = urlParams.get('section');
+  if (section) {
+    const el = document.getElementById(`section-${section}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.history.replaceState({}, '', '/hogar');
+  }
 }
 
 /**
@@ -203,7 +205,7 @@ function renderHouseholdContent() {
       </div>
     </div>
 
-    <div class="household-section">
+    <div class="household-section" id="section-categorias">
       <div class="section-header">
         <h3 class="section-title">Categorías</h3>
         <button id="add-group-btn" class="btn-secondary btn-small">+ Agregar grupo</button>

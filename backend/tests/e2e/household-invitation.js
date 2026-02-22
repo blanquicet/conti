@@ -85,6 +85,13 @@ async function testHouseholdInvitation() {
     // Click OK on success modal
     await page1.locator('#modal-ok').click();
     await page1.waitForTimeout(2000);
+
+    // Skip onboarding wizard if it appears
+    const wizardSkipInv = page1.locator('[data-testid="skip-wizard"]');
+    if (await wizardSkipInv.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await wizardSkipInv.click();
+      await page1.waitForTimeout(500);
+    }
     
     console.log('✅ Household created');
 

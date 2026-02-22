@@ -113,6 +113,13 @@ async function testMovementPagoDeuda() {
     await page1.waitForTimeout(1000);
     await page1.locator('#modal-ok').click();
     await page1.waitForTimeout(2000);
+
+    // Skip onboarding wizard if it appears
+    const wizardSkipPago = page1.locator('[data-testid="skip-wizard"]');
+    if (await wizardSkipPago.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await wizardSkipPago.click();
+      await page1.waitForTimeout(500);
+    }
     
     // Get household ID from database
     const householdResult = await pool.query('SELECT id FROM households WHERE name = $1', [householdName]);

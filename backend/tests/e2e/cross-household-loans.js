@@ -106,6 +106,13 @@ async function testCrossHouseholdLoans() {
     await josePage.locator('#modal-ok').click();
     await josePage.waitForTimeout(2000);
 
+    // Skip onboarding wizard if it appears
+    const wizardSkipJose = josePage.locator('[data-testid="skip-wizard"]');
+    if (await wizardSkipJose.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await wizardSkipJose.click();
+      await josePage.waitForTimeout(500);
+    }
+
     const joseHH = await pool.query('SELECT id FROM households WHERE name = $1', [joseHouseholdName]);
     joseHouseholdId = joseHH.rows[0].id;
 
@@ -148,6 +155,13 @@ async function testCrossHouseholdLoans() {
     await mariaPage.waitForTimeout(1000);
     await mariaPage.locator('#modal-ok').click();
     await mariaPage.waitForTimeout(2000);
+
+    // Skip onboarding wizard if it appears
+    const wizardSkipMaria = mariaPage.locator('[data-testid="skip-wizard"]');
+    if (await wizardSkipMaria.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await wizardSkipMaria.click();
+      await mariaPage.waitForTimeout(500);
+    }
 
     const mariaHH = await pool.query('SELECT id FROM households WHERE name = $1', [mariaHouseholdName]);
     mariaHouseholdId = mariaHH.rows[0].id;

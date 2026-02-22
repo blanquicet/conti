@@ -193,8 +193,178 @@ function renderNoHouseholdState() {
 }
 
 /**
- * Get icon for income type
+ * Onboarding wizard steps definition
  */
+const ONBOARDING_STEPS = [
+  {
+    icon: '📂',
+    title: 'Categorías',
+    desc: 'Ya creamos categorías comunes para ti: Casa, Mercado, Transporte, y más.<br><br>Puedes personalizarlas después en <strong>Mi hogar</strong>.',
+    actionLabel: 'Ver categorías',
+    actionRoute: '/hogar?section=categorias',
+  },
+  {
+    icon: '💳',
+    title: 'Método de pago',
+    desc: 'Para registrar gastos necesitas al menos un método de pago.<br><br>Ejemplo: Débito, Crédito, Efectivo.',
+    actionLabel: 'Agregar método de pago',
+    actionRoute: '/perfil?action=add-payment-method',
+  },
+  {
+    icon: '🏦',
+    title: 'Cuenta bancaria',
+    desc: 'Las cuentas se usan para registrar ingresos y recibir pagos de deudas.<br><br>Ejemplo: Cuenta de ahorros, Efectivo.',
+    actionLabel: 'Agregar cuenta',
+    actionRoute: '/perfil?action=add-account',
+  },
+  {
+    icon: '👥',
+    title: 'Miembros y contactos',
+    desc: '<strong>Miembros</strong> son las personas de tu hogar que comparten finanzas.<br><br><strong>Contactos</strong> son personas externas con las que divides gastos o tienes deudas.',
+    actionLabel: 'Ir a Mi hogar',
+    actionRoute: '/hogar',
+  },
+  {
+    icon: '✨',
+    title: '¡Listo!',
+    desc: 'Ya tienes todo lo necesario para empezar.<br><br>Registra tu primer gasto y lleva el control de tus finanzas.',
+    actionLabel: 'Registrar mi primer gasto',
+    actionRoute: '/registrar-movimiento',
+  },
+];
+
+/**
+ * Show onboarding wizard modal
+ */
+function showOnboardingWizard() {
+  let currentStep = 0;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.setAttribute('data-testid', 'onboarding-wizard');
+
+  function renderStep() {
+    const step = ONBOARDING_STEPS[currentStep];
+    const isFirst = currentStep === 0;
+    const isLast = currentStep === ONBOARDING_STEPS.length - 1;
+
+    overlay.innerHTML = `
+      <div class="onboarding-wizard-card">
+        <div class="onboarding-step-title">${step.title}</div>
+        <div class="onboarding-step-desc">${step.desc}</div>
+        <div class="onboarding-dots">
+          ${ONBOARDING_STEPS.map((_, i) => 
+            `<div class="onboarding-dot ${i === currentStep ? 'active' : ''}"></div>`
+          ).join('')}
+        </div>
+        <div class="onboarding-actions">
+          ${isLast ? `
+            <button class="onboarding-btn-primary" data-wiz="finish">${step.actionLabel}</button>
+          ` : `
+            <div class="onboarding-nav">
+              ${!isFirst ? '<button class="onboarding-btn-secondary" data-wiz="prev">← Anterior</button>' : ''}
+              <button class="onboarding-btn-primary" data-wiz="next">Siguiente →</button>
+            </div>
+            ${step.actionLabel ? `<button class="onboarding-btn-secondary" data-wiz="action">${step.actionLabel}</button>` : ''}
+          `}
+          <button class="onboarding-skip" data-wiz="skip" data-testid="skip-wizard">Omitir guía</button>
+        </div>
+      </div>
+    `;
+
+    const card = overlay.querySelector('.onboarding-wizard-card');
+    card.addEventListener('click', (e) => {
+      const action = e.target.closest('[data-wiz]')?.dataset.wiz;
+      if (!action) return;
+      e.stopPropagation();
+      if (action === 'next') { currentStep++; renderStep(); }
+      else if (action === 'prev') { currentStep--; renderStep(); }
+      else if (action === 'skip') { closeWizard(); }
+      else if (action === 'action' || action === 'finish') { closeWizard(); router.navigate(step.actionRoute); }
+    });
+  }
+
+  function closeWizard() {
+    localStorage.setItem('onboarding_wizard_completed', 'true');
+    overlay.remove();
+  }
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeWizard();
+  });
+
+  document.body.appendChild(overlay);
+  renderStep();
+}
+
+/**
+ * Render onboarding checklist banner (shown in home until setup is complete)
+ */
+function renderOnboardingChecklist(formConfig, hasMovements) {
+  if (localStorage.getItem('onboarding_dismissed') === 'true') return '';
+  if (localStorage.getItem('onboarding_wizard_completed') !== 'true') return '';
+
+  const steps = [
+    { label: 'Categorías creadas', done: true, route: '/hogar' },
+    { label: 'Método de pago', done: (formConfig?.payment_methods?.length || 0) > 0, route: '/perfil?action=add-payment-method' },
+    { label: 'Cuenta bancaria', done: (formConfig?.accounts?.length || 0) > 0, route: '/perfil?action=add-account' },
+    { label: 'Miembros y contactos', done: localStorage.getItem('onboarding_step4_done') === 'true', route: '/hogar' },
+    { label: 'Primer gasto registrado', done: hasMovements, route: '/registrar-movimiento' },
+  ];
+
+  const doneCount = steps.filter(s => s.done).length;
+  if (doneCount === steps.length) return '';
+
+  const nextStep = steps.find(s => !s.done);
+
+  return `
+    <div class="link-request-banner-stack" id="onboarding-checklist">
+      <div class="link-request-banner" id="onboarding-checklist-click" style="position:relative; cursor:pointer;">
+        <div class="link-request-banner-icon">📋</div>
+        <div class="link-request-banner-content">
+          <div class="link-request-banner-title">Configura tu hogar (${doneCount}/${steps.length})</div>
+          <div class="link-request-banner-subtitle">Siguiente: ${nextStep.label}</div>
+        </div>
+        <div class="link-request-banner-arrow" id="onboarding-dismiss" style="font-size:18px;font-weight:bold;">✕</div>
+      </div>
+    </div>
+  `;
+}
+
+function setupOnboardingChecklist(formConfig, hasMovements) {
+  const banner = document.getElementById('onboarding-checklist-click');
+  if (!banner) return;
+
+  const steps = [
+    { done: true, route: '/hogar' },
+    { done: (formConfig?.payment_methods?.length || 0) > 0, route: '/perfil?action=add-payment-method' },
+    { done: (formConfig?.accounts?.length || 0) > 0, route: '/perfil?action=add-account' },
+    { done: localStorage.getItem('onboarding_step4_done') === 'true', route: '/hogar' },
+    { done: hasMovements, route: '/registrar-movimiento' },
+  ];
+
+  // Dismiss button
+  const dismissBtn = document.getElementById('onboarding-dismiss');
+  if (dismissBtn) {
+    dismissBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      localStorage.setItem('onboarding_dismissed', 'true');
+      document.getElementById('onboarding-checklist')?.remove();
+    });
+  }
+
+  // Click banner to navigate to next step
+  const nextStep = steps.find(s => !s.done);
+  if (nextStep) {
+    banner.addEventListener('click', (e) => {
+      if (e.target.id === 'onboarding-dismiss') return;
+      if (nextStep.route === '/hogar') {
+        localStorage.setItem('onboarding_step4_done', 'true');
+      }
+      router.navigate(nextStep.route);
+    });
+  }
+}
 function getIncomeTypeIcon(type) {
   const icons = {
     'salary': '💰',
@@ -6286,14 +6456,17 @@ export async function setup() {
       createBtn.addEventListener('click', async () => {
         const household = await showCreateHouseholdModal(API_URL);
         if (household) {
-          // Show success modal and wait for user to click OK
           await showSuccess('¡Hogar creado!', `Tu hogar <strong>${household.name}</strong> ha sido creado exitosamente.`);
-          // Navigate to profile to complete setup
-          window.location.href = '/perfil';
+          showOnboardingWizard();
         }
       });
     }
     return; // Don't load any data
+  }
+
+  // Show onboarding wizard if household exists but wizard hasn't been shown yet
+  if (localStorage.getItem('onboarding_wizard_completed') !== 'true') {
+    showOnboardingWizard();
   }
   
   // Load data based on active tab (gastos by default)
@@ -6309,12 +6482,19 @@ export async function setup() {
   
   // Remove active tab from reload set since we just loaded it
   tabsNeedingReload.delete(activeTab);
+
+  // Show onboarding checklist if setup is incomplete
+  const hasMovements = movementsData?.movements?.length > 0;
+  const checklistHtml = renderOnboardingChecklist(window.formConfigCache, hasMovements);
   
   // Initial render of content - UPDATE THE DOM after loading data
   // contentContainer already declared above for no-household check
   if (contentContainer) {
+    // Prepend checklist before tab content
+    const checklistPrefix = checklistHtml || '';
     if (activeTab === 'gastos' && movementsData) {
       contentContainer.innerHTML = `
+        ${checklistPrefix}
         ${renderMonthSelector()}
         
         <div class="total-display">
@@ -6328,6 +6508,7 @@ export async function setup() {
       `;
     } else if (activeTab === 'ingresos' && incomeData) {
       contentContainer.innerHTML = `
+        ${checklistPrefix}
         ${renderMonthSelector()}
         
         <div class="total-display">
@@ -6341,6 +6522,7 @@ export async function setup() {
       `;
     } else if (activeTab === 'prestamos' && loansData) {
       contentContainer.innerHTML = `
+        ${checklistPrefix}
         ${renderMonthSelector()}
         
         <div id="loans-container">
@@ -6353,6 +6535,7 @@ export async function setup() {
       setupLoansFilterListeners();
     } else if (activeTab === 'presupuesto' && budgetsData) {
       contentContainer.innerHTML = `
+        ${checklistPrefix}
         ${renderMonthSelector()}
         
         ${renderBudgets()}
@@ -6361,6 +6544,9 @@ export async function setup() {
       setupBudgetListeners();
     }
   }
+
+  // Setup onboarding checklist click handler
+  setupOnboardingChecklist(window.formConfigCache, hasMovements);
 
   // Setup tab listeners
   const tabButtons = document.querySelectorAll('.tab-btn');
