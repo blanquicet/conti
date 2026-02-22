@@ -2,6 +2,7 @@ package ai
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -17,6 +18,13 @@ Una misma categoría puede existir en varios grupos (ej: "Grupo A - Imprevistos"
 Los resultados de las herramientas incluyen el campo "group" para cada categoría.
 Cuando muestres resultados, usa el formato "Grupo - Categoría" para distinguirlos.
 Si el usuario pregunta por una categoría que existe en múltiples grupos, muestra el desglose por grupo.
+REGISTRAR GASTOS:
+Cuando el usuario quiera registrar o agregar un gasto, usa la herramienta prepare_movement.
+Necesitas: descripción, monto, categoría y método de pago. Si falta alguno, pregunta al usuario.
+Si la herramienta no encuentra la categoría o método de pago, muestra las opciones disponibles que devuelve.
+El tipo por defecto es HOUSEHOLD. La fecha por defecto es hoy.
+NO crees el movimiento directamente — la herramienta prepara un borrador que el usuario debe confirmar.
+
 Cita los datos que respaldan tu respuesta.
 Si después de consultar no hay datos, dilo claramente.
 Nunca inventes datos. Sé conciso y directo.`
@@ -40,9 +48,15 @@ func NewChatService(client *Client, executor *ToolExecutor, logger *slog.Logger)
 	}
 }
 
+// ChatResult holds the chat response with optional movement draft.
+type ChatResult struct {
+	Message string
+	Draft   *MovementDraft
+}
+
 // Chat processes a user message and returns the assistant's response.
 // It executes function-calling rounds until the model produces a text response.
-func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userMessage string) (string, error) {
+func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userMessage string) (*ChatResult, error) {
 	tools := ToolDefinitions()
 
 	now := time.Now().In(Bogota)
@@ -56,18 +70,21 @@ func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userMessag
 		{Role: "user", Content: userMessage},
 	}
 
+	var lastDraft *MovementDraft
+
 	for round := 0; round < maxToolRounds; round++ {
 		resp, err := cs.client.ChatCompletions(ctx, messages, tools)
 		if err != nil {
-			return "", fmt.Errorf("chat: LLM call failed: %w", err)
+			return nil, fmt.Errorf("chat: LLM call failed: %w", err)
 		}
 
 		// If no tool calls, we have the final text response
 		if len(resp.ToolCalls) == 0 {
-			if resp.Content == "" {
-				return "No tengo datos suficientes para responder eso.", nil
+			msg := resp.Content
+			if msg == "" {
+				msg = "No tengo datos suficientes para responder eso."
 			}
-			return resp.Content, nil
+			return &ChatResult{Message: msg, Draft: lastDraft}, nil
 		}
 
 		// Add the assistant message with tool calls to the conversation
@@ -93,6 +110,14 @@ func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userMessag
 				result = fmt.Sprintf(`{"error": "No pude consultar los datos: %s"}`, err.Error())
 			}
 
+			// Detect movement draft in tool result
+			if tc.Function == "prepare_movement" {
+				var draft MovementDraft
+				if json.Unmarshal([]byte(result), &draft) == nil && draft.Action == "confirm_movement" {
+					lastDraft = &draft
+				}
+			}
+
 			messages = append(messages, ChatMessage{
 				Role:       "tool",
 				Content:    result,
@@ -101,5 +126,5 @@ func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userMessag
 		}
 	}
 
-	return "No pude completar la consulta después de varios intentos. Intenta reformular tu pregunta.", nil
+	return &ChatResult{Message: "No pude completar la consulta después de varios intentos. Intenta reformular tu pregunta."}, nil
 }

@@ -9,25 +9,28 @@ import (
 
 "github.com/blanquicet/conti/backend/internal/auth"
 "github.com/blanquicet/conti/backend/internal/households"
+"github.com/blanquicet/conti/backend/internal/movements"
 )
 
 // Handler provides HTTP endpoints for chat.
 type Handler struct {
-chatService   *ChatService
-authService   *auth.Service
-householdRepo households.HouseholdRepository
-cookieName    string
-logger        *slog.Logger
-rateLimiter   *rateLimiter
+chatService      *ChatService
+authService      *auth.Service
+movementsService movements.Service
+householdRepo    households.HouseholdRepository
+cookieName       string
+logger           *slog.Logger
+rateLimiter      *rateLimiter
 }
 
 // NewHandler creates a new chat HTTP handler.
-func NewHandler(chatService *ChatService, authService *auth.Service, householdRepo households.HouseholdRepository, cookieName string, logger *slog.Logger) *Handler {
+func NewHandler(chatService *ChatService, authService *auth.Service, movementsService movements.Service, householdRepo households.HouseholdRepository, cookieName string, logger *slog.Logger) *Handler {
 return &Handler{
-chatService:   chatService,
-authService:   authService,
-householdRepo: householdRepo,
-cookieName:    cookieName,
+chatService:      chatService,
+authService:      authService,
+movementsService: movementsService,
+householdRepo:    householdRepo,
+cookieName:       cookieName,
 logger:        logger,
 rateLimiter:   newRateLimiter(20, time.Minute),
 }
@@ -38,7 +41,8 @@ Message string `json:"message"`
 }
 
 type chatResponse struct {
-Message string `json:"message"`
+Message string         `json:"message"`
+Draft   *MovementDraft `json:"draft,omitempty"`
 }
 
 // HandleChat processes POST /chat requests.
@@ -86,7 +90,7 @@ return
 }
 
 // Process chat
-response, err := h.chatService.Chat(r.Context(), householdID, userID, req.Message)
+result, err := h.chatService.Chat(r.Context(), householdID, userID, req.Message)
 if err != nil {
 h.logger.Error("chat failed", "error", err, "user_id", userID)
 w.Header().Set("Content-Type", "application/json")
@@ -96,7 +100,62 @@ return
 }
 
 w.Header().Set("Content-Type", "application/json")
-json.NewEncoder(w).Encode(chatResponse{Message: response})
+json.NewEncoder(w).Encode(chatResponse{Message: result.Message, Draft: result.Draft})
+}
+
+// HandleCreateMovement processes POST /chat/create-movement requests.
+func (h *Handler) HandleCreateMovement(w http.ResponseWriter, r *http.Request) {
+cookie, err := r.Cookie(h.cookieName)
+if err != nil {
+http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+return
+}
+
+user, err := h.authService.GetUserBySession(r.Context(), cookie.Value)
+if err != nil {
+http.Error(w, `{"error":"unauthorized"}`, http.StatusUnauthorized)
+return
+}
+
+var draft MovementDraft
+if err := json.NewDecoder(r.Body).Decode(&draft); err != nil {
+http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+return
+}
+
+// Parse date
+movDate, err := time.Parse("2006-01-02", draft.MovementDate)
+if err != nil {
+http.Error(w, `{"error":"invalid date format"}`, http.StatusBadRequest)
+return
+}
+
+// Create movement via existing service
+input := &movements.CreateMovementInput{
+Type:            movements.MovementType(draft.Type),
+Description:     draft.Description,
+Amount:          draft.Amount,
+MovementDate:    movDate,
+CategoryID:      &draft.CategoryID,
+PayerUserID:     &draft.PayerUserID,
+PaymentMethodID: &draft.PaymentMethodID,
+}
+
+movement, err := h.movementsService.Create(r.Context(), user.ID, input)
+if err != nil {
+h.logger.Error("failed to create movement from chat", "error", err, "user_id", user.ID)
+w.Header().Set("Content-Type", "application/json")
+w.WriteHeader(http.StatusBadRequest)
+json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+return
+}
+
+w.Header().Set("Content-Type", "application/json")
+json.NewEncoder(w).Encode(map[string]any{
+"success":     true,
+"movement_id": movement.ID,
+"message":     "Movimiento registrado exitosamente",
+})
 }
 
 // --- Simple Rate Limiter ---

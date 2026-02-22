@@ -4834,3 +4834,70 @@ input[type="number"] {
 }
 .chat-table tbody tr:last-child td { border-bottom: none; }
 .chat-table tbody tr:hover td { background: #f9fafb; }
+
+/* Chat draft confirmation card */
+.chat-draft-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  overflow: hidden;
+  min-width: 260px;
+}
+.draft-header {
+  padding: 12px 16px;
+  background: #111827;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+}
+.draft-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f3f4f6;
+  font-size: 13px;
+}
+.draft-row:last-of-type { border-bottom: none; }
+.draft-label { color: #6b7280; }
+.draft-value { color: #111827; font-weight: 500; text-align: right; }
+.draft-amount { color: #10b981; font-weight: 700; }
+.draft-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #e5e7eb;
+}
+.draft-btn-confirm {
+  flex: 1;
+  padding: 10px;
+  background: #10b981;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.draft-btn-confirm:hover { background: #059669; }
+.draft-btn-confirm:disabled { opacity: 0.5; cursor: not-allowed; }
+.draft-btn-edit {
+  flex: 1;
+  padding: 10px;
+  background: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.draft-btn-edit:hover { background: #f3f4f6; }
+.draft-success {
+  padding: 16px;
+  text-align: center;
+  color: #10b981;
+  font-weight: 600;
+  font-size: 14px;
+}

@@ -741,6 +741,35 @@ export async function setup() {
     }
   }
 
+  // Chat prefill: if coming from chat with a draft, populate form fields
+  const chatPrefill = sessionStorage.getItem('chat-prefill');
+  if (chatPrefill && !isEditMode) {
+    sessionStorage.removeItem('chat-prefill');
+    try {
+      const draft = JSON.parse(chatPrefill);
+      // Set tipo to GASTO (HOUSEHOLD)
+      tipoEl.value = 'GASTO';
+      document.querySelector('.tipo-btn[data-tipo="GASTO"]')?.classList.add('active');
+      onTipoChange();
+      // Description
+      const descEl = document.getElementById('descripcion');
+      if (descEl && draft.description) descEl.value = draft.description;
+      // Amount
+      if (valorEl && draft.amount) valorEl.value = draft.amount;
+      // Date
+      const fechaEl = document.getElementById('fecha');
+      if (fechaEl && draft.movement_date) fechaEl.value = draft.movement_date;
+      // Category
+      const catEl = document.getElementById('categoria');
+      if (catEl && draft.category_id) catEl.value = draft.category_id;
+      // Payment method
+      const pmEl = document.getElementById('metodo');
+      if (pmEl && draft.payment_method_id) pmEl.value = draft.payment_method_id;
+    } catch (e) {
+      console.error('Failed to apply chat prefill:', e);
+    }
+  }
+
   // Setup tipo button listeners
   const tipoBtns = document.querySelectorAll('.tipo-btn');
   tipoBtns.forEach(btn => {

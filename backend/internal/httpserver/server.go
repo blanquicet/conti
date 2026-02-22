@@ -448,10 +448,11 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 		if err != nil {
 			logger.Error("failed to create AI client, chat disabled", "error", err)
 		} else {
-			toolExecutor := ai.NewToolExecutor(movementsService, incomeService, budgetsService)
+			toolExecutor := ai.NewToolExecutor(movementsService, incomeService, budgetsService, categoriesRepo, paymentMethodsRepo, householdRepo)
 			chatService := ai.NewChatService(aiClient, toolExecutor, logger)
-			chatHandler := ai.NewHandler(chatService, authService, householdRepo, cfg.SessionCookieName, logger)
+			chatHandler := ai.NewHandler(chatService, authService, movementsService, householdRepo, cfg.SessionCookieName, logger)
 			mux.HandleFunc("POST /chat", chatHandler.HandleChat)
+			mux.HandleFunc("POST /chat/create-movement", chatHandler.HandleCreateMovement)
 			logger.Info("chat endpoint enabled", "deployment", cfg.AzureOpenAIDeployment)
 		}
 	} else {

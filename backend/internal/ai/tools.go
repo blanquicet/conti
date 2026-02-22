@@ -6,26 +6,43 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/blanquicet/conti/backend/internal/budgets"
+	"github.com/blanquicet/conti/backend/internal/categories"
+	"github.com/blanquicet/conti/backend/internal/households"
 	"github.com/blanquicet/conti/backend/internal/income"
 	"github.com/blanquicet/conti/backend/internal/movements"
+	"github.com/blanquicet/conti/backend/internal/paymentmethods"
 )
 
 // ToolExecutor executes chat tools by calling existing backend services.
 // No direct DB queries — all data comes from the same services that power the UI tabs.
 type ToolExecutor struct {
-	movementsService movements.Service
-	incomeService    income.Service
-	budgetService    *budgets.BudgetService
+	movementsService  movements.Service
+	incomeService     income.Service
+	budgetService     *budgets.BudgetService
+	categoriesRepo    categories.Repository
+	paymentMethodRepo paymentmethods.Repository
+	householdRepo     households.HouseholdRepository
 }
 
 // NewToolExecutor creates a new tool executor backed by existing services.
-func NewToolExecutor(movementsService movements.Service, incomeService income.Service, budgetService *budgets.BudgetService) *ToolExecutor {
+func NewToolExecutor(
+	movementsService movements.Service,
+	incomeService income.Service,
+	budgetService *budgets.BudgetService,
+	categoriesRepo categories.Repository,
+	paymentMethodRepo paymentmethods.Repository,
+	householdRepo households.HouseholdRepository,
+) *ToolExecutor {
 	return &ToolExecutor{
-		movementsService: movementsService,
-		incomeService:    incomeService,
-		budgetService:    budgetService,
+		movementsService:  movementsService,
+		incomeService:     incomeService,
+		budgetService:     budgetService,
+		categoriesRepo:    categoriesRepo,
+		paymentMethodRepo: paymentMethodRepo,
+		householdRepo:     householdRepo,
 	}
 }
 
@@ -129,10 +146,23 @@ func ToolDefinitions() []Tool {
 				"required": []string{"month"},
 			},
 		},
+		{
+			Name:        "prepare_movement",
+			Description: "Prepare a new household expense for the user to confirm. Resolves category and payment method names to IDs. Returns a draft that the user must confirm before it is created. Use this when the user wants to register/add a new expense. ONLY for type HOUSEHOLD (regular household expenses).",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"description":    map[string]any{"type": "string", "description": "What the expense is for (e.g. 'Mercado en el Euro')"},
+					"amount":         map[string]any{"type": "number", "description": "Amount in COP (e.g. 50000)"},
+					"category":       map[string]any{"type": "string", "description": "Category name to match (e.g. 'Mercado', 'Gastos fijos'). Will be fuzzy-matched."},
+					"payment_method": map[string]any{"type": "string", "description": "Payment method name (e.g. 'Débito Jose', 'AMEX', 'Efectivo'). Will be fuzzy-matched."},
+					"date":           map[string]any{"type": "string", "description": "Date in YYYY-MM-DD format. Defaults to today if not specified."},
+				},
+				"required": []string{"description", "amount", "category", "payment_method"},
+			},
+		},
 	}
 }
-
-// --- Tool Execution ---
 
 // ExecuteTool routes a tool call to the appropriate handler.
 func (te *ToolExecutor) ExecuteTool(ctx context.Context, householdID, userID, name, argsJSON string) (string, error) {
@@ -161,6 +191,8 @@ func (te *ToolExecutor) ExecuteTool(ctx context.Context, householdID, userID, na
 		result, err = te.getSpendingByPaymentMethod(ctx, userID, args)
 	case "get_spending_by_member":
 		result, err = te.getSpendingByMember(ctx, userID, args)
+	case "prepare_movement":
+		result, err = te.prepareMovement(ctx, householdID, userID, args)
 	default:
 		return "", fmt.Errorf("unknown tool: %s", name)
 	}
@@ -631,6 +663,142 @@ func (te *ToolExecutor) getSpendingByMember(ctx context.Context, userID string, 
 	}, nil
 }
 
+// --- Prepare Movement (for creating from chat) ---
+
+// MovementDraft is returned to the frontend for user confirmation before creation.
+type MovementDraft struct {
+	Action            string  `json:"action"` // always "confirm_movement"
+	Type              string  `json:"type"`
+	Description       string  `json:"description"`
+	Amount            float64 `json:"amount"`
+	CategoryID        string  `json:"category_id"`
+	CategoryName      string  `json:"category_name"`
+	CategoryGroup     string  `json:"category_group,omitempty"`
+	PaymentMethodID   string  `json:"payment_method_id"`
+	PaymentMethodName string  `json:"payment_method_name"`
+	PayerUserID       string  `json:"payer_user_id"`
+	PayerName         string  `json:"payer_name"`
+	MovementDate      string  `json:"movement_date"`
+}
+
+func (te *ToolExecutor) prepareMovement(ctx context.Context, householdID, userID string, args map[string]any) (any, error) {
+	description := getString(args, "description")
+	amount := getFloat(args, "amount")
+	categoryName := getString(args, "category")
+	pmName := getString(args, "payment_method")
+	dateStr := getString(args, "date")
+
+	if description == "" {
+		return map[string]string{"error": "Falta la descripción del gasto"}, nil
+	}
+	if amount <= 0 {
+		return map[string]string{"error": "El monto debe ser mayor a 0"}, nil
+	}
+
+	// Default date to today (Bogota)
+	if dateStr == "" {
+		dateStr = time.Now().In(Bogota).Format("2006-01-02")
+	}
+
+	// Resolve category by fuzzy name match
+	cats, err := te.categoriesRepo.ListByHousehold(ctx, householdID, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list categories: %w", err)
+	}
+
+	var matchedCat *categories.Category
+	for _, c := range cats {
+		if strings.EqualFold(c.Name, categoryName) {
+			matchedCat = c
+			break
+		}
+	}
+	if matchedCat == nil {
+		for _, c := range cats {
+			if containsInsensitive(c.Name, categoryName) {
+				matchedCat = c
+				break
+			}
+		}
+	}
+	if matchedCat == nil {
+		// Return available categories so LLM can ask user
+		var names []string
+		for _, c := range cats {
+			names = append(names, c.Name)
+		}
+		return map[string]any{
+			"error":                fmt.Sprintf("No encontré la categoría '%s'", categoryName),
+			"available_categories": names,
+		}, nil
+	}
+
+	// Resolve payment method by fuzzy name match
+	pms, err := te.paymentMethodRepo.ListByHousehold(ctx, householdID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list payment methods: %w", err)
+	}
+
+	var matchedPM *paymentmethods.PaymentMethod
+	for _, pm := range pms {
+		if strings.EqualFold(pm.Name, pmName) {
+			matchedPM = pm
+			break
+		}
+	}
+	if matchedPM == nil {
+		for _, pm := range pms {
+			if containsInsensitive(pm.Name, pmName) {
+				matchedPM = pm
+				break
+			}
+		}
+	}
+	if matchedPM == nil {
+		var names []string
+		for _, pm := range pms {
+			names = append(names, pm.Name)
+		}
+		return map[string]any{
+			"error":                    fmt.Sprintf("No encontré el método de pago '%s'", pmName),
+			"available_payment_methods": names,
+		}, nil
+	}
+
+	// Get payer name
+	members, err := te.householdRepo.GetMembers(ctx, householdID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get members: %w", err)
+	}
+	payerName := "Usuario"
+	for _, m := range members {
+		if m.UserID == userID {
+			payerName = m.UserName
+			break
+		}
+	}
+
+	// Get category group name if available
+	groupName := ""
+	// CategoryGroupID is available but name requires separate lookup
+	// For the draft card, the category name is sufficient
+
+	return &MovementDraft{
+		Action:            "confirm_movement",
+		Type:              "HOUSEHOLD",
+		Description:       description,
+		Amount:            amount,
+		CategoryID:        matchedCat.ID,
+		CategoryName:      matchedCat.Name,
+		CategoryGroup:     groupName,
+		PaymentMethodID:   matchedPM.ID,
+		PaymentMethodName: matchedPM.Name,
+		PayerUserID:       userID,
+		PayerName:         payerName,
+		MovementDate:      dateStr,
+	}, nil
+}
+
 // --- Helpers ---
 
 func movementToEvidence(m *movements.Movement) map[string]any {
@@ -676,6 +844,18 @@ func getInt(args map[string]any, key string, defaultVal int) int {
 		}
 	}
 	return defaultVal
+}
+
+func getFloat(args map[string]any, key string) float64 {
+	if v, ok := args[key]; ok {
+		switch n := v.(type) {
+		case float64:
+			return n
+		case int:
+			return float64(n)
+		}
+	}
+	return 0
 }
 
 func stringOrDefault(s *string, def string) string {

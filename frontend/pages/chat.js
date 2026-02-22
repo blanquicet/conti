@@ -103,6 +103,11 @@ export function setup() {
 
       const data = await response.json();
       appendMessage('assistant', data.message);
+
+      // Show confirmation card if there's a movement draft
+      if (data.draft && data.draft.action === 'confirm_movement') {
+        appendDraftCard(data.draft);
+      }
     } catch (err) {
       removeMessage(loadingId);
       appendMessage('assistant', 'No se pudo conectar con el servidor. Verifica tu conexión.');
@@ -136,6 +141,73 @@ export function setup() {
     messagesEl.scrollTop = messagesEl.scrollHeight;
     return id;
   }
+
+  function appendDraftCard(draft) {
+    const id = 'draft-' + Date.now();
+    const div = document.createElement('div');
+    div.className = 'chat-message assistant';
+    div.id = id;
+
+    const formattedAmount = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(draft.amount);
+    const dateObj = new Date(draft.date || draft.movement_date);
+    const formattedDate = dateObj.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    div.innerHTML = `
+      <div class="chat-bubble-row">
+        <div class="chat-ai-mark">AI</div>
+        <div class="chat-draft-card">
+          <div class="draft-header">🏠 Gasto del hogar</div>
+          <div class="draft-row"><span class="draft-label">Descripción</span><span class="draft-value">${escapeHtml(draft.description)}</span></div>
+          <div class="draft-row"><span class="draft-label">Monto</span><span class="draft-value draft-amount">${formattedAmount}</span></div>
+          <div class="draft-row"><span class="draft-label">Categoría</span><span class="draft-value">${escapeHtml(draft.category_name)}</span></div>
+          <div class="draft-row"><span class="draft-label">Método de pago</span><span class="draft-value">${escapeHtml(draft.payment_method_name)}</span></div>
+          <div class="draft-row"><span class="draft-label">Fecha</span><span class="draft-value">${formattedDate}</span></div>
+          <div class="draft-actions">
+            <button class="draft-btn-confirm" data-draft='${JSON.stringify(draft)}'>✓ Registrar</button>
+            <button class="draft-btn-edit" data-draft='${JSON.stringify(draft)}'>✏️ Editar</button>
+          </div>
+        </div>
+      </div>`;
+
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    // Confirm button
+    div.querySelector('.draft-btn-confirm').addEventListener('click', async (e) => {
+      const draftData = JSON.parse(e.target.dataset.draft);
+      e.target.disabled = true;
+      e.target.textContent = 'Registrando...';
+
+      try {
+        const resp = await fetch(`${API_URL}/chat/create-movement`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(draftData),
+        });
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          throw new Error(err.error || 'Error al registrar');
+        }
+
+        // Replace card with success message
+        div.querySelector('.chat-draft-card').innerHTML = `
+          <div class="draft-success">✅ Movimiento registrado exitosamente</div>`;
+      } catch (err) {
+        e.target.disabled = false;
+        e.target.textContent = '✓ Registrar';
+        appendMessage('assistant', `Error: ${err.message}`);
+      }
+    });
+
+    // Edit button — navigate to form with prefill
+    div.querySelector('.draft-btn-edit').addEventListener('click', (e) => {
+      const draftData = JSON.parse(e.target.dataset.draft);
+      sessionStorage.setItem('chat-prefill', JSON.stringify(draftData));
+      window.location.href = '/registrar-movimiento?tipo=GASTO';
+    });
+    }
 
   function showTypingIndicator() {
     const id = 'typing-' + Date.now();
