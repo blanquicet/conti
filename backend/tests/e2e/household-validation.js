@@ -60,7 +60,7 @@ async function testHouseholdValidation() {
     // Go to profile and create household
     await page.locator('#hamburger-btn').click();
     await page.waitForTimeout(500);
-    await page.getByRole('link', { name: 'Perfil', exact: true }).click();
+    await page.getByRole('link', { name: 'Perfil' }).click();
     await page.waitForTimeout(1000);
     
     await page.getByRole('button', { name: 'Crear hogar' }).click();

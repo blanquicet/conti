@@ -418,7 +418,7 @@ async function testHouseholdManagement() {
     // Navigate to profile to check
     await page2.locator('#hamburger-btn').click();
     await page2.waitForTimeout(500);
-    await page2.getByRole('link', { name: 'Perfil', exact: true }).click();
+    await page2.getByRole('link', { name: 'Perfil' }).click();
     await page2.waitForTimeout(1000);
     
     // Should see no household
