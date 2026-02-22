@@ -45,7 +45,7 @@ func NewChatService(client *Client, executor *ToolExecutor, logger *slog.Logger)
 func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userMessage string) (string, error) {
 	tools := ToolDefinitions()
 
-	now := time.Now()
+	now := time.Now().In(Bogota)
 	currentMonth := now.Format("2006-01")
 	lastMonth := now.AddDate(0, -1, 0).Format("2006-01")
 	systemPrompt := fmt.Sprintf(systemPromptTemplate,

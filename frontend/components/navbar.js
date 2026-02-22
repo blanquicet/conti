@@ -36,6 +36,9 @@ export function render(user, activeRoute = '/') {
       <a href="/" class="dropdown-item ${activeRoute === '/' ? 'active' : ''}" data-route="/">
         Mes a Mes
       </a>
+      <a href="/chat" class="dropdown-item ${activeRoute === '/chat' ? 'active' : ''}" data-route="/chat">
+        ✨ Asistente
+      </a>
       ${isAdmin ? `
       <a href="/admin/audit-logs" class="dropdown-item ${activeRoute === '/admin/audit-logs' ? 'active' : ''}" data-route="/admin/audit-logs">
         🔒 Audit Logs
