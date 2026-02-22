@@ -180,9 +180,9 @@ variable "openai_embeddings_capacity" {
 # =============================================================================
 
 variable "speech_location" {
-  description = "Azure region for Speech Services"
+  description = "Azure region for Speech Services (same as API for low latency)"
   type        = string
-  default     = "westus2"
+  default     = "brazilsouth"
 }
 
 variable "speech_language" {
