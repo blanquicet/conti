@@ -210,7 +210,7 @@ export function setup() {
 
           if (resp.ok && data.text) {
             input.value = data.text;
-            input.focus();
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
           } else if (resp.ok && !data.text) {
             input.placeholder = 'No pude entenderte. Intenta de nuevo.';
             setTimeout(() => { input.placeholder = 'Escribe tu pregunta...'; }, 3000);
