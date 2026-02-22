@@ -833,20 +833,20 @@ export async function setup() {
         freshCat.dispatchEvent(new Event('change'));
       }
 
-      // Payment method — find by ID in paymentMethods array, set by name (select uses name as value)
-      if (draft.payment_method_id) {
-        const pm = paymentMethods.find(p => p.id === draft.payment_method_id);
-        if (pm) {
-          // Ensure the select has been populated with this user's methods
-          if (currentUser && currentUser.name) {
-            showPaymentMethods(currentUser.name, true);
-          }
-          const pmSelect = document.getElementById('metodo');
-          if (pmSelect) pmSelect.value = pm.name;
-        }
-      }
-
       hideFullScreenLoading();
+
+      // Set payment method LAST with generous delay
+      // Everything else (tipo click, showPaymentMethods, category change) must settle first
+      const pmId = draft.payment_method_id;
+      if (pmId) {
+        setTimeout(() => {
+          const pm = paymentMethods.find(p => p.id === pmId);
+          if (pm) {
+            const sel = document.getElementById('metodo');
+            if (sel) sel.value = pm.name;
+          }
+        }, 300);
+      }
     } catch (e) {
       console.error('Failed to apply chat prefill:', e);
     }
