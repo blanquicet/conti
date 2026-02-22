@@ -141,7 +141,7 @@ resource "azurerm_postgresql_flexible_server_configuration" "log_connections" {
 
 resource "azurerm_log_analytics_workspace" "api" {
   name                = "gastos-api-logs"
-  location            = data.azurerm_resource_group.gastos.location
+  location            = var.api_location
   resource_group_name = data.azurerm_resource_group.gastos.name
   sku                 = "PerGB2018"
   retention_in_days   = 30
@@ -150,8 +150,8 @@ resource "azurerm_log_analytics_workspace" "api" {
 }
 
 resource "azurerm_container_app_environment" "api" {
-  name                       = "gastos-api-env"
-  location                   = data.azurerm_resource_group.gastos.location
+  name                       = "gastos-api-env-${var.api_location}"
+  location                   = var.api_location
   resource_group_name        = data.azurerm_resource_group.gastos.name
   log_analytics_workspace_id = azurerm_log_analytics_workspace.api.id
 
@@ -298,7 +298,7 @@ locals {
 resource "azurerm_user_assigned_identity" "api" {
   name                = "conti-api-identity"
   resource_group_name = data.azurerm_resource_group.gastos.name
-  location            = data.azurerm_resource_group.gastos.location
+  location            = var.api_location
 
   tags = var.tags
 }

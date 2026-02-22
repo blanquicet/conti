@@ -38,6 +38,12 @@ variable "postgres_database_name" {
   default     = "gastos_auth"
 }
 
+variable "api_location" {
+  description = "Azure region for Container Apps API (closer to users = lower latency)"
+  type        = string
+  default     = "brazilsouth"
+}
+
 variable "postgres_location" {
   description = "Azure region for PostgreSQL (may differ from RG due to quota restrictions)"
   type        = string
