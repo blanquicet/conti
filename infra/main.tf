@@ -140,7 +140,7 @@ resource "azurerm_postgresql_flexible_server_configuration" "log_connections" {
 # =============================================================================
 
 resource "azurerm_log_analytics_workspace" "api" {
-  name                = "gastos-api-logs"
+  name                = "conti-api-logs"
   location            = var.api_location
   resource_group_name = data.azurerm_resource_group.gastos.name
   sku                 = "PerGB2018"
