@@ -498,7 +498,7 @@ func (te *ToolExecutor) getDebtSummary(ctx context.Context, userID string, args 
 
 	var balances []balance
 	for _, b := range result.Balances {
-		if b.Amount > 0.01 {
+		if b.Amount > 1.0 { // Consistent with backend: < $1 COP = settled
 			balances = append(balances, balance{
 				Debtor:   b.DebtorName,
 				Creditor: b.CreditorName,

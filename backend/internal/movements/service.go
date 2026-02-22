@@ -684,7 +684,7 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 			// 1. Net amount is positive (debtor owes creditor)
 			// 2. Net amount is negative (creditor owes debtor - reverse)
 			// 3. Net amount is zero BUT there are movements (debt was settled this month)
-			if netAmount > 0.01 { // Small tolerance for floating point
+			if netAmount > 1.0 { // Amounts under $1 COP are considered settled
 				balances = append(balances, DebtBalance{
 					DebtorID:         debtorID,
 					DebtorName:       balanceNames[debtorID],
@@ -696,7 +696,7 @@ func (s *service) GetDebtConsolidation(ctx context.Context, userID string, month
 					Movements:        movements,
 				})
 				processed[pairKey] = true
-			} else if netAmount < -0.01 {
+			} else if netAmount < -1.0 {
 				// Reverse direction
 				balances = append(balances, DebtBalance{
 					DebtorID:         creditorID,
