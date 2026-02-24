@@ -53,7 +53,7 @@ Si después de consultar no hay datos, dilo claramente.
 Nunca inventes datos. Sé conciso y directo.`
 
 // maxToolRounds limits function-calling iterations to prevent infinite loops.
-const maxToolRounds = 5
+const maxToolRounds = 3
 
 // ChatService handles chat conversations with function calling.
 type ChatService struct {
@@ -154,8 +154,12 @@ func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userName s
 				var draft MovementDraft
 				if json.Unmarshal([]byte(result), &draft) == nil && draft.Action == "confirm_movement" {
 					lastDraft = &draft
+					// Short-circuit: return draft immediately without extra LLM call
+					msg := fmt.Sprintf("He preparado el registro. %s por %s. ¿Deseas confirmarlo?",
+						draft.Description, FormatCOP(draft.Amount))
+					return &ChatResult{Message: msg, Draft: lastDraft}, nil
 				}
-				// Detect available options (when category/PM not found)
+				// Detect available options (when category/PM/account not found)
 				var opts map[string]any
 				if json.Unmarshal([]byte(result), &opts) == nil {
 					for _, key := range []string{"available_categories", "available_payment_methods", "available_people", "available_accounts"} {
@@ -169,6 +173,16 @@ func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userName s
 								}
 							}
 						}
+					}
+					// Short-circuit: return options immediately without extra LLM call
+					if len(lastOptions) > 0 {
+						errMsg := ""
+						if e, ok := opts["error"].(string); ok {
+							errMsg = e
+						} else {
+							errMsg = "Selecciona una opción"
+						}
+						return &ChatResult{Message: errMsg, Options: lastOptions}, nil
 					}
 				}
 			}
