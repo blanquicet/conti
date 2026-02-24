@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -119,8 +120,14 @@ func (h *Handler) HandleChat(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.logger.Error("chat failed", "error", err, "user_id", userID)
 		w.Header().Set("Content-Type", "application/json")
+
+		errMsg := "Hubo un error procesando tu pregunta. Intenta de nuevo."
+		if strings.Contains(err.Error(), "content_filter") || strings.Contains(err.Error(), "content management policy") {
+			errMsg = "No pude procesar esa solicitud. Intenta reformular tu mensaje."
+		}
+
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]string{"error": "error procesando tu pregunta"})
+		json.NewEncoder(w).Encode(map[string]string{"error": errMsg})
 		return
 	}
 

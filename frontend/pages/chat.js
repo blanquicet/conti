@@ -303,7 +303,7 @@ export function setup() {
 
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        appendMessage('assistant', `No pude procesar tu pregunta. ${err.error || 'Intenta de nuevo.'}`);
+        appendMessage('assistant', err.error || 'Hubo un error. Intenta de nuevo.');
         return;
       }
 
