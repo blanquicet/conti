@@ -138,8 +138,8 @@ func (h *Handler) HandleCreateMovement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse date
-	movDate, err := time.Parse("2006-01-02", draft.MovementDate)
+	// Parse date in Bogota timezone
+	movDate, err := time.ParseInLocation("2006-01-02", draft.MovementDate, Bogota)
 	if err != nil {
 		http.Error(w, `{"error":"invalid date format"}`, http.StatusBadRequest)
 		return

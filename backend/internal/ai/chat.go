@@ -9,10 +9,11 @@ import (
 )
 
 const systemPromptTemplate = `Eres un asistente financiero para un hogar en la aplicación de Conti.
-La fecha de hoy es %s. El mes actual es %s.
+La fecha de hoy es %s. Ayer fue %s. El mes actual es %s.
 Respondes en español usando formato colombiano para montos (ej: $345.000,45 COP).
 SIEMPRE usa las herramientas disponibles para consultar datos antes de responder. No respondas sin consultar primero.
 Cuando el usuario diga "este mes" se refiere a %s. Cuando diga "el mes pasado" se refiere a %s.
+Cuando el usuario diga "ayer" usa la fecha %s. Cuando diga "hoy" usa la fecha %s.
 Las categorías están organizadas en grupos. Cada grupo agrupa varias categorías.
 Una misma categoría puede existir en varios grupos (ej: "Grupo A - Imprevistos" y "Grupo B - Imprevistos").
 Los resultados de las herramientas incluyen el campo "group" para cada categoría.
@@ -27,8 +28,10 @@ La descripción es opcional — si no la da, se usará la categoría como descri
 Si falta el método de pago o la categoría, llama prepare_movement de todas formas — omite el parámetro que falte y la herramienta devolverá las opciones disponibles como botones interactivos.
 NUNCA preguntes por el método de pago o categoría en texto. SIEMPRE llama prepare_movement y deja que la herramienta devuelva las opciones.
 NUNCA listes opciones tú mismo. Solo la herramienta puede mostrar opciones interactivas.
-El tipo por defecto es HOUSEHOLD. La fecha por defecto es hoy.
+El tipo por defecto es HOUSEHOLD. La fecha por defecto es hoy (%s).
+Si el usuario dice "ayer", SIEMPRE pasa la fecha %s en el parámetro date.
 NO crees el movimiento directamente — la herramienta prepara un borrador que el usuario debe confirmar.
+Para consultas de un día específico (ej: "ayer", "el viernes"), usa los parámetros start_date y end_date en get_movements_summary.
 
 Cita los datos que respaldan tu respuesta.
 Si después de consultar no hay datos, dilo claramente.
@@ -66,10 +69,12 @@ func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userMessag
 	tools := ToolDefinitions()
 
 	now := time.Now().In(Bogota)
+	today := now.Format("2006-01-02")
+	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
 	currentMonth := now.Format("2006-01")
 	lastMonth := now.AddDate(0, -1, 0).Format("2006-01")
 	systemPrompt := fmt.Sprintf(systemPromptTemplate,
-		now.Format("2006-01-02"), currentMonth, currentMonth, lastMonth)
+		today, yesterday, currentMonth, currentMonth, lastMonth, yesterday, today, today, yesterday)
 
 	messages := []ChatMessage{
 		{Role: "system", Content: systemPrompt},

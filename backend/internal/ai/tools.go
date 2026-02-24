@@ -60,12 +60,14 @@ func ToolDefinitions() []Tool {
 	return []Tool{
 		{
 			Name:        "get_movements_summary",
-			Description: "Get a summary of household expenses (HOUSEHOLD and SPLIT types) for a given month, optionally filtered by category or group name. Returns totals by category with group info, and top individual movements.",
+			Description: "Get a summary of household expenses (HOUSEHOLD and SPLIT types) for a given month, optionally filtered by category or group name, and/or by date range. Returns totals by category with group info, and top individual movements.",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"month":    monthParam,
-					"category": map[string]any{"type": "string", "description": "Optional filter: category name or group name. Groups contain multiple categories."},
+					"month":      monthParam,
+					"category":   map[string]any{"type": "string", "description": "Optional filter: category name or group name. Groups contain multiple categories."},
+					"start_date": map[string]any{"type": "string", "description": "Optional: filter movements from this date (YYYY-MM-DD, inclusive). Use for specific day queries like 'ayer'."},
+					"end_date":   map[string]any{"type": "string", "description": "Optional: filter movements up to this date (YYYY-MM-DD, inclusive). Use for specific day queries like 'ayer'."},
 				},
 				"required": []string{"month"},
 			},
@@ -217,6 +219,24 @@ func (te *ToolExecutor) ExecuteTool(ctx context.Context, householdID, userID, na
 func (te *ToolExecutor) getMovementsSummary(ctx context.Context, userID string, args map[string]any) (any, error) {
 	month := getString(args, "month")
 	categoryFilter := getString(args, "category")
+	startDateStr := getString(args, "start_date")
+	endDateStr := getString(args, "end_date")
+
+	// Parse optional date filters
+	var startDate, endDate time.Time
+	var hasDateFilter bool
+	if startDateStr != "" {
+		if t, err := time.ParseInLocation("2006-01-02", startDateStr, Bogota); err == nil {
+			startDate = t
+			hasDateFilter = true
+		}
+	}
+	if endDateStr != "" {
+		if t, err := time.ParseInLocation("2006-01-02", endDateStr, Bogota); err == nil {
+			endDate = t.Add(24*time.Hour - time.Nanosecond) // end of day
+			hasDateFilter = true
+		}
+	}
 
 	typeHousehold := movements.TypeHousehold
 	resp, err := te.movementsService.ListByHousehold(ctx, userID, &movements.ListMovementsFilters{
@@ -238,6 +258,22 @@ func (te *ToolExecutor) getMovementsSummary(ctx context.Context, userID string, 
 	}
 
 	allMovements := append(resp.Movements, splitResp.Movements...)
+
+	// Apply date range filter
+	if hasDateFilter {
+		var dateFiltered []*movements.Movement
+		for _, m := range allMovements {
+			mDate := m.MovementDate.In(Bogota)
+			if !startDate.IsZero() && mDate.Before(startDate) {
+				continue
+			}
+			if !endDate.IsZero() && mDate.After(endDate) {
+				continue
+			}
+			dateFiltered = append(dateFiltered, m)
+		}
+		allMovements = dateFiltered
+	}
 
 	// Group by category (with group name), optionally filter
 	type catSummary struct {
@@ -340,7 +376,7 @@ func (te *ToolExecutor) getIncomeSummary(ctx context.Context, userID string, arg
 		evidence = append(evidence, map[string]any{
 			"description": inc.Description,
 			"amount":      inc.Amount,
-			"date":        inc.IncomeDate.Format("2006-01-02"),
+			"date":        inc.IncomeDate.In(Bogota).Format("2006-01-02"),
 			"type":        string(inc.Type),
 			"member":      inc.MemberName,
 			"account":     inc.AccountName,
@@ -869,7 +905,7 @@ func movementToEvidence(m *movements.Movement) map[string]any {
 		"id":          m.ID,
 		"description": m.Description,
 		"amount":      m.Amount,
-		"date":        m.MovementDate.Format("2006-01-02"),
+		"date":        m.MovementDate.In(Bogota).Format("2006-01-02"),
 		"group":       group,
 		"category":    category,
 		"payer":       m.PayerName,
