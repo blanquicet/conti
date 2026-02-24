@@ -778,9 +778,6 @@ func (te *ToolExecutor) prepareMovement(ctx context.Context, householdID, userID
 	pmName := getString(args, "payment_method")
 	dateStr := getString(args, "date")
 
-	if description == "" && categoryName != "" {
-		description = categoryName // Use category as description if not provided
-	}
 	if description == "" {
 		description = "Gasto"
 	}
