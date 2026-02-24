@@ -798,10 +798,13 @@ func (te *ToolExecutor) prepareMovement(ctx context.Context, householdID, userID
 
 	var matchedCat *categories.Category
 	if categoryName != "" {
-		// Handle "Group > Name" format (from option chips)
+		// Handle "Group > Name" or "Group - Name" format (from option chips or LLM text)
 		groupFilter := ""
 		catNameFilter := categoryName
 		if parts := strings.SplitN(categoryName, " > ", 2); len(parts) == 2 {
+			groupFilter = parts[0]
+			catNameFilter = parts[1]
+		} else if parts := strings.SplitN(categoryName, " - ", 2); len(parts) == 2 {
 			groupFilter = parts[0]
 			catNameFilter = parts[1]
 		}
@@ -891,12 +894,25 @@ func (te *ToolExecutor) prepareMovement(ctx context.Context, householdID, userID
 		// If user provided a category name, show only relevant matches (fuzzy)
 		var relevantCats []*categories.Category
 		if categoryName != "" {
+			searchTerms := strings.Fields(strings.ToLower(categoryName))
 			for _, c := range cats {
 				gn := ""
 				if c.CategoryGroupID != nil {
 					gn = groupNames[*c.CategoryGroupID]
 				}
-				if containsInsensitive(c.Name, categoryName) || containsInsensitive(gn, categoryName) {
+				combined := strings.ToLower(gn + " " + c.Name)
+				// Match if any search word appears in group+name, or name appears in search
+				matched := false
+				for _, term := range searchTerms {
+					if strings.Contains(combined, term) {
+						matched = true
+						break
+					}
+				}
+				if !matched && containsInsensitive(categoryName, c.Name) {
+					matched = true
+				}
+				if matched {
 					relevantCats = append(relevantCats, c)
 				}
 			}
@@ -1119,10 +1135,13 @@ func (te *ToolExecutor) prepareLoan(ctx context.Context, householdID, userID str
 			for _, g := range groups {
 				groupNames[g.ID] = g.Name
 			}
-			// Handle "Group > Name" format
+			// Handle "Group > Name" or "Group - Name" format
 			groupFilter := ""
 			catNameFilter := categoryName
 			if parts := strings.SplitN(categoryName, " > ", 2); len(parts) == 2 {
+				groupFilter = parts[0]
+				catNameFilter = parts[1]
+			} else if parts := strings.SplitN(categoryName, " - ", 2); len(parts) == 2 {
 				groupFilter = parts[0]
 				catNameFilter = parts[1]
 			}
