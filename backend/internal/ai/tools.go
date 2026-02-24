@@ -121,11 +121,12 @@ func ToolDefinitions() []Tool {
 		},
 		{
 			Name:        "get_debt_summary",
-			Description: "Get net debts between household members for a given month. Shows who owes whom after netting SPLIT expenses and DEBT_PAYMENT payments. Consistent with the Préstamos tab.",
+			Description: "Get net debts between household members and contacts for a given month. Shows who owes whom after netting SPLIT expenses and DEBT_PAYMENT payments. Consistent with the Préstamos tab. Can filter by a specific person (member or contact name).",
 			Parameters: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"month": monthParam,
+					"month":  monthParam,
+					"person": map[string]any{"type": "string", "description": "Optional: filter debts involving this person (member or contact name). Shows only balances where this person is debtor or creditor."},
 				},
 				"required": []string{"month"},
 			},
@@ -556,6 +557,7 @@ func (te *ToolExecutor) compareMonths(ctx context.Context, userID string, args m
 
 func (te *ToolExecutor) getDebtSummary(ctx context.Context, userID string, args map[string]any) (any, error) {
 	month := getString(args, "month")
+	personFilter := getString(args, "person")
 
 	result, err := te.movementsService.GetDebtConsolidation(ctx, userID, &month)
 	if err != nil {
@@ -571,6 +573,12 @@ func (te *ToolExecutor) getDebtSummary(ctx context.Context, userID string, args 
 	var balances []balance
 	for _, b := range result.Balances {
 		if b.Amount > 1.0 { // Consistent with backend: < $1 COP = settled
+			// Apply person filter
+			if personFilter != "" {
+				if !containsInsensitive(b.DebtorName, personFilter) && !containsInsensitive(b.CreditorName, personFilter) {
+					continue
+				}
+			}
 			balances = append(balances, balance{
 				Debtor:   b.DebtorName,
 				Creditor: b.CreditorName,
