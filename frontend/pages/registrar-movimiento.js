@@ -857,17 +857,26 @@ export async function setup() {
         freshCat.dispatchEvent(new Event('change'));
       }
 
-      // Set payment method LAST with generous delay
-      // Everything else (tipo click, showPaymentMethods, category change) must settle first
+      // Set payment method and receiver account LAST with generous delay
+      // Everything else (tipo click, direction click, payer change, tomador change) must settle first
       const pmId = draft.payment_method_id;
-      if (pmId) {
+      const receiverAccountId = draft.receiver_account_id;
+      if (pmId || receiverAccountId) {
         setTimeout(() => {
-          const pm = paymentMethods.find(p => p.id === pmId);
-          if (pm) {
-            const sel = document.getElementById('metodo');
-            if (sel) sel.value = pm.name;
+          // Payment method
+          if (pmId) {
+            const pm = paymentMethods.find(p => p.id === pmId);
+            if (pm) {
+              const sel = document.getElementById('metodo');
+              if (sel) sel.value = pm.name;
+            }
           }
-        }, 300);
+          // Receiver account (for DEBT_PAYMENT when counterparty is a member)
+          if (receiverAccountId) {
+            const accEl = document.getElementById('cuentaReceptora');
+            if (accEl) accEl.value = receiverAccountId;
+          }
+        }, 500);
       }
     } catch (e) {
       console.error('Failed to apply chat prefill:', e);
