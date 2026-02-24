@@ -840,9 +840,27 @@ func (te *ToolExecutor) prepareMovement(ctx context.Context, householdID, userID
 		for _, g := range groups {
 			groupNames[g.ID] = g.Name
 		}
-		// Use "Group > Name" format for all categories (disambiguates duplicates)
+
+		// If user provided a category name, show only relevant matches (fuzzy)
+		var relevantCats []*categories.Category
+		if categoryName != "" {
+			for _, c := range cats {
+				gn := ""
+				if c.CategoryGroupID != nil {
+					gn = groupNames[*c.CategoryGroupID]
+				}
+				if containsInsensitive(c.Name, categoryName) || containsInsensitive(gn, categoryName) {
+					relevantCats = append(relevantCats, c)
+				}
+			}
+		}
+		// Fall back to all categories only if no relevant matches found
+		if len(relevantCats) == 0 {
+			relevantCats = cats
+		}
+
 		var names []string
-		for _, c := range cats {
+		for _, c := range relevantCats {
 			displayName := c.Name
 			if c.CategoryGroupID != nil {
 				if gn, ok := groupNames[*c.CategoryGroupID]; ok {
