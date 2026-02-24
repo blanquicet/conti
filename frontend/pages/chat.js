@@ -467,7 +467,12 @@ export function setup() {
     div.querySelector('.draft-btn-edit').addEventListener('click', (e) => {
       const draftData = JSON.parse(e.target.dataset.draft);
       sessionStorage.setItem('chat-prefill', JSON.stringify(draftData));
-      window.location.href = '/registrar-movimiento?tipo=GASTO&from=chat';
+      // Map draft type to form tipo
+      let tipo = 'GASTO'; // default for HOUSEHOLD
+      if (draftData.type === 'SPLIT' || draftData.type === 'DEBT_PAYMENT') {
+        tipo = 'LOAN';
+      }
+      window.location.href = `/registrar-movimiento?tipo=${tipo}&from=chat`;
     });
     }
 

@@ -804,12 +804,37 @@ export async function setup() {
     try {
       const draft = JSON.parse(chatPrefill);
 
-      // tipoParam handler above already clicked HOUSEHOLD and hid loading
+      // tipoParam handler above already clicked the right tipo button and hid loading
       // Just wait for DOM to settle
       await new Promise(r => setTimeout(r, 100));
 
       // Get fresh references — the form may have been re-rendered
       const form = document.getElementById('movForm');
+
+      // For LOAN type, set the direction (LEND or REPAY)
+      if (draft.type === 'SPLIT' || draft.type === 'DEBT_PAYMENT') {
+        const direction = draft.type === 'SPLIT' ? 'LEND' : 'REPAY';
+        const dirBtn = document.querySelector(`.loan-direction-btn[data-direction="${direction}"]`);
+        if (dirBtn) dirBtn.click();
+        await new Promise(r => setTimeout(r, 100));
+
+        // Set payer (pagador)
+        const pagadorEl = form.querySelector('#pagador');
+        if (pagadorEl && draft.payer_name) {
+          pagadorEl.value = draft.payer_name;
+          pagadorEl.dispatchEvent(new Event('change'));
+        }
+
+        // Set counterparty/recipient (tomador)
+        if (draft.type === 'DEBT_PAYMENT') {
+          await new Promise(r => setTimeout(r, 100));
+          const tomadorEl = form.querySelector('#tomador');
+          if (tomadorEl && draft.counterparty_name) {
+            tomadorEl.value = draft.counterparty_name;
+            tomadorEl.dispatchEvent(new Event('change'));
+          }
+        }
+      }
 
       // Description
       const descEl = form.querySelector('#descripcion');
