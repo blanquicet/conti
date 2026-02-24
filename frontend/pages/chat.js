@@ -405,6 +405,9 @@ export function setup() {
       headerText = 'Pago de préstamo';
       extraRows += `<div class="draft-row"><span class="draft-label">Pagador</span><span class="draft-value">${escapeHtml(draft.payer_name)}</span></div>`;
       extraRows += `<div class="draft-row"><span class="draft-label">Contraparte</span><span class="draft-value">${escapeHtml(draft.counterparty_name || '')}</span></div>`;
+      if (draft.receiver_account_name) {
+        extraRows += `<div class="draft-row"><span class="draft-label">Cuenta receptora</span><span class="draft-value">${escapeHtml(draft.receiver_account_name)}</span></div>`;
+      }
     }
     const pmRow = draft.payment_method_name ? `<div class="draft-row"><span class="draft-label">Método de pago</span><span class="draft-value">${escapeHtml(draft.payment_method_name)}</span></div>` : '';
 
@@ -415,7 +418,7 @@ export function setup() {
           <div class="draft-header">${headerIcon} ${headerText}</div>
           <div class="draft-row"><span class="draft-label">Descripción</span><span class="draft-value">${escapeHtml(draft.description)}</span></div>
           <div class="draft-row"><span class="draft-label">Monto</span><span class="draft-value draft-amount">${formattedAmount}</span></div>
-          <div class="draft-row"><span class="draft-label">Categoría</span><span class="draft-value">${escapeHtml(draft.category_name)}</span></div>
+          ${draft.category_name ? `<div class="draft-row"><span class="draft-label">Categoría</span><span class="draft-value">${escapeHtml(draft.category_name)}</span></div>` : ''}
           ${extraRows}
           ${pmRow}
           <div class="draft-row"><span class="draft-label">Fecha</span><span class="draft-value">${formattedDate}</span></div>

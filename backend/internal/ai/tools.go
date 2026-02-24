@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blanquicet/conti/backend/internal/accounts"
 	"github.com/blanquicet/conti/backend/internal/budgets"
 	"github.com/blanquicet/conti/backend/internal/categories"
 	"github.com/blanquicet/conti/backend/internal/categorygroups"
@@ -27,6 +28,7 @@ type ToolExecutor struct {
 	categoryGroupRepo categorygroups.Repository
 	paymentMethodRepo paymentmethods.Repository
 	householdRepo     households.HouseholdRepository
+	accountsRepo      accounts.Repository
 }
 
 // NewToolExecutor creates a new tool executor backed by existing services.
@@ -38,6 +40,7 @@ func NewToolExecutor(
 	categoryGroupRepo categorygroups.Repository,
 	paymentMethodRepo paymentmethods.Repository,
 	householdRepo households.HouseholdRepository,
+	accountsRepo accounts.Repository,
 ) *ToolExecutor {
 	return &ToolExecutor{
 		movementsService:  movementsService,
@@ -47,6 +50,7 @@ func NewToolExecutor(
 		categoryGroupRepo: categoryGroupRepo,
 		paymentMethodRepo: paymentMethodRepo,
 		householdRepo:     householdRepo,
+		accountsRepo:      accountsRepo,
 	}
 }
 
@@ -752,6 +756,8 @@ type MovementDraft struct {
 	CounterpartyUserID    string `json:"counterparty_user_id,omitempty"`
 	CounterpartyContactID string `json:"counterparty_contact_id,omitempty"`
 	CounterpartyName      string `json:"counterparty_name,omitempty"`
+	ReceiverAccountID     string `json:"receiver_account_id,omitempty"`
+	ReceiverAccountName   string `json:"receiver_account_name,omitempty"`
 	// For SPLIT
 	Participants []ParticipantDraft `json:"participants,omitempty"`
 }
@@ -1264,6 +1270,33 @@ func (te *ToolExecutor) prepareLoan(ctx context.Context, householdID, userID str
 			}
 			draft.CounterpartyUserID = userID
 			draft.CounterpartyName = userName
+		}
+	}
+
+	// Resolve receiver account for DEBT_PAYMENT when counterparty is a household member
+	if loanType == "DEBT_PAYMENT" && draft.CounterpartyUserID != "" {
+		allAccounts, err := te.accountsRepo.ListByHousehold(ctx, householdID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list accounts: %w", err)
+		}
+		var eligible []*accounts.Account
+		for _, a := range allAccounts {
+			if a.Type.CanReceiveIncome() {
+				eligible = append(eligible, a)
+			}
+		}
+		if len(eligible) == 1 {
+			draft.ReceiverAccountID = eligible[0].ID
+			draft.ReceiverAccountName = eligible[0].Name
+		} else if len(eligible) > 1 {
+			var names []string
+			for _, a := range eligible {
+				names = append(names, a.Name)
+			}
+			return map[string]any{
+				"error":              "Selecciona la cuenta donde recibe el pago",
+				"available_accounts": names,
+			}, nil
 		}
 	}
 

@@ -196,6 +196,11 @@ func (h *Handler) HandleCreateMovement(w http.ResponseWriter, r *http.Request) {
 		input.CounterpartyContactID = &draft.CounterpartyContactID
 	}
 
+	// Receiver account (for DEBT_PAYMENT when counterparty is a member)
+	if draft.ReceiverAccountID != "" {
+		input.ReceiverAccountID = &draft.ReceiverAccountID
+	}
+
 	// Participants (for SPLIT)
 	for _, p := range draft.Participants {
 		pi := movements.ParticipantInput{Percentage: p.Percentage}

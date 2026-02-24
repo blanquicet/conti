@@ -153,7 +153,7 @@ func (cs *ChatService) Chat(ctx context.Context, householdID, userID, userName s
 				// Detect available options (when category/PM not found)
 				var opts map[string]any
 				if json.Unmarshal([]byte(result), &opts) == nil {
-					for _, key := range []string{"available_categories", "available_payment_methods", "available_people"} {
+					for _, key := range []string{"available_categories", "available_payment_methods", "available_people", "available_accounts"} {
 						if arr, ok := opts[key]; ok {
 							if items, ok := arr.([]any); ok {
 								lastOptions = nil
