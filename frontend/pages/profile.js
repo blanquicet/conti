@@ -513,6 +513,14 @@ function showAccountModal(account = null) {
             value="${account?.name || ''}" 
             placeholder="ej: Cuenta de ahorros Bancolombia">
         </label>
+
+        <label class="field">
+          <span>Balance inicial</span>
+          <input type="number" id="account-balance" step="0.01" min="0"
+            value="${account?.initial_balance || 0}" 
+            placeholder="0">
+          <small class="hint" style="color: #6b7280; font-size: 12px;">El balance con que inicia la cuenta</small>
+        </label>
         
         <label class="field">
           <span>Institución</span>
@@ -526,14 +534,6 @@ function showAccountModal(account = null) {
           <input type="text" id="account-last4" maxlength="4" pattern="\\d{4}"
             value="${account?.last4 || ''}" 
             placeholder="1234">
-        </label>
-
-        <label class="field">
-          <span>Balance inicial</span>
-          <input type="number" id="account-balance" step="0.01" min="0"
-            value="${account?.initial_balance || 0}" 
-            placeholder="0">
-          <small class="hint" style="color: #6b7280; font-size: 12px;">El balance con que inicia la cuenta</small>
         </label>
 
         <label class="field">
