@@ -1507,6 +1507,18 @@ function onTipoChange(keepTemplate = false) {
   // Show/hide loan direction selector
   document.getElementById('loanDirectionWrap').classList.toggle('hidden', !isLoan);
 
+  // Update description placeholder based on type
+  const descripcionEl = document.getElementById('descripcion');
+  if (descripcionEl) {
+    if (isIngreso) {
+      descripcionEl.placeholder = 'Ej: Quincena, Freelance, Arriendo…';
+    } else if (isLoan) {
+      descripcionEl.placeholder = 'Ej: Préstamo para almuerzo, Me pagó lo del uber…';
+    } else {
+      descripcionEl.placeholder = 'Ej: Almuerzo, Uber a casa, Guaritos…';
+    }
+  }
+
   // Show/hide sections based on tipo
   document.getElementById('pagadorTomadorRow').classList.toggle('hidden', !isPagoDeuda);
   document.getElementById('pagadorWrap').classList.toggle('hidden', !isCompartido);
