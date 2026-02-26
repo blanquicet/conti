@@ -162,7 +162,7 @@ func (r *repository) Delete(ctx context.Context, id string) error {
 	// Check if account has linked payment methods
 	var pmCount int
 	err = r.pool.QueryRow(ctx, `
-		SELECT COUNT(*) FROM payment_methods WHERE account_id = $1
+		SELECT COUNT(*) FROM payment_methods WHERE linked_account_id = $1 OR account_id = $1
 	`, id).Scan(&pmCount)
 	if err != nil {
 		return err
@@ -287,7 +287,7 @@ func (r *repository) GetBalance(ctx context.Context, id string) (float64, error)
 			+ COALESCE((SELECT SUM(i.amount) FROM income i WHERE i.account_id = a.id), 0)
 			- COALESCE((SELECT SUM(m.amount) FROM movements m 
 			            JOIN payment_methods pm ON m.payment_method_id = pm.id 
-			            WHERE pm.account_id = a.id), 0)
+			            WHERE COALESCE(pm.linked_account_id, pm.account_id) = a.id), 0)
 			- COALESCE((SELECT SUM(ccp.amount) FROM credit_card_payments ccp 
 			            WHERE ccp.source_account_id = a.id), 0)
 			as current_balance
