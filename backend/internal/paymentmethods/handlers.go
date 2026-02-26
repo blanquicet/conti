@@ -47,6 +47,8 @@ type CreatePaymentMethodRequest struct {
 	Last4                 *string           `json:"last4,omitempty"`
 	Institution           *string           `json:"institution,omitempty"`
 	Notes                 *string           `json:"notes,omitempty"`
+	LinkedAccountID       *string           `json:"linked_account_id,omitempty"`
+	CutoffDay             *int              `json:"cutoff_day,omitempty"`
 }
 
 type UpdatePaymentMethodRequest struct {
@@ -136,6 +138,8 @@ IsActive:              req.IsActive,
 Last4:                 req.Last4,
 Institution:           req.Institution,
 Notes:                 req.Notes,
+LinkedAccountID:       req.LinkedAccountID,
+CutoffDay:             req.CutoffDay,
 }
 
 pm, err := h.service.Create(r.Context(), input)

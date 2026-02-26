@@ -32,6 +32,8 @@ IsActive              *bool   // Optional, defaults to true if nil
 Last4                 *string
 Institution           *string
 Notes                 *string
+LinkedAccountID       *string
+CutoffDay             *int
 }
 
 // Validate validates the input
@@ -89,6 +91,8 @@ func (s *Service) Create(ctx context.Context, input *CreateInput) (*PaymentMetho
 		Institution:           input.Institution,
 		Notes:                 input.Notes,
 		IsActive:              isActive,
+		LinkedAccountID:       input.LinkedAccountID,
+		CutoffDay:             input.CutoffDay,
 	}
 
 	created, err := s.repo.Create(ctx, pm)
