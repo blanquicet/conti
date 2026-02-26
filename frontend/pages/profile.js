@@ -13,6 +13,19 @@ import router from '../router.js';
 import * as Navbar from '../components/navbar.js';
 import { showConfirmation, showSuccess, showError, showCreateHouseholdModal } from '../utils.js';
 
+// Colombian number formatting helpers
+function formatNumber(num) {
+  const value = Number(num);
+  if (!Number.isFinite(value)) return '0';
+  return value.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function parseNumber(str) {
+  const cleaned = String(str).replace(/\./g, '').replace(/,/g, '.');
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? num : 0;
+}
+
 let currentUser = null;
 let currentHousehold = null;
 let accounts = [];
@@ -516,8 +529,8 @@ function showAccountModal(account = null) {
 
         <label class="field">
           <span>Balance inicial</span>
-          <input type="number" id="account-balance" step="0.01" min="0"
-            value="${account?.initial_balance || 0}" 
+          <input type="text" id="account-balance" inputmode="decimal"
+            value="${account ? formatNumber(account.initial_balance || 0) : '0'}" 
             placeholder="0">
           <small class="hint" style="color: #6b7280; font-size: 12px;">El balance con que inicia la cuenta</small>
         </label>
@@ -582,6 +595,17 @@ function showAccountModal(account = null) {
     e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4);
   });
 
+  // Balance formatting (Colombian format on blur/focus)
+  const balanceInput = document.getElementById('account-balance');
+  balanceInput?.addEventListener('blur', (e) => {
+    const rawValue = parseNumber(e.target.value);
+    e.target.value = formatNumber(rawValue);
+  });
+  balanceInput?.addEventListener('focus', (e) => {
+    const rawValue = parseNumber(e.target.value);
+    e.target.value = rawValue === 0 ? '' : String(rawValue);
+  });
+
   cancelBtn.addEventListener('click', () => modal.remove());
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
@@ -594,7 +618,7 @@ function showAccountModal(account = null) {
     const name = document.getElementById('account-name').value.trim();
     const institution = document.getElementById('account-institution').value.trim() || '';
     const last4 = document.getElementById('account-last4').value.trim() || '';
-    const initialBalance = parseFloat(document.getElementById('account-balance').value) || 0;
+    const initialBalance = parseNumber(document.getElementById('account-balance').value);
     const notes = document.getElementById('account-notes').value.trim() || '';
 
     if (!name || !accountType) {
