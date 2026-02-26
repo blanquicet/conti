@@ -194,16 +194,28 @@ func (s *Service) Update(ctx context.Context, householdID string, input UpdateIn
 		existing.Name = *input.Name
 	}
 	if input.Institution != nil {
-		existing.Institution = input.Institution
+		if *input.Institution == "" {
+			existing.Institution = nil
+		} else {
+			existing.Institution = input.Institution
+		}
 	}
 	if input.Last4 != nil {
-		existing.Last4 = input.Last4
+		if *input.Last4 == "" {
+			existing.Last4 = nil
+		} else {
+			existing.Last4 = input.Last4
+		}
 	}
 	if input.InitialBalance != nil {
 		existing.InitialBalance = *input.InitialBalance
 	}
 	if input.Notes != nil {
-		existing.Notes = input.Notes
+		if *input.Notes == "" {
+			existing.Notes = nil
+		} else {
+			existing.Notes = input.Notes
+		}
 	}
 
 	updated, err := s.repo.Update(ctx, existing)

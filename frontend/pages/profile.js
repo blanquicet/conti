@@ -592,10 +592,10 @@ function showAccountModal(account = null) {
 
     const accountType = document.getElementById('account-type').value;
     const name = document.getElementById('account-name').value.trim();
-    const institution = document.getElementById('account-institution').value.trim() || null;
-    const last4 = document.getElementById('account-last4').value.trim() || null;
+    const institution = document.getElementById('account-institution').value.trim() || '';
+    const last4 = document.getElementById('account-last4').value.trim() || '';
     const initialBalance = parseFloat(document.getElementById('account-balance').value) || 0;
-    const notes = document.getElementById('account-notes').value.trim() || null;
+    const notes = document.getElementById('account-notes').value.trim() || '';
 
     if (!name || !accountType) {
       errorEl.textContent = 'Por favor completa todos los campos requeridos';
