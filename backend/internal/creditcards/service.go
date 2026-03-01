@@ -257,7 +257,7 @@ func CalculateBillingCycle(date time.Time, cutoffDay *int) BillingCycle {
 		if nextCutoff > lastDay {
 			nextCutoff = lastDay
 		}
-		endDate = time.Date(nextYear, nextMonth, nextCutoff, 23, 59, 59, 999999999, date.Location())
+		endDate = time.Date(nextYear, nextMonth, nextCutoff+1, 0, 0, 0, 0, date.Location())
 	} else {
 		// Cycle: last month's (cutoff+1) to this month's cutoff
 		prevMonth := month - 1
@@ -281,11 +281,12 @@ func CalculateBillingCycle(date time.Time, cutoffDay *int) BillingCycle {
 		if thisCutoff > thisLastDay {
 			thisCutoff = thisLastDay
 		}
-		endDate = time.Date(year, month, thisCutoff, 23, 59, 59, 999999999, date.Location())
+		endDate = time.Date(year, month, thisCutoff+1, 0, 0, 0, 0, date.Location())
 	}
 
-	// Format label
-	label := formatCycleLabel(startDate, endDate)
+	// Format label using display end date (endDate is exclusive, so subtract 1 day for display)
+	labelEnd := endDate.AddDate(0, 0, -1)
+	label := formatCycleLabel(startDate, labelEnd)
 
 	return BillingCycle{
 		StartDate: startDate,
