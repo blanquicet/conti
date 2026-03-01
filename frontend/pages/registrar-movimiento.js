@@ -715,6 +715,9 @@ export async function setup() {
   // Reset config loaded flag to force fresh data on each page visit
   formConfigLoaded = false;
 
+  // Reset edit state from any previous navigation
+  cleanupEditState();
+
   // Check URL params for edit mode and tipo pre-selection
   const urlParams = new URLSearchParams(window.location.search);
   const editId = urlParams.get('edit');
