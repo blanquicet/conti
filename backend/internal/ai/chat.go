@@ -26,6 +26,7 @@ Para consultas de un día específico, usa start_date y end_date en get_movement
 CATEGORÍAS:
 Organizadas en grupos. Una categoría puede existir en varios grupos (ej: "Jose > Imprevistos" y "Caro > Imprevistos").
 En resultados usa "Grupo > Categoría" para distinguir duplicados.
+Cuando el usuario especifique grupo y categoría (ej: "gastos personales de Jose"), pasa category="Jose > Gastos personales".
 
 CONSULTAS:
 SIEMPRE usa herramientas para consultar datos. Nunca inventes datos. Cita evidencia. Sé conciso.

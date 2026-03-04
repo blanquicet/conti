@@ -830,23 +830,42 @@ func (te *ToolExecutor) prepareMovement(ctx context.Context, householdID, userID
 				}
 			}
 		}
-		// If no group filter and multiple exact matches → return options for disambiguation
+		// If no group filter and multiple exact matches → try to disambiguate using words in categoryName
 		if matchedCat == nil && len(exactMatches) > 1 {
-			var names []string
+			// Check if categoryName contains a group name that disambiguates
+			lowerInput := strings.ToLower(categoryName)
+			var groupMatched *categories.Category
+			groupMatchCount := 0
 			for _, c := range exactMatches {
-				displayName := c.Name
 				if c.CategoryGroupID != nil {
 					if gn, ok := groupNames[*c.CategoryGroupID]; ok {
-						displayName = gn + " > " + c.Name
+						if strings.Contains(lowerInput, strings.ToLower(gn)) {
+							groupMatched = c
+							groupMatchCount++
+						}
 					}
 				}
-				names = append(names, displayName)
 			}
-			sort.Strings(names)
-			return map[string]any{
-				"error":                fmt.Sprintf("Hay %d categorías llamadas '%s'. ¿Cuál?", len(exactMatches), catNameFilter),
-				"available_categories": names,
-			}, nil
+			if groupMatchCount == 1 {
+				matchedCat = groupMatched
+			} else {
+				// Still ambiguous → return options
+				var names []string
+				for _, c := range exactMatches {
+					displayName := c.Name
+					if c.CategoryGroupID != nil {
+						if gn, ok := groupNames[*c.CategoryGroupID]; ok {
+							displayName = gn + " > " + c.Name
+						}
+					}
+					names = append(names, displayName)
+				}
+				sort.Strings(names)
+				return map[string]any{
+					"error":                fmt.Sprintf("Hay %d categorías llamadas '%s'. ¿Cuál?", len(exactMatches), catNameFilter),
+					"available_categories": names,
+				}, nil
+			}
 		}
 		if matchedCat == nil && len(exactMatches) == 1 {
 			matchedCat = exactMatches[0]
