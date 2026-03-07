@@ -63,16 +63,20 @@ export async function setup() {
   
   await loadHousehold();
 
-  // Scroll to section if specified in URL and add highlight effect
+  // Scroll to section(s) if specified in URL and add highlight effect
   const urlParams = new URLSearchParams(window.location.search);
   const section = urlParams.get('section');
   if (section) {
-    const el = document.getElementById(`section-${section}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      el.classList.add('section-highlight');
-      setTimeout(() => el.classList.remove('section-highlight'), 3000);
-    }
+    const sections = section.split(',');
+    const firstEl = document.getElementById(`section-${sections[0]}`);
+    if (firstEl) firstEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    sections.forEach(s => {
+      const el = document.getElementById(`section-${s}`);
+      if (el) {
+        el.classList.add('section-highlight');
+        setTimeout(() => el.classList.remove('section-highlight'), 3000);
+      }
+    });
     window.history.replaceState({}, '', '/hogar');
   }
 }
@@ -192,7 +196,7 @@ function renderHouseholdContent() {
       </div>
     </div>
 
-    <div class="household-section">
+    <div class="household-section" id="section-contactos">
       <div class="section-header">
         <h3 class="section-title">Contactos</h3>
         <button id="add-contact-btn" class="btn-secondary btn-small">+ Agregar contacto</button>
