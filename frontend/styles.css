@@ -5141,3 +5141,29 @@ input[type="number"] {
   100% { outline: 3px solid rgba(99, 102, 241, 0); outline-offset: 16px; }
 }
 }
+
+.help-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid #94a3b8;
+  background: none;
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 6px;
+  vertical-align: middle;
+  transition: all 0.15s;
+  padding: 0;
+  line-height: 1;
+}
+
+.help-btn:hover {
+  border-color: #6366f1;
+  color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+}

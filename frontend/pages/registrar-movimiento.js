@@ -13,7 +13,6 @@ import { API_URL } from '../config.js';
 import router from '../router.js';
 import * as Navbar from '../components/navbar.js';
 import { showSuccess, getSimplifiedCategoryName, isCategoryRequired } from '../utils.js';
-import { renderOnboardingBanner, setupOnboardingBanner } from '../components/onboarding-banner.js';
 
 const MOVEMENT_TYPE_STEPS = [
   { title: 'Gasto del hogar', tipo: 'HOUSEHOLD',
@@ -39,7 +38,6 @@ function clearTipoHighlight() {
 }
 
 function showMovementTypesWizard() {
-  if (localStorage.getItem('movement_types_wizard_done') === 'true') return;
   if (document.querySelector('[data-testid="movement-types-wizard"]')) return;
 
   let currentStep = 0;
@@ -70,7 +68,6 @@ function showMovementTypesWizard() {
               : '<button class="onboarding-btn-primary" data-wiz="next">Siguiente →</button>'
             }
           </div>
-          <button class="onboarding-skip" data-wiz="skip">Omitir</button>
         </div>
       </div>
     `;
@@ -81,20 +78,14 @@ function showMovementTypesWizard() {
       e.stopPropagation();
       if (action === 'next') { currentStep++; renderStep(); }
       else if (action === 'prev') { currentStep--; renderStep(); }
-      else if (action === 'done' || action === 'skip') { finish(); }
+      else if (action === 'done') { clearTipoHighlight(); overlay.remove(); }
     });
 
     highlightTipoBtn(step.tipo);
   }
 
-  function finish() {
-    localStorage.setItem('movement_types_wizard_done', 'true');
-    clearTipoHighlight();
-    overlay.remove();
-  }
-
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) finish();
+    if (e.target === overlay) { clearTipoHighlight(); overlay.remove(); }
   });
 
   document.body.appendChild(overlay);
@@ -196,7 +187,7 @@ export function render(user) {
             <h1 id="pageTitle">${title}</h1>
             ${Navbar.render(user, '/registrar-movimiento')}
           </div>
-          <p class="subtitle">Registra ingresos, gastos o préstamos</p>
+          <p class="subtitle">Registra ingresos, gastos o préstamos <button type="button" class="help-btn" id="show-types-help" title="¿Qué tipo elegir?">?</button></p>
         </header>
 
         <div id="fullScreenLoading" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 400px; gap: 16px;">
@@ -405,7 +396,7 @@ export function render(user) {
           <h1 id="pageTitle">Registrar movimiento</h1>
           ${Navbar.render(user, '/registrar-movimiento')}
         </div>
-        <p class="subtitle">Registra ingresos, gastos o préstamos</p>
+        <p class="subtitle">Registra ingresos, gastos o préstamos <button type="button" class="help-btn" id="show-types-help" title="¿Qué tipo elegir?">?</button></p>
       </header>
 
       <form id="movForm" novalidate>
@@ -785,8 +776,9 @@ export async function setup() {
   // Initialize navbar
   Navbar.setup();
 
-  // Show movement types wizard for new users
-  showMovementTypesWizard();
+  // Help button to show movement types wizard
+  const helpBtn = document.getElementById('show-types-help');
+  if (helpBtn) helpBtn.addEventListener('click', () => showMovementTypesWizard());
   
   // Setup back link - go back to previous page (chat or home)
   const backLink = document.getElementById('back-to-home');
