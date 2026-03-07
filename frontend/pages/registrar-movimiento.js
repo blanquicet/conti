@@ -13,6 +13,86 @@ import { API_URL } from '../config.js';
 import router from '../router.js';
 import * as Navbar from '../components/navbar.js';
 import { showSuccess, getSimplifiedCategoryName, isCategoryRequired } from '../utils.js';
+import { renderOnboardingBanner, setupOnboardingBanner } from '../components/onboarding-banner.js';
+
+const MOVEMENT_TYPE_STEPS = [
+  {
+    title: 'Gasto del hogar',
+    desc: 'Gastos que hace el hogar como unidad: mercado, servicios, arriendo, etc.<br><br>Se registran a nombre del hogar y se asignan a una categoría.',
+  },
+  {
+    title: 'Dividir gasto',
+    desc: 'Cuando alguien paga algo y se divide entre varias personas.<br><br>Ejemplo: Un amigo paga la cena de $100k y tú debes $50k. Esto crea una deuda automáticamente.',
+  },
+  {
+    title: 'Préstamo',
+    desc: 'Registra cuando prestas o te prestan dinero.<br><br><strong>Prestar:</strong> Tú le diste dinero a alguien.<br><strong>Pagar deuda:</strong> Alguien te devuelve lo que te debía.',
+  },
+  {
+    title: 'Ingresos',
+    desc: 'Registra tu salario, bonos, reembolsos, o cualquier ingreso.<br><br>El dinero se deposita en una de tus cuentas bancarias.',
+  },
+];
+
+function showMovementTypesWizard() {
+  if (localStorage.getItem('movement_types_wizard_done') === 'true') return;
+  if (document.querySelector('[data-testid="movement-types-wizard"]')) return;
+
+  let currentStep = 0;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.setAttribute('data-testid', 'movement-types-wizard');
+
+  function renderStep() {
+    const step = MOVEMENT_TYPE_STEPS[currentStep];
+    const isFirst = currentStep === 0;
+    const isLast = currentStep === MOVEMENT_TYPE_STEPS.length - 1;
+
+    overlay.innerHTML = `
+      <div class="onboarding-wizard-card">
+        <div class="onboarding-step-title">${step.title}</div>
+        <div class="onboarding-step-desc">${step.desc}</div>
+        <div class="onboarding-dots">
+          ${MOVEMENT_TYPE_STEPS.map((_, i) =>
+            `<div class="onboarding-dot ${i === currentStep ? 'active' : ''}"></div>`
+          ).join('')}
+        </div>
+        <div class="onboarding-actions">
+          <div class="onboarding-nav">
+            ${!isFirst ? '<button class="onboarding-btn-secondary" data-wiz="prev">← Anterior</button>' : ''}
+            ${isLast
+              ? '<button class="onboarding-btn-primary" data-wiz="done">¡Entendido!</button>'
+              : '<button class="onboarding-btn-primary" data-wiz="next">Siguiente →</button>'
+            }
+          </div>
+          <button class="onboarding-skip" data-wiz="skip">Omitir</button>
+        </div>
+      </div>
+    `;
+
+    overlay.querySelector('.onboarding-wizard-card').addEventListener('click', (e) => {
+      const action = e.target.closest('[data-wiz]')?.dataset.wiz;
+      if (!action) return;
+      e.stopPropagation();
+      if (action === 'next') { currentStep++; renderStep(); }
+      else if (action === 'prev') { currentStep--; renderStep(); }
+      else if (action === 'done' || action === 'skip') { finish(); }
+    });
+  }
+
+  function finish() {
+    localStorage.setItem('movement_types_wizard_done', 'true');
+    overlay.remove();
+  }
+
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) finish();
+  });
+
+  document.body.appendChild(overlay);
+  renderStep();
+}
 
 // Configuration loaded from API
 let users = [];
@@ -697,6 +777,9 @@ export async function setup() {
 
   // Initialize navbar
   Navbar.setup();
+
+  // Show movement types wizard for new users
+  showMovementTypesWizard();
   
   // Setup back link - go back to previous page (chat or home)
   const backLink = document.getElementById('back-to-home');
