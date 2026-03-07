@@ -264,7 +264,10 @@ function showOnboardingWizard() {
         </div>
         <div class="onboarding-actions">
           ${isLast ? `
-            <button class="onboarding-btn-primary" data-wiz="finish">${step.actionLabel}</button>
+            <div class="onboarding-nav">
+              <button class="onboarding-btn-secondary" data-wiz="prev">← Anterior</button>
+              <button class="onboarding-btn-primary" data-wiz="finish">${step.actionLabel}</button>
+            </div>
           ` : `
             <div class="onboarding-nav">
               ${!isFirst ? '<button class="onboarding-btn-secondary" data-wiz="prev">← Anterior</button>' : ''}
