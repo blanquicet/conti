@@ -5146,13 +5146,13 @@ input[type="number"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
+  width: 1em;
+  height: 1em;
   border-radius: 50%;
   border: 1px solid #cbd5e1;
   background: none;
   color: #a0aec0;
-  font-size: 9px;
+  font-size: 0.65em;
   font-weight: 700;
   cursor: pointer;
   margin-left: 3px;
