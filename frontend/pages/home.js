@@ -299,6 +299,8 @@ function showOnboardingWizard() {
     localStorage.setItem('onboarding_wizard_completed', 'true');
     localStorage.removeItem('onboarding_current_step');
     overlay.remove();
+    document.getElementById('onboarding-checklist')?.remove();
+  }
   }
 
   overlay.addEventListener('click', (e) => {
