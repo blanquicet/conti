@@ -300,14 +300,30 @@ function showOnboardingWizard() {
 
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) {
-      // Save progress when clicking overlay to close
       localStorage.setItem('onboarding_current_step', String(currentStep));
       overlay.remove();
+      injectChecklistBanner();
     }
   });
 
   document.body.appendChild(overlay);
   renderStep();
+}
+
+/**
+ * Inject checklist banner into the current page (after wizard dismiss)
+ */
+function injectChecklistBanner() {
+  if (document.getElementById('onboarding-checklist')) return;
+
+  const html = renderOnboardingChecklist(window.formConfigCache, movementsData?.movements?.length > 0);
+  if (!html) return;
+
+  const container = document.querySelector('.dashboard-content');
+  if (container) {
+    container.insertAdjacentHTML('afterbegin', html);
+    setupOnboardingChecklist(window.formConfigCache, movementsData?.movements?.length > 0);
+  }
 }
 
 /**
