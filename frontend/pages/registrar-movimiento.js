@@ -16,23 +16,27 @@ import { showSuccess, getSimplifiedCategoryName, isCategoryRequired } from '../u
 import { renderOnboardingBanner, setupOnboardingBanner } from '../components/onboarding-banner.js';
 
 const MOVEMENT_TYPE_STEPS = [
-  {
-    title: 'Gasto del hogar',
-    desc: 'Gastos que hace el hogar como unidad: mercado, servicios, arriendo, etc.<br><br>Se registran a nombre del hogar y se asignan a una categoría.',
-  },
-  {
-    title: 'Dividir gasto',
-    desc: 'Cuando alguien paga algo y se divide entre varias personas.<br><br>Ejemplo: Un amigo paga la cena de $100k y tú debes $50k. Esto crea una deuda automáticamente.',
-  },
-  {
-    title: 'Préstamo',
-    desc: 'Registra cuando prestas o te prestan dinero.<br><br><strong>Prestar:</strong> Tú le diste dinero a alguien.<br><strong>Pagar deuda:</strong> Alguien te devuelve lo que te debía.',
-  },
-  {
-    title: 'Ingresos',
-    desc: 'Registra tu salario, bonos, reembolsos, o cualquier ingreso.<br><br>El dinero se deposita en una de tus cuentas bancarias.',
-  },
+  { title: 'Gasto del hogar', tipo: 'HOUSEHOLD',
+    desc: 'Gastos que hace el hogar como unidad: mercado, servicios, arriendo, etc.<br><br>Se registran a nombre del hogar y se asignan a una categoría.' },
+  { title: 'Dividir gasto', tipo: 'SPLIT',
+    desc: 'Cuando alguien paga algo y se divide entre varias personas.<br><br>Ejemplo: Un amigo paga la cena de $100k y tú debes $50k. Esto crea una deuda automáticamente.' },
+  { title: 'Préstamo', tipo: 'LOAN',
+    desc: 'Registra cuando prestas o te prestan dinero.<br><br><strong>Prestar:</strong> Tú le diste dinero a alguien.<br><strong>Pagar deuda:</strong> Alguien te devuelve lo que te debía.' },
+  { title: 'Ingresos', tipo: 'INGRESO',
+    desc: 'Registra tu salario, bonos, reembolsos, o cualquier ingreso.<br><br>El dinero se deposita en una de tus cuentas bancarias.' },
 ];
+
+function highlightTipoBtn(tipo) {
+  // Remove highlight from all
+  document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('tipo-highlight'));
+  // Add to current
+  const btn = document.querySelector(`.tipo-btn[data-tipo="${tipo}"]`);
+  if (btn) btn.classList.add('tipo-highlight');
+}
+
+function clearTipoHighlight() {
+  document.querySelectorAll('.tipo-btn').forEach(b => b.classList.remove('tipo-highlight'));
+}
 
 function showMovementTypesWizard() {
   if (currentUser?.onboarding_completed) return;
@@ -80,10 +84,13 @@ function showMovementTypesWizard() {
       else if (action === 'prev') { currentStep--; renderStep(); }
       else if (action === 'done' || action === 'skip') { finish(); }
     });
+
+    highlightTipoBtn(step.tipo);
   }
 
   function finish() {
     localStorage.setItem('movement_types_wizard_done', 'true');
+    clearTipoHighlight();
     overlay.remove();
   }
 

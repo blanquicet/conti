@@ -3385,6 +3385,15 @@ button.loading::after {
   font-weight: 600;
 }
 
+.tipo-highlight .tipo-icon {
+  animation: tipo-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tipo-pulse {
+  0%, 100% { outline: 3px solid rgba(99, 102, 241, 0.6); outline-offset: 4px; }
+  50% { outline: 3px solid rgba(99, 102, 241, 0.2); outline-offset: 8px; }
+}
+
 /* Mobile: 2 columns */
 @media (max-width: 600px) {
   .tipo-selector {
