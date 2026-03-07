@@ -12,6 +12,7 @@ import router from '../router.js';
 import * as Navbar from '../components/navbar.js';
 import { showConfirmation, showSuccess, showError } from '../utils.js';
 import { validateEmail } from '../auth-utils.js';
+import { renderOnboardingBanner, setupOnboardingBanner } from '../components/onboarding-banner.js';
 
 // Phone validation regex
 // Allows: 3001234567 (10-14 digits) or +573001234567 (+ plus up to 13 digits)
@@ -41,6 +42,8 @@ export function render(user) {
         <p class="subtitle">Administra tu hogar, miembros y contactos.</p>
       </header>
 
+      <div id="onboarding-banner-container">${renderOnboardingBanner()}</div>
+
       <div id="household-content">
         <div class="loading-section">
           <div class="spinner-small"></div>
@@ -56,6 +59,7 @@ export function render(user) {
  */
 export async function setup() {
   Navbar.setup();
+  setupOnboardingBanner((path) => router.navigate(path));
   
   await loadHousehold();
 

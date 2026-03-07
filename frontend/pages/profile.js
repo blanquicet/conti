@@ -12,6 +12,7 @@ import { API_URL } from '../config.js';
 import router from '../router.js';
 import * as Navbar from '../components/navbar.js';
 import { showConfirmation, showSuccess, showError, showCreateHouseholdModal } from '../utils.js';
+import { renderOnboardingBanner, setupOnboardingBanner } from '../components/onboarding-banner.js';
 
 // Colombian number formatting helpers
 function formatNumber(num) {
@@ -62,6 +63,8 @@ export function render(user) {
         <p class="subtitle">Información de tu cuenta y hogar.</p>
       </header>
 
+      <div id="onboarding-banner-container">${renderOnboardingBanner()}</div>
+
       <div id="profile-content">
         <div class="loading-section">
           <div class="spinner-small"></div>
@@ -77,6 +80,7 @@ export function render(user) {
  */
 export async function setup() {
   Navbar.setup();
+  setupOnboardingBanner((path) => router.navigate(path));
   await loadProfile();
 }
 
