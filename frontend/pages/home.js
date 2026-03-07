@@ -315,7 +315,10 @@ function showOnboardingWizard() {
  */
 function renderOnboardingChecklist(formConfig, hasMovements) {
   if (localStorage.getItem('onboarding_dismissed') === 'true') return '';
-  if (localStorage.getItem('onboarding_wizard_completed') !== 'true') return '';
+  
+  const wizardCompleted = localStorage.getItem('onboarding_wizard_completed') === 'true';
+  const wizardInProgress = localStorage.getItem('onboarding_current_step') !== null;
+  if (!wizardCompleted && !wizardInProgress) return '';
 
   const steps = [
     { label: 'Categorías creadas', done: true, route: '/hogar' },
@@ -366,17 +369,11 @@ function setupOnboardingChecklist(formConfig, hasMovements) {
     });
   }
 
-  // Click banner to navigate to next step
-  const nextStep = steps.find(s => !s.done);
-  if (nextStep) {
-    banner.addEventListener('click', (e) => {
-      if (e.target.id === 'onboarding-dismiss') return;
-      if (nextStep.route === '/hogar') {
-        localStorage.setItem('onboarding_step4_done', 'true');
-      }
-      router.navigate(nextStep.route);
-    });
-  }
+  // Click banner to reopen wizard
+  banner.addEventListener('click', (e) => {
+    if (e.target.id === 'onboarding-dismiss') return;
+    showOnboardingWizard();
+  });
 }
 function getIncomeTypeIcon(type) {
   const icons = {
@@ -6477,8 +6474,11 @@ export async function setup() {
     return; // Don't load any data
   }
 
-  // Show onboarding wizard if household exists but wizard hasn't been shown yet
-  if (localStorage.getItem('onboarding_wizard_completed') !== 'true') {
+  // Show onboarding wizard automatically only on first visit (no saved step yet)
+  // If user already started and dismissed, the checklist banner handles it
+  if (localStorage.getItem('onboarding_wizard_completed') !== 'true' 
+      && localStorage.getItem('onboarding_current_step') === null
+      && localStorage.getItem('onboarding_dismissed') !== 'true') {
     showOnboardingWizard();
   }
   
