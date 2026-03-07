@@ -319,13 +319,13 @@ function showOnboardingWizard() {
 function injectChecklistBanner() {
   if (document.getElementById('onboarding-checklist')) return;
 
-  const html = renderOnboardingChecklist(window.formConfigCache, movementsData?.movements?.length > 0);
+  const html = renderOnboardingChecklist();
   if (!html) return;
 
   const container = document.querySelector('.dashboard-content');
   if (container) {
     container.insertAdjacentHTML('afterbegin', html);
-    setupOnboardingChecklist(window.formConfigCache, movementsData?.movements?.length > 0);
+    setupOnboardingChecklist();
   }
 }
 
@@ -336,29 +336,20 @@ function renderOnboardingChecklist(formConfig, hasMovements) {
   if (localStorage.getItem('onboarding_dismissed') === 'true') return '';
   
   const wizardCompleted = localStorage.getItem('onboarding_wizard_completed') === 'true';
-  const wizardInProgress = localStorage.getItem('onboarding_current_step') !== null;
-  if (!wizardCompleted && !wizardInProgress) return '';
+  const currentStep = parseInt(localStorage.getItem('onboarding_current_step') || '-1');
+  if (wizardCompleted || currentStep < 0) return '';
 
-  const steps = [
-    { label: 'Categorías creadas', done: true, route: '/hogar' },
-    { label: 'Método de pago', done: (formConfig?.payment_methods?.length || 0) > 0, route: '/perfil?action=add-payment-method' },
-    { label: 'Cuenta bancaria', done: (formConfig?.accounts?.length || 0) > 0, route: '/perfil?action=add-account' },
-    { label: 'Miembros y contactos', done: localStorage.getItem('onboarding_step4_done') === 'true', route: '/hogar' },
-    { label: 'Primer gasto registrado', done: hasMovements, route: '/registrar-movimiento' },
-  ];
-
-  const doneCount = steps.filter(s => s.done).length;
-  if (doneCount === steps.length) return '';
-
-  const nextStep = steps.find(s => !s.done);
+  const stepTitles = ONBOARDING_STEPS.map(s => s.title);
+  const stepIndex = Math.min(currentStep, stepTitles.length - 1);
+  const progress = `${stepIndex + 1}/${stepTitles.length}`;
 
   return `
     <div class="link-request-banner-stack" id="onboarding-checklist">
       <div class="link-request-banner" id="onboarding-checklist-click" style="position:relative; cursor:pointer;">
         <div class="link-request-banner-icon">📋</div>
         <div class="link-request-banner-content">
-          <div class="link-request-banner-title">Configura tu hogar (${doneCount}/${steps.length})</div>
-          <div class="link-request-banner-subtitle">Siguiente: ${nextStep.label}</div>
+          <div class="link-request-banner-title">Guía de configuración (${progress})</div>
+          <div class="link-request-banner-subtitle">Siguiente: ${stepTitles[stepIndex]}</div>
         </div>
         <div class="link-request-banner-arrow" id="onboarding-dismiss" style="font-size:18px;font-weight:bold;">✕</div>
       </div>
@@ -366,19 +357,10 @@ function renderOnboardingChecklist(formConfig, hasMovements) {
   `;
 }
 
-function setupOnboardingChecklist(formConfig, hasMovements) {
+function setupOnboardingChecklist() {
   const banner = document.getElementById('onboarding-checklist-click');
   if (!banner) return;
 
-  const steps = [
-    { done: true, route: '/hogar' },
-    { done: (formConfig?.payment_methods?.length || 0) > 0, route: '/perfil?action=add-payment-method' },
-    { done: (formConfig?.accounts?.length || 0) > 0, route: '/perfil?action=add-account' },
-    { done: localStorage.getItem('onboarding_step4_done') === 'true', route: '/hogar' },
-    { done: hasMovements, route: '/registrar-movimiento' },
-  ];
-
-  // Dismiss button
   const dismissBtn = document.getElementById('onboarding-dismiss');
   if (dismissBtn) {
     dismissBtn.addEventListener('click', (e) => {
@@ -388,7 +370,6 @@ function setupOnboardingChecklist(formConfig, hasMovements) {
     });
   }
 
-  // Click banner to reopen wizard
   banner.addEventListener('click', (e) => {
     if (e.target.id === 'onboarding-dismiss') return;
     showOnboardingWizard();
@@ -6516,8 +6497,7 @@ export async function setup() {
   tabsNeedingReload.delete(activeTab);
 
   // Show onboarding checklist if setup is incomplete
-  const hasMovements = movementsData?.movements?.length > 0;
-  const checklistHtml = renderOnboardingChecklist(window.formConfigCache, hasMovements);
+  const checklistHtml = renderOnboardingChecklist();
   
   // Initial render of content - UPDATE THE DOM after loading data
   // contentContainer already declared above for no-household check
@@ -6578,7 +6558,7 @@ export async function setup() {
   }
 
   // Setup onboarding checklist click handler
-  setupOnboardingChecklist(window.formConfigCache, hasMovements);
+  setupOnboardingChecklist();
 
   // Setup tab listeners
   const tabButtons = document.querySelectorAll('.tab-btn');
