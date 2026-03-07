@@ -63,12 +63,16 @@ export async function setup() {
   
   await loadHousehold();
 
-  // Scroll to section if specified in URL
+  // Scroll to section if specified in URL and add highlight effect
   const urlParams = new URLSearchParams(window.location.search);
   const section = urlParams.get('section');
   if (section) {
     const el = document.getElementById(`section-${section}`);
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      el.classList.add('section-highlight');
+      setTimeout(() => el.classList.remove('section-highlight'), 3000);
+    }
     window.history.replaceState({}, '', '/hogar');
   }
 }

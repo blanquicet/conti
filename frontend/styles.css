@@ -5120,3 +5120,15 @@ input[type="number"] {
 .onboarding-nav .onboarding-btn-primary {
   flex: 2;
 }
+
+.section-highlight {
+  animation: section-pulse 3s ease-out;
+  border-radius: 12px;
+}
+
+@keyframes section-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.5); }
+  30% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+}
+}
