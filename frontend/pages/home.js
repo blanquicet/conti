@@ -323,15 +323,14 @@ function showOnboardingWizard() {
  * Inject checklist banner into the current page (after wizard dismiss)
  */
 function injectChecklistBanner() {
-  // Remove existing banner to re-render with updated step
   document.getElementById('onboarding-checklist')?.remove();
 
   const html = renderOnboardingChecklist();
   if (!html) return;
 
-  const container = document.querySelector('.dashboard-content');
+  const container = document.getElementById('onboarding-banner-home');
   if (container) {
-    container.insertAdjacentHTML('afterbegin', html);
+    container.innerHTML = html;
     setupOnboardingChecklist();
   }
 }
@@ -1414,6 +1413,8 @@ export function render(user) {
       </header>
 
       ${renderTabs()}
+
+      <div id="onboarding-banner-home"></div>
       
       <div class="dashboard-content">
         ${activeTab === 'gastos' && movementsData ? `
@@ -6501,17 +6502,18 @@ export async function setup() {
   // Remove active tab from reload set since we just loaded it
   tabsNeedingReload.delete(activeTab);
 
-  // Show onboarding checklist if setup is incomplete
-  const checklistHtml = renderOnboardingChecklist();
+  // Show onboarding checklist in dedicated container (outside dashboard-content so it persists across tabs)
+  const bannerContainer = document.getElementById('onboarding-banner-home');
+  if (bannerContainer) {
+    bannerContainer.innerHTML = renderOnboardingChecklist();
+    setupOnboardingChecklist();
+  }
   
   // Initial render of content - UPDATE THE DOM after loading data
   // contentContainer already declared above for no-household check
   if (contentContainer) {
-    // Prepend checklist before tab content
-    const checklistPrefix = checklistHtml || '';
     if (activeTab === 'gastos' && movementsData) {
       contentContainer.innerHTML = `
-        ${checklistPrefix}
         ${renderMonthSelector()}
         
         <div class="total-display">
@@ -6525,7 +6527,6 @@ export async function setup() {
       `;
     } else if (activeTab === 'ingresos' && incomeData) {
       contentContainer.innerHTML = `
-        ${checklistPrefix}
         ${renderMonthSelector()}
         
         <div class="total-display">
@@ -6539,7 +6540,6 @@ export async function setup() {
       `;
     } else if (activeTab === 'prestamos' && loansData) {
       contentContainer.innerHTML = `
-        ${checklistPrefix}
         ${renderMonthSelector()}
         
         <div id="loans-container">
@@ -6552,7 +6552,6 @@ export async function setup() {
       setupLoansFilterListeners();
     } else if (activeTab === 'presupuesto' && budgetsData) {
       contentContainer.innerHTML = `
-        ${checklistPrefix}
         ${renderMonthSelector()}
         
         ${renderBudgets()}
@@ -6561,9 +6560,6 @@ export async function setup() {
       setupBudgetListeners();
     }
   }
-
-  // Setup onboarding checklist click handler
-  setupOnboardingChecklist();
 
   // Setup tab listeners
   const tabButtons = document.querySelectorAll('.tab-btn');
