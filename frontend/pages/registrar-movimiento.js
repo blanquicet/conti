@@ -203,7 +203,7 @@ export function render(user) {
         </div>
         <div class="grid">
           <div class="field col-span-2">
-            <span>¿Qué deseas registrar? <button type="button" class="help-btn" id="show-types-help" title="¿Qué tipo elegir?">?</button></span>
+            <span>¿Qué deseas registrar?</span>
             <div class="tipo-selector">
               <button type="button" class="tipo-btn" data-tipo="HOUSEHOLD">
                 <div class="tipo-icon">🏠</div>
@@ -384,10 +384,10 @@ export function render(user) {
           <p id="status" class="status" role="status" aria-live="polite"></p>
         </div>
       </form>
+      <button type="button" class="btn-help-floating" id="show-types-help" title="¿Qué tipo elegir?">?</button>
     </main>
   `;
   }
-  
   // Normal render without loading (when navigating directly without params)
   return `
     <main class="card">
@@ -402,7 +402,7 @@ export function render(user) {
       <form id="movForm" novalidate>
         <div class="grid">
           <div class="field col-span-2">
-            <span>¿Qué deseas registrar? <button type="button" class="help-btn" id="show-types-help" title="¿Qué tipo elegir?">?</button></span>
+            <span>¿Qué deseas registrar?</span>
             <div class="tipo-selector">
               <button type="button" class="tipo-btn" data-tipo="HOUSEHOLD">
                 <div class="tipo-icon">🏠</div>
@@ -583,6 +583,7 @@ export function render(user) {
           <p id="status" class="status" role="status" aria-live="polite"></p>
         </div>
       </form>
+      <button type="button" class="btn-help-floating" id="show-types-help" title="¿Qué tipo elegir?">?</button>
     </main>
   `;
 }
