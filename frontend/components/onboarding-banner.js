@@ -6,6 +6,7 @@
  */
 
 const ONBOARDING_STEP_TITLES = [
+  '¡Bienvenido!',
   'Categorías',
   'Cuenta bancaria',
   'Método de pago',

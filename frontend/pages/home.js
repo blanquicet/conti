@@ -197,6 +197,12 @@ function renderNoHouseholdState() {
  */
 const ONBOARDING_STEPS = [
   {
+    icon: '👋',
+    title: '¡Bienvenido a Conti!',
+    desc: 'Esta guía rápida te ayudará a configurar tu hogar para empezar a registrar gastos, ingresos y préstamos.<br><br>Son solo unos pasos. ¡Vamos!',
+    actionLabel: null,
+  },
+  {
     icon: '📂',
     title: 'Categorías',
     desc: 'Las <strong>categorías</strong> te ayudan a organizar tus gastos (ej: Mercado, Subscripciones, Vacaciones, etc.).<br><br>Ya creamos unas de ejemplo para que empieces. Puedes editarlas o crear nuevas.',
@@ -226,8 +232,8 @@ const ONBOARDING_STEPS = [
   },
   {
     icon: '✨',
-    title: 'Registra tu primer gasto',
-    desc: '¡Listo! Ya tienes todo lo necesario para empezar.<br><br>Registra tu primer gasto y lleva el control de tus finanzas.',
+    title: '¡Listo!',
+    desc: 'Ya tienes todo lo necesario para empezar.<br><br>Registra tu primer gasto y lleva el control de tus finanzas.',
     actionLabel: 'Registrar mi primer gasto',
     actionRoute: '/registrar-movimiento',
   },
