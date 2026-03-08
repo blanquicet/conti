@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import pg from 'pg';
 import { createCategoryViaUI } from './helpers/category-helpers.js';
-import { skipOnboardingWizard } from './helpers/onboarding-helpers.js';
+import { skipOnboardingWizard, completeOnboardingViaDB } from './helpers/onboarding-helpers.js';
 const { Pool } = pg;
 
 /**
@@ -78,10 +78,15 @@ async function testBudgetManagement() {
     await page.locator('#household-name-input').fill(householdName);
     await page.locator('#household-create-btn').click();
     await page.waitForTimeout(1000);
+
+    // Complete onboarding BEFORE dismissing modal (which triggers page reload)
+    const userQuery = await pool.query('SELECT id FROM users WHERE email = $1', [userEmail]);
+    const userId = userQuery.rows[0].id;
+    await completeOnboardingViaDB(pool, userId);
+
     await page.locator('#modal-ok').click();
     await page.waitForTimeout(2000);
 
-    await skipOnboardingWizard(page);
     
     console.log('✅ Household created');
 
@@ -157,10 +162,13 @@ async function testBudgetManagement() {
     
     console.log('✅ Expanded all groups');
     
-    // Check for budget cards (using expense-category-item structure)
+    // Check for budget cards (default categories + manually created ones)
+    // Default: Mercado, Subscripciones (Hogar) + Vacaciones (Diversión) = 3
+    // Manually created: Transporte (Hogar) + Restaurantes (Diversión) = 2
+    // Total = 5
     const budgetCards = await page.locator('.expense-category-item').count();
-    if (budgetCards !== 3) {
-      throw new Error(`Expected 3 budget cards, found ${budgetCards}`);
+    if (budgetCards !== 5) {
+      throw new Error(`Expected 5 budget cards, found ${budgetCards}`);
     }
     
     console.log(`✅ Found ${budgetCards} budget cards (one per category)`);
@@ -308,8 +316,8 @@ async function testBudgetManagement() {
     
     // Verify budgets are empty for next month
     const nextMonthCards = await page.locator('.expense-category-item').count();
-    if (nextMonthCards !== 3) {
-      throw new Error(`Expected 3 budget cards in next month, found ${nextMonthCards}`);
+    if (nextMonthCards !== 5) {
+      throw new Error(`Expected 5 budget cards in next month, found ${nextMonthCards}`);
     }
     
     // Check that amounts show "Sin presupuesto" (no budgets set yet)
@@ -402,9 +410,9 @@ async function testBudgetManagement() {
     await pool.query('DELETE FROM households WHERE id = $1', [householdId]);
     
     // Delete user
-    const userQuery = await pool.query('SELECT id FROM users WHERE email = $1', [userEmail]);
-    if (userQuery.rows.length > 0) {
-      await pool.query('DELETE FROM users WHERE id = $1', [userQuery.rows[0].id]);
+    const cleanupUserQuery = await pool.query('SELECT id FROM users WHERE email = $1', [userEmail]);
+    if (cleanupUserQuery.rows.length > 0) {
+      await pool.query('DELETE FROM users WHERE id = $1', [cleanupUserQuery.rows[0].id]);
     }
     
     console.log('✅ Cleanup complete');
