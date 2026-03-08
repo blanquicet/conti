@@ -351,8 +351,9 @@ button.ghost {
 }
 
 #submitBtn.btn-ready {
-  background-color: #16a34a;
-  border-color: #16a34a;
+  background-color: #10b981;
+  border-color: #10b981;
+  color: #fff;
 }
 
 #cancelBtn {
