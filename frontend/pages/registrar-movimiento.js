@@ -1081,6 +1081,10 @@ export async function setup() {
   addParticipantBtn.addEventListener('click', onAddParticipant);
   form.addEventListener('submit', onSubmit);
   
+  // Re-check form validity on any field change
+  form.addEventListener('input', checkFormValidity);
+  form.addEventListener('change', checkFormValidity);
+  
   // Cancel button event listener
   const cancelBtn = document.getElementById('cancelBtn');
   if (cancelBtn) {
@@ -1409,6 +1413,7 @@ async function applyTemplatePrefill(templateId) {
     // Store selected template reference (use prefillData as fallback)
     selectedTemplate = template || { id: templateId, name: prefillData.template_name };
     
+    checkFormValidity();
   } finally {
     // Hide form loading overlay
     const formLoading = document.getElementById('form-loading');
@@ -1547,6 +1552,88 @@ function updateSubmitButton(isCompartido) {
   }
   submitBtn.style.opacity = '1';
   submitBtn.style.cursor = 'pointer';
+}
+
+/**
+ * Check if all required fields are filled and toggle submit button color.
+ * Mirrors readForm() validation but silently (no error messages).
+ */
+function checkFormValidity() {
+  const submitBtn = document.getElementById('submitBtn');
+  if (!submitBtn) return;
+
+  const isValid = isFormComplete();
+  submitBtn.classList.toggle('btn-ready', isValid);
+}
+
+function isFormComplete() {
+  const tipo = document.getElementById('tipo').value;
+  const fecha = (document.getElementById('fecha').value || '').slice(0, 10);
+  const descripcion = (document.getElementById('descripcion').value || '').trim();
+  const valor = parseNumber(document.getElementById('valor').value);
+
+  if (!fecha || !tipo || !descripcion) return false;
+  if (!Number.isFinite(valor) || valor <= 0) return false;
+
+  if (tipo === 'INGRESO') {
+    const ingresoMiembro = document.getElementById('ingresoMiembro').value || '';
+    const ingresoTipo = document.getElementById('ingresoTipo').value || '';
+    const ingresoCuenta = document.getElementById('ingresoCuenta').value || '';
+    return !!(ingresoMiembro && ingresoTipo && ingresoCuenta);
+  }
+
+  let effectiveTipo = tipo;
+  if (tipo === 'LOAN') {
+    const loanDirection = document.getElementById('loanDirection').value;
+    effectiveTipo = loanDirection === 'LEND' ? 'SPLIT' : 'DEBT_PAYMENT';
+  }
+
+  const pagador = getCurrentPayer();
+  const metodo = document.getElementById('metodo').value || '';
+  const tomador = document.getElementById('tomador').value || '';
+  const categoria = document.getElementById('categoria').value || '';
+
+  if (effectiveTipo !== 'HOUSEHOLD' && !pagador) return false;
+
+  const categoryRequired = isCategoryRequired({
+    effectiveTipo,
+    tipo,
+    participants,
+    usersData: usersMap
+  });
+  if (categoryRequired && !categoria) return false;
+
+  const requiresMethod = effectiveTipo === 'HOUSEHOLD' || primaryUsers.includes(pagador);
+  if (requiresMethod && !metodo) return false;
+
+  if (effectiveTipo === 'DEBT_PAYMENT' || tipo === 'LOAN') {
+    if (!tomador || tomador === pagador) return false;
+  }
+
+  // Receiver account for DEBT_PAYMENT when tomador is a member
+  if (tipo === 'LOAN') {
+    const loanDirection = document.getElementById('loanDirection').value;
+    if (loanDirection === 'REPAY') {
+      const tomadorUser = usersMap[tomador];
+      if (tomadorUser && tomadorUser.type === 'member') {
+        const cuentaReceptora = document.getElementById('cuentaReceptora').value || '';
+        if (!cuentaReceptora) return false;
+      }
+    }
+  }
+
+  if (effectiveTipo === 'SPLIT' && tipo !== 'LOAN') {
+    if (!participants.length) return false;
+    const equitable = document.getElementById('equitable').checked;
+    if (!equitable) {
+      const sum = participants.reduce((acc, p) => acc + Number(p.pct || 0), 0);
+      if (Math.abs(sum - 100) >= 0.01) return false;
+    }
+    const lower = participants.map(p => p.name.toLowerCase());
+    if (new Set(lower).size !== lower.length) return false;
+  }
+
+  return true;
 }
 
 /**
@@ -1697,6 +1784,7 @@ function onTipoChange(keepTemplate = false) {
     }
     renderParticipants();
   }
+  checkFormValidity();
 }
 
 /**
@@ -1824,6 +1912,7 @@ function onPagadorChange() {
       renderParticipants();
     }
   }
+  checkFormValidity();
 }
 
 /**
@@ -1862,6 +1951,7 @@ function onTomadorChange() {
     cuentaReceptoraEl.required = false;
     cuentaReceptoraEl.value = '';
   }
+  checkFormValidity();
 }
 
 /**
@@ -2114,6 +2204,7 @@ function renderParticipants() {
   });
 
   validatePctSum();
+  checkFormValidity();
 }
 
 /**
@@ -2840,6 +2931,9 @@ async function loadMovementForEdit(movementId) {
       })();
     }
     
+    // Delayed validity check after async field population
+    setTimeout(checkFormValidity, 500);
+    
   } catch (error) {
     console.error('Error loading movement:', error);
     hideFullScreenLoading();
@@ -2938,6 +3032,7 @@ async function loadIncomeForEdit(incomeId) {
         if (ingresoCuentaEl && income.account_id) {
           ingresoCuentaEl.value = income.account_id;
         }
+        checkFormValidity();
       }, 100);
     }, 50);
     
