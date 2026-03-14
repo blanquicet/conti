@@ -1623,7 +1623,7 @@ function isFormComplete() {
   }
 
   if (effectiveTipo === 'SPLIT' && tipo !== 'LOAN') {
-    if (!participants.length) return false;
+    if (participants.length < 2) return false;
     const equitable = document.getElementById('equitable').checked;
     if (!equitable) {
       const sum = participants.reduce((acc, p) => acc + Number(p.pct || 0), 0);
