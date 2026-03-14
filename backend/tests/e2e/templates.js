@@ -692,8 +692,8 @@ async function testTemplates() {
     
     // Verify the template was updated in the database
     const templateQuery8 = await pool.query(
-      `SELECT amount FROM recurring_movement_templates 
-       WHERE household_id = $1 AND name = 'Arriendo'`,
+      `SELECT amount FROM monthly_budget_items 
+       WHERE household_id = $1 AND name = 'Arriendo' AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
       [householdId]
     );
     
@@ -773,8 +773,8 @@ async function testTemplates() {
     
     // Verify the template was hard-deleted (scope=THIS now deletes, not deactivates)
     const templateQuery9 = await pool.query(
-      `SELECT COUNT(*) as count FROM recurring_movement_templates 
-       WHERE household_id = $1 AND name = 'Compras Exito'`,
+      `SELECT COUNT(*) as count FROM monthly_budget_items 
+       WHERE household_id = $1 AND name = 'Compras Exito' AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
       [householdId]
     );
     

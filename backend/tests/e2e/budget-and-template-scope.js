@@ -416,7 +416,7 @@ async function testBudgetAndTemplateScope() {
 
     // Get template ID
     const generateRes = await pool.query(
-      `SELECT id FROM recurring_movement_templates WHERE household_id = $1 AND name = 'Arriendo'`,
+      `SELECT id FROM monthly_budget_items WHERE household_id = $1 AND name = 'Arriendo'`,
       [householdId]
     );
     const templateId = generateRes.rows[0].id;
@@ -469,7 +469,7 @@ async function testBudgetAndTemplateScope() {
 
     // Verify template updated in DB
     const templateCheck = await pool.query(
-      `SELECT amount FROM recurring_movement_templates WHERE id = $1`,
+      `SELECT amount FROM monthly_budget_items WHERE id = $1`,
       [templateId]
     );
     const newTemplateAmount = parseFloat(templateCheck.rows[0].amount);
@@ -547,7 +547,7 @@ async function testBudgetAndTemplateScope() {
 
     // Verify template updated
     const templateCheck2 = await pool.query(
-      `SELECT amount FROM recurring_movement_templates WHERE id = $1`,
+      `SELECT amount FROM monthly_budget_items WHERE id = $1`,
       [templateId]
     );
     if (parseFloat(templateCheck2.rows[0].amount) !== 3000000) {
@@ -615,7 +615,7 @@ async function testBudgetAndTemplateScope() {
 
     // Verify template hard-deleted (not just deactivated)
     const deleteCheck = await pool.query(
-      `SELECT COUNT(*) as count FROM recurring_movement_templates WHERE id = $1`,
+      `SELECT COUNT(*) as count FROM monthly_budget_items WHERE id = $1`,
       [templateId]
     );
     if (parseInt(deleteCheck.rows[0].count) !== 0) {
@@ -642,7 +642,7 @@ async function testBudgetAndTemplateScope() {
 
     // Create a new template via API for this test
     const createRes = await page.evaluate(async (data) => {
-      const response = await fetch('/api/recurring-movements', {
+      const response = await fetch('/api/budget-items?scope=FUTURE', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -656,6 +656,7 @@ async function testBudgetAndTemplateScope() {
       amount: 150000,
       auto_generate: false,
       payment_method_id: paymentMethodId,
+      month: new Date().toISOString().slice(0, 7), // Current month YYYY-MM
     });
     const newTemplateId = createRes.id;
     console.log(`  Created template: ${newTemplateId}`);
@@ -691,7 +692,7 @@ async function testBudgetAndTemplateScope() {
 
     // Verify template hard-deleted
     const deleteCheckAll = await pool.query(
-      `SELECT COUNT(*) as count FROM recurring_movement_templates WHERE id = $1`,
+      `SELECT COUNT(*) as count FROM monthly_budget_items WHERE id = $1`,
       [newTemplateId]
     );
     if (parseInt(deleteCheckAll.rows[0].count) !== 0) {
@@ -778,7 +779,7 @@ async function testBudgetAndTemplateScope() {
     );
     const testDeleteCatId = catRes10.rows[0].id;
 
-    // Create a template via direct DB insert
+    // Create a template via direct DB insert (master template + monthly item)
     const tmplRes10 = await pool.query(
       `INSERT INTO recurring_movement_templates (
         household_id, name, type, category_id, amount,
@@ -788,6 +789,16 @@ async function testBudgetAndTemplateScope() {
       [householdId, testDeleteCatId]
     );
     const lastTemplateId = tmplRes10.rows[0].id;
+
+    // Also create monthly budget item (what the UI reads)
+    await pool.query(
+      `INSERT INTO monthly_budget_items (
+        household_id, category_id, month, name, amount, currency,
+        movement_type, auto_generate, source_template_id
+      ) VALUES ($1, $2, DATE_TRUNC('month', CURRENT_DATE)::DATE, 'LastTemplate', 1500000, 'COP',
+        'HOUSEHOLD', false, $3)`,
+      [householdId, testDeleteCatId, lastTemplateId]
+    );
 
     // Set budget = 1500000 for this category (simulating what create does)
     const currentMonth10 = new Date().toISOString().slice(0, 7);
@@ -824,13 +835,13 @@ async function testBudgetAndTemplateScope() {
     await closeModal(page);
     console.log('  ✅ Last template deleted (scope=THIS)');
 
-    // Verify template is gone
+    // Verify budget item is gone
     const tmplCheck10 = await pool.query(
-      `SELECT COUNT(*) as count FROM recurring_movement_templates WHERE id = $1`,
-      [lastTemplateId]
+      `SELECT COUNT(*) as count FROM monthly_budget_items WHERE household_id = $1 AND name = 'LastTemplate' AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
+      [householdId]
     );
     if (parseInt(tmplCheck10.rows[0].count) !== 0) {
-      throw new Error('Template should be hard-deleted');
+      throw new Error('Budget item should be deleted');
     }
     console.log('  ✅ Template hard-deleted from DB');
 
