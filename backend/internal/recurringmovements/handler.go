@@ -13,6 +13,7 @@ import (
 // Handler handles recurring movement template HTTP requests
 type Handler struct {
 	service    Service
+	repo       Repository // For scope-aware movement operations
 	generator  *Generator // For manual triggering
 	authSvc    *auth.Service
 	cookieName string
@@ -22,6 +23,7 @@ type Handler struct {
 // NewHandler creates a new recurring movements handler
 func NewHandler(
 	service Service,
+	repo Repository,
 	generator *Generator,
 	authService *auth.Service,
 	cookieName string,
@@ -29,11 +31,24 @@ func NewHandler(
 ) *Handler {
 	return &Handler{
 		service:    service,
+		repo:       repo,
 		generator:  generator,
 		authSvc:    authService,
 		cookieName: cookieName,
 		logger:     logger,
 	}
+}
+
+// parseScope reads and validates scope from query params (defaults to THIS)
+func parseScope(r *http.Request) (string, error) {
+	scope := r.URL.Query().Get("scope")
+	if scope == "" {
+		return "THIS", nil
+	}
+	if scope != "THIS" && scope != "ALL" && scope != "FUTURE" {
+		return "", ErrInvalidScope
+	}
+	return scope, nil
 }
 
 // HandleCreate creates a new template
@@ -278,7 +293,7 @@ func (h *Handler) HandleGetPreFillData(w http.ResponseWriter, r *http.Request) {
 }
 
 // HandleUpdate updates a template
-// PUT /api/recurring-movements/{id}
+// PUT /api/recurring-movements/{id}?scope=THIS|ALL
 func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	// Get user from session
 	cookie, err := r.Cookie(h.cookieName)
@@ -297,6 +312,13 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		http.Error(w, "template ID required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse scope
+	scope, err := parseScope(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -323,13 +345,23 @@ func (h *Handler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// If scope=ALL, also update movements generated from this template
+	if scope == "ALL" {
+		updated, err := h.repo.UpdateMovementsByTemplateID(r.Context(), id, template.Amount, template.Name)
+		if err != nil {
+			h.logger.Error("failed to update movements for template", "error", err, "template_id", id)
+		} else if updated > 0 {
+			h.logger.Info("updated movements for template", "template_id", id, "count", updated)
+		}
+	}
+
 	// Return updated template
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(template)
 }
 
 // HandleDelete deletes a template
-// DELETE /api/recurring-movements/{id}
+// DELETE /api/recurring-movements/{id}?scope=THIS|ALL
 func (h *Handler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	// Get user from session
 	cookie, err := r.Cookie(h.cookieName)
@@ -349,6 +381,23 @@ func (h *Handler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	if id == "" {
 		http.Error(w, "template ID required", http.StatusBadRequest)
 		return
+	}
+
+	// Parse scope
+	scope, err := parseScope(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// If scope=ALL, delete movements generated from this template first
+	if scope == "ALL" {
+		deleted, err := h.repo.DeleteMovementsByTemplateID(r.Context(), id)
+		if err != nil {
+			h.logger.Error("failed to delete movements for template", "error", err, "template_id", id)
+		} else if deleted > 0 {
+			h.logger.Info("deleted movements for template", "template_id", id, "count", deleted)
+		}
 	}
 
 	// Delete template

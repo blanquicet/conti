@@ -3,6 +3,7 @@ package budgets
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -33,15 +34,19 @@ func NewBudgetItemsHandler(service *BudgetItemsService, authSvc *auth.Service, h
 	}
 }
 
-func (h *BudgetItemsHandler) getScope(r *http.Request) BudgetScope {
+func (h *BudgetItemsHandler) getScope(r *http.Request) (BudgetScope, error) {
 	scope := r.URL.Query().Get("budget_scope")
 	if scope == "" {
 		scope = r.URL.Query().Get("scope")
 	}
 	if scope == "" {
-		return ScopeFuture
+		return ScopeFuture, nil
 	}
-	return BudgetScope(scope)
+	s := BudgetScope(scope)
+	if s != ScopeThis && s != ScopeFuture && s != ScopeAll {
+		return "", ErrInvalidScope
+	}
+	return s, nil
 }
 
 func (h *BudgetItemsHandler) getUserAndHousehold(r *http.Request) (string, string, error) {
@@ -89,15 +94,19 @@ func (h *BudgetItemsHandler) HandleListByMonth(w http.ResponseWriter, r *http.Re
 // HandleGetByID returns a single budget item
 // GET /api/budget-items/item/{id}
 func (h *BudgetItemsHandler) HandleGetByID(w http.ResponseWriter, r *http.Request) {
-	_, _, err := h.getUserAndHousehold(r)
+	_, householdID, err := h.getUserAndHousehold(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
 
 	id := r.PathValue("id")
-	item, err := h.service.itemsRepo.GetByID(r.Context(), id)
+	item, err := h.service.GetItemByID(r.Context(), householdID, id)
 	if err != nil {
+		if errors.Is(err, ErrNotAuthorized) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		http.Error(w, "Item not found", http.StatusNotFound)
 		return
 	}
@@ -121,7 +130,11 @@ func (h *BudgetItemsHandler) HandleCreate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	scope := h.getScope(r)
+	scope, err := h.getScope(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	item, err := h.service.CreateItem(r.Context(), householdID, &input, scope)
 	if err != nil {
@@ -138,7 +151,7 @@ func (h *BudgetItemsHandler) HandleCreate(w http.ResponseWriter, r *http.Request
 // HandleUpdate updates a budget item
 // PUT /api/budget-items/{id}
 func (h *BudgetItemsHandler) HandleUpdate(w http.ResponseWriter, r *http.Request) {
-	_, _, err := h.getUserAndHousehold(r)
+	_, householdID, err := h.getUserAndHousehold(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -156,10 +169,18 @@ func (h *BudgetItemsHandler) HandleUpdate(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	scope := h.getScope(r)
-
-	item, err := h.service.UpdateItem(r.Context(), id, &input, scope)
+	scope, err := h.getScope(r)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	item, err := h.service.UpdateItem(r.Context(), householdID, id, &input, scope)
+	if err != nil {
+		if errors.Is(err, ErrNotAuthorized) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		h.logger.Error("failed to update budget item", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -172,7 +193,7 @@ func (h *BudgetItemsHandler) HandleUpdate(w http.ResponseWriter, r *http.Request
 // HandleDelete deletes a budget item
 // DELETE /api/budget-items/{id}
 func (h *BudgetItemsHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
-	_, _, err := h.getUserAndHousehold(r)
+	_, householdID, err := h.getUserAndHousehold(r)
 	if err != nil {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
@@ -184,10 +205,17 @@ func (h *BudgetItemsHandler) HandleDelete(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	scope := h.getScope(r)
-	deleteMovements := r.URL.Query().Get("delete_movements") == "true"
+	scope, err := h.getScope(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	if err := h.service.DeleteItem(r.Context(), id, scope, deleteMovements); err != nil {
+	if err := h.service.DeleteItem(r.Context(), householdID, id, scope); err != nil {
+		if errors.Is(err, ErrNotAuthorized) {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
 		h.logger.Error("failed to delete budget item", "error", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

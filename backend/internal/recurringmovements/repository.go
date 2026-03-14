@@ -888,3 +888,26 @@ func (r *repository) GetTemplatesUsedInMonth(ctx context.Context, householdID, m
 	
 	return result, nil
 }
+
+// DeleteMovementsByTemplateID deletes all movements generated from a specific template
+func (r *repository) DeleteMovementsByTemplateID(ctx context.Context, templateID string) (int64, error) {
+	result, err := r.pool.Exec(ctx, `
+		DELETE FROM movements WHERE generated_from_template_id = $1
+	`, templateID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+// UpdateMovementsByTemplateID updates amount and description for all movements generated from a template
+func (r *repository) UpdateMovementsByTemplateID(ctx context.Context, templateID string, amount float64, description string) (int64, error) {
+	result, err := r.pool.Exec(ctx, `
+		UPDATE movements SET amount = $2, description = $3, updated_at = NOW()
+		WHERE generated_from_template_id = $1
+	`, templateID, amount, description)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}

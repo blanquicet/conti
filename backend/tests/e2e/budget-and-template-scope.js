@@ -13,6 +13,7 @@ import { chromium } from 'playwright';
 import pg from 'pg';
 import { createGroupsAndCategoriesViaUI, getCategoryIds } from './helpers/category-helpers.js';
 import { createAccountViaUI, createPaymentMethodViaUI } from './helpers/profile-helpers.js';
+import { completeOnboardingViaDB } from './helpers/onboarding-helpers.js';
 const { Pool } = pg;
 
 const appUrl = process.env.APP_URL || 'http://localhost:8080';
@@ -131,6 +132,12 @@ async function testBudgetAndTemplateScope() {
     await page.locator('#household-name-input').fill(householdName);
     await page.locator('#household-create-btn').click();
     await page.waitForTimeout(1000);
+
+    // Complete onboarding via DB BEFORE dismissing modal (which triggers reload)
+    const userQuery = await pool.query('SELECT id FROM users WHERE email = $1', [userEmail]);
+    const userId = userQuery.rows[0].id;
+    await completeOnboardingViaDB(pool, userId);
+
     await page.locator('#modal-ok').click();
     await page.waitForTimeout(2000);
     console.log('  ✅ Household created');
@@ -141,13 +148,13 @@ async function testBudgetAndTemplateScope() {
 
     // Create categories via UI
     await createGroupsAndCategoriesViaUI(page, appUrl, [
-      { name: 'Casa', icon: '🏠', categories: ['Mercado', 'Gastos fijos'] },
+      { name: 'Casa', icon: '🏠', categories: ['ScopeMercado', 'ScopeGastos'] },
     ]);
     console.log('  ✅ Categories created');
 
-    const categoryMap = await getCategoryIds(pool, householdId, ['Mercado', 'Gastos fijos']);
-    mercadoId = categoryMap['Mercado'];
-    gastosFijosId = categoryMap['Gastos fijos'];
+    const categoryMap = await getCategoryIds(pool, householdId, ['ScopeMercado', 'ScopeGastos']);
+    mercadoId = categoryMap['ScopeMercado'];
+    gastosFijosId = categoryMap['ScopeGastos'];
 
     // Create contact via DB (needed for SPLIT templates)
     const contactResult = await pool.query(
@@ -171,10 +178,6 @@ async function testBudgetAndTemplateScope() {
     );
     paymentMethodId = pmQuery.rows[0].id;
 
-    // Get user ID
-    const userQuery = await pool.query('SELECT id FROM users WHERE email = $1', [userEmail]);
-    const userId = userQuery.rows[0].id;
-
     // ==================================================================
     // TEST 1: Lazy copy across months (budget items)
     // ==================================================================
@@ -183,10 +186,10 @@ async function testBudgetAndTemplateScope() {
     // Create a budget item for Mercado via UI
     await goToPresupuesto(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Mercado');
+    await expandCategory(page, 'ScopeMercado');
 
     // Click "Agregar gasto presupuestado"
-    const addTemplateBtn1 = page.locator('.budget-add-template-btn[data-category-name="Mercado"]');
+    const addTemplateBtn1 = page.locator('.budget-add-template-btn[data-category-name="ScopeMercado"]');
     await addTemplateBtn1.waitFor({ timeout: 5000 });
     await addTemplateBtn1.click();
     await page.waitForTimeout(1000);
@@ -208,7 +211,7 @@ async function testBudgetAndTemplateScope() {
     // Navigate to next month — should lazy-copy
     await goNextMonth(page);
     await expandGroup(page, 'Casa');
-    let budgetText = await getCategoryBudgetText(page, 'Mercado');
+    let budgetText = await getCategoryBudgetText(page, 'ScopeMercado');
     if (!budgetText.includes('500.000') && !budgetText.includes('500,000')) {
       throw new Error(`Next month should have 500k from lazy copy, got: ${budgetText}`);
     }
@@ -217,7 +220,7 @@ async function testBudgetAndTemplateScope() {
     // Navigate forward once more — still copies
     await goNextMonth(page);
     await expandGroup(page, 'Casa');
-    budgetText = await getCategoryBudgetText(page, 'Mercado');
+    budgetText = await getCategoryBudgetText(page, 'ScopeMercado');
     if (!budgetText.includes('500.000') && !budgetText.includes('500,000')) {
       throw new Error(`Month+2 should also have 500k, got: ${budgetText}`);
     }
@@ -228,7 +231,7 @@ async function testBudgetAndTemplateScope() {
     await goPrevMonth(page);
     await goPrevMonth(page);
     await expandGroup(page, 'Casa');
-    budgetText = await getCategoryBudgetText(page, 'Mercado');
+    budgetText = await getCategoryBudgetText(page, 'ScopeMercado');
     if (budgetText.includes('500.000') || budgetText.includes('500,000')) {
       throw new Error(`Previous month should NOT have budget, got: ${budgetText}`);
     }
@@ -244,10 +247,10 @@ async function testBudgetAndTemplateScope() {
     // Go back to current month
     await goToPresupuesto(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Mercado');
+    await expandCategory(page, 'ScopeMercado');
 
     // Edit budget
-    const editBudgetBtn = page.locator('.expense-category-item').filter({ hasText: 'Mercado' }).locator('button[data-action="edit-budget"]');
+    const editBudgetBtn = page.locator('.expense-category-item').filter({ hasText: 'ScopeMercado' }).locator('button[data-action="edit-budget"]');
     await editBudgetBtn.waitFor({ timeout: 5000 });
     await editBudgetBtn.click();
     await page.waitForTimeout(500);
@@ -268,7 +271,7 @@ async function testBudgetAndTemplateScope() {
 
     // Verify current month shows 600k
     await expandGroup(page, 'Casa');
-    budgetText = await getCategoryBudgetText(page, 'Mercado');
+    budgetText = await getCategoryBudgetText(page, 'ScopeMercado');
     if (!budgetText.includes('600.000') && !budgetText.includes('600,000')) {
       throw new Error(`Current month should be 600k, got: ${budgetText}`);
     }
@@ -278,7 +281,7 @@ async function testBudgetAndTemplateScope() {
     // scope=THIS protects month+1 by creating an explicit record with the old value.
     await goNextMonth(page);
     await expandGroup(page, 'Casa');
-    budgetText = await getCategoryBudgetText(page, 'Mercado');
+    budgetText = await getCategoryBudgetText(page, 'ScopeMercado');
     if (!budgetText.includes('500.000') && !budgetText.includes('500,000')) {
       throw new Error(`Next month should keep 500k (old value), got: ${budgetText}`);
     }
@@ -296,9 +299,9 @@ async function testBudgetAndTemplateScope() {
     await goToPresupuesto(page);
     await goNextMonth(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Mercado');
+    await expandCategory(page, 'ScopeMercado');
 
-    const editBtn2 = page.locator('.expense-category-item').filter({ hasText: 'Mercado' }).locator('button[data-action="edit-budget"]');
+    const editBtn2 = page.locator('.expense-category-item').filter({ hasText: 'ScopeMercado' }).locator('button[data-action="edit-budget"]');
     await editBtn2.waitFor({ timeout: 5000 });
     await editBtn2.click();
     await page.waitForTimeout(500);
@@ -315,9 +318,9 @@ async function testBudgetAndTemplateScope() {
     // Now go back to current month and edit with scope=ALL to 700k
     await goPrevMonth(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Mercado');
+    await expandCategory(page, 'ScopeMercado');
 
-    const editBtn3 = page.locator('.expense-category-item').filter({ hasText: 'Mercado' }).locator('button[data-action="edit-budget"]');
+    const editBtn3 = page.locator('.expense-category-item').filter({ hasText: 'ScopeMercado' }).locator('button[data-action="edit-budget"]');
     await editBtn3.waitFor({ timeout: 5000 });
     await editBtn3.click();
     await page.waitForTimeout(500);
@@ -333,7 +336,7 @@ async function testBudgetAndTemplateScope() {
 
     // Verify current = 700k
     await expandGroup(page, 'Casa');
-    budgetText = await getCategoryBudgetText(page, 'Mercado');
+    budgetText = await getCategoryBudgetText(page, 'ScopeMercado');
     if (!budgetText.includes('700.000') && !budgetText.includes('700,000')) {
       throw new Error(`Current month should be 700k after ALL, got: ${budgetText}`);
     }
@@ -342,7 +345,7 @@ async function testBudgetAndTemplateScope() {
     // Next month should also be 700k (ALL updated it)
     await goNextMonth(page);
     await expandGroup(page, 'Casa');
-    budgetText = await getCategoryBudgetText(page, 'Mercado');
+    budgetText = await getCategoryBudgetText(page, 'ScopeMercado');
     if (!budgetText.includes('700.000') && !budgetText.includes('700,000')) {
       throw new Error(`Next month should be 700k after ALL, got: ${budgetText}`);
     }
@@ -357,10 +360,10 @@ async function testBudgetAndTemplateScope() {
 
     await goToPresupuesto(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Gastos fijos');
+    await expandCategory(page, 'ScopeGastos');
 
     // Click "Agregar gasto recurrente" for Gastos fijos
-    const addTemplateBtn4 = page.locator('.budget-add-template-btn[data-category-name="Gastos fijos"]');
+    const addTemplateBtn4 = page.locator('.budget-add-template-btn[data-category-name="ScopeGastos"]');
     await addTemplateBtn4.waitFor({ state: 'visible', timeout: 5000 });
     await addTemplateBtn4.click();
     await page.waitForTimeout(1000);
@@ -389,21 +392,21 @@ async function testBudgetAndTemplateScope() {
     // Close success modal
     await closeModal(page);
 
-    // Verify budget was auto-created in DB
+    // Verify budget item was created in DB (budget totals now computed from items)
     const budgetQ = await pool.query(
-      `SELECT amount FROM monthly_budgets WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
+      `SELECT COALESCE(SUM(amount), 0) as amount FROM monthly_budget_items WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
       [gastosFijosId]
     );
     const autoBudget = parseFloat(budgetQ.rows[0]?.amount || 0);
     if (autoBudget !== 2000000) {
-      throw new Error(`Expected auto-budget 2,000,000 but got ${autoBudget}`);
+      throw new Error(`Expected items total 2,000,000 but got ${autoBudget}`);
     }
-    console.log('  ✅ Budget auto-created: $2,000,000');
+    console.log('  ✅ Budget item created: $2,000,000');
 
     // Navigate to next month — budget should be inherited
     await goNextMonth(page);
     await expandGroup(page, 'Casa');
-    budgetText = await getCategoryBudgetText(page, 'Gastos fijos');
+    budgetText = await getCategoryBudgetText(page, 'ScopeGastos');
     if (!budgetText.includes('2.000.000') && !budgetText.includes('2,000,000')) {
       throw new Error(`Next month should inherit template budget, got: ${budgetText}`);
     }
@@ -443,7 +446,7 @@ async function testBudgetAndTemplateScope() {
     // Now edit template via UI
     await goToPresupuesto(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Gastos fijos');
+    await expandCategory(page, 'ScopeGastos');
 
     // Find template and click edit
     const templateItem = page.locator('.movement-detail-entry[data-template-id]').filter({ hasText: 'Arriendo' });
@@ -495,27 +498,27 @@ async function testBudgetAndTemplateScope() {
     }
     console.log('  ✅ Movement unchanged at $2,000,000');
 
-    // Verify budget scope: current month should be 2,500,000 but next month should keep 2,000,000
-    const budgetThisMonth = await pool.query(
-      `SELECT amount FROM monthly_budgets WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
+    // Verify budget scope via items: current month should be 2,500,000 but next month should keep 2,000,000
+    const itemsSumThisMonth = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) as amount FROM monthly_budget_items WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
       [gastosFijosId]
     );
-    const budgetThisAmount = parseFloat(budgetThisMonth.rows[0]?.amount || 0);
+    const budgetThisAmount = parseFloat(itemsSumThisMonth.rows[0]?.amount || 0);
     if (budgetThisAmount !== 2500000) {
-      throw new Error(`Current month budget should be 2,500,000 but got ${budgetThisAmount}`);
+      throw new Error(`Current month items total should be 2,500,000 but got ${budgetThisAmount}`);
     }
-    console.log('  ✅ Current month budget = $2,500,000 (scope=THIS updated)');
+    console.log('  ✅ Current month items total = $2,500,000 (scope=THIS updated)');
 
     // Check next month: should still have old value (2,000,000) since scope=THIS
-    const budgetNextMonth = await pool.query(
-      `SELECT amount FROM monthly_budgets WHERE category_id = $1 AND month = (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::DATE`,
+    const itemsSumNextMonth = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) as amount FROM monthly_budget_items WHERE category_id = $1 AND month = (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::DATE`,
       [gastosFijosId]
     );
-    const nextMonthBudget = parseFloat(budgetNextMonth.rows[0]?.amount || 0);
+    const nextMonthBudget = parseFloat(itemsSumNextMonth.rows[0]?.amount || 0);
     if (nextMonthBudget !== 2000000) {
-      throw new Error(`Next month budget should stay at 2,000,000 (scope=THIS) but got ${nextMonthBudget}`);
+      throw new Error(`Next month items total should stay at 2,000,000 (scope=THIS) but got ${nextMonthBudget}`);
     }
-    console.log('  ✅ Next month budget = $2,000,000 (scope=THIS did NOT change it)');
+    console.log('  ✅ Next month items total = $2,000,000 (scope=THIS did NOT change it)');
 
     console.log('✅ Test 5 PASSED: Template edit scope=THIS works correctly\n');
 
@@ -527,7 +530,7 @@ async function testBudgetAndTemplateScope() {
     // Edit template again via UI
     await goToPresupuesto(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Gastos fijos');
+    await expandCategory(page, 'ScopeGastos');
 
     const templateItem2 = page.locator('.movement-detail-entry[data-template-id]').filter({ hasText: 'Arriendo' });
     await templateItem2.waitFor({ state: 'visible', timeout: 5000 });
@@ -572,24 +575,24 @@ async function testBudgetAndTemplateScope() {
     }
     console.log('  ✅ Movement unchanged at $2,000,000');
 
-    // Verify budget scope=ALL: both current and next month should be 3,000,000
-    const budgetAllThis = await pool.query(
-      `SELECT amount FROM monthly_budgets WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
+    // Verify budget scope=ALL via items: both current and next month should be 3,000,000
+    const itemsAllThis = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) as amount FROM monthly_budget_items WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
       [gastosFijosId]
     );
-    if (parseFloat(budgetAllThis.rows[0]?.amount || 0) !== 3000000) {
-      throw new Error(`Current month budget should be 3,000,000 (scope=ALL) but got ${budgetAllThis.rows[0]?.amount}`);
+    if (parseFloat(itemsAllThis.rows[0]?.amount || 0) !== 3000000) {
+      throw new Error(`Current month items total should be 3,000,000 (scope=ALL) but got ${itemsAllThis.rows[0]?.amount}`);
     }
-    console.log('  \u2705 Current month budget = $3,000,000 (scope=ALL updated)');
+    console.log('  \u2705 Current month items total = $3,000,000 (scope=ALL updated)');
 
-    const budgetAllNext = await pool.query(
-      `SELECT amount FROM monthly_budgets WHERE category_id = $1 AND month = (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::DATE`,
+    const itemsAllNext = await pool.query(
+      `SELECT COALESCE(SUM(amount), 0) as amount FROM monthly_budget_items WHERE category_id = $1 AND month = (DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month')::DATE`,
       [gastosFijosId]
     );
-    if (parseFloat(budgetAllNext.rows[0]?.amount || 0) !== 3000000) {
-      throw new Error(`Next month budget should be 3,000,000 (scope=ALL) but got ${budgetAllNext.rows[0]?.amount}`);
+    if (parseFloat(itemsAllNext.rows[0]?.amount || 0) !== 3000000) {
+      throw new Error(`Next month items total should be 3,000,000 (scope=ALL) but got ${itemsAllNext.rows[0]?.amount}`);
     }
-    console.log('  \u2705 Next month budget = $3,000,000 (scope=ALL updated both)');
+    console.log('  \u2705 Next month items total = $3,000,000 (scope=ALL updated both)');
 
     console.log('\u2705 Test 6 PASSED: Template edit scope=ALL works correctly\n');
 
@@ -600,7 +603,7 @@ async function testBudgetAndTemplateScope() {
 
     await goToPresupuesto(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Gastos fijos');
+    await expandCategory(page, 'ScopeGastos');
 
     const templateItem3 = page.locator('.movement-detail-entry[data-template-id]').filter({ hasText: 'Arriendo' });
     await templateItem3.waitFor({ state: 'visible', timeout: 5000 });
@@ -677,7 +680,7 @@ async function testBudgetAndTemplateScope() {
     // Delete via UI with scope=ALL
     await goToPresupuesto(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Gastos fijos');
+    await expandCategory(page, 'ScopeGastos');
 
     const internetTemplate = page.locator('.movement-detail-entry[data-template-id]').filter({ hasText: 'Internet' });
     await internetTemplate.waitFor({ state: 'visible', timeout: 5000 });
@@ -722,10 +725,10 @@ async function testBudgetAndTemplateScope() {
     // Navigate to current month
     await goToPresupuesto(page);
     await expandGroup(page, 'Casa');
-    await expandCategory(page, 'Mercado');
+    await expandCategory(page, 'ScopeMercado');
 
     // Edit budget — set to 0
-    const zeroBudgetBtn = page.locator('.expense-category-item').filter({ hasText: 'Mercado' }).locator('button[data-action="edit-budget"]');
+    const zeroBudgetBtn = page.locator('.expense-category-item').filter({ hasText: 'ScopeMercado' }).locator('button[data-action="edit-budget"]');
     await zeroBudgetBtn.waitFor({ timeout: 5000 });
     await zeroBudgetBtn.click();
     await page.waitForTimeout(500);
@@ -744,7 +747,7 @@ async function testBudgetAndTemplateScope() {
 
     // Verify current month shows "Sin presupuesto"
     await expandGroup(page, 'Casa');
-    let zeroBudgetText = await getCategoryBudgetText(page, 'Mercado');
+    let zeroBudgetText = await getCategoryBudgetText(page, 'ScopeMercado');
     if (!zeroBudgetText.toLowerCase().includes('sin presupuesto')) {
       throw new Error(`Current month should show "Sin presupuesto", got: ${zeroBudgetText}`);
     }
@@ -753,7 +756,7 @@ async function testBudgetAndTemplateScope() {
     // Next month should still have a budget (not affected by scope=THIS)
     await goNextMonth(page);
     await expandGroup(page, 'Casa');
-    zeroBudgetText = await getCategoryBudgetText(page, 'Mercado');
+    zeroBudgetText = await getCategoryBudgetText(page, 'ScopeMercado');
     if (zeroBudgetText.toLowerCase().includes('sin presupuesto')) {
       throw new Error(`Next month should still have budget, got: ${zeroBudgetText}`);
     }
@@ -768,12 +771,17 @@ async function testBudgetAndTemplateScope() {
     // ==================================================================
     console.log('\n📝 Test 10: Delete last template → budget goes to 0');
 
-    // Create a new category for this test
+    // Create a new category for this test (use same group as other test categories)
+    const casaGroupQuery = await pool.query(
+      `SELECT id FROM category_groups WHERE household_id = $1 AND name = 'Casa' LIMIT 1`,
+      [householdId]
+    );
+    const casaGroupId = casaGroupQuery.rows[0].id;
     const catRes10 = await pool.query(
       `INSERT INTO categories (household_id, name, is_active, category_group_id)
-       SELECT $1, 'TestDelete', true, id FROM category_groups WHERE household_id = $1 LIMIT 1
+       VALUES ($1, 'TestDelete', true, $2)
        RETURNING id`,
-      [householdId]
+      [householdId, casaGroupId]
     );
     const testDeleteCatId = catRes10.rows[0].id;
 
@@ -798,22 +806,15 @@ async function testBudgetAndTemplateScope() {
       [householdId, testDeleteCatId, lastTemplateId]
     );
 
-    // Set budget = 1500000 for this category (simulating what create does)
-    const currentMonth10 = new Date().toISOString().slice(0, 7);
-    await pool.query(
-      `INSERT INTO monthly_budgets (household_id, category_id, month, amount) VALUES ($1, $2, DATE_TRUNC('month', CURRENT_DATE)::DATE, 1500000)`,
-      [householdId, testDeleteCatId]
-    );
-
-    // Verify budget exists
+    // Verify budget item exists (budget total now computed from items)
     const budgetBefore10 = await pool.query(
-      `SELECT amount FROM monthly_budgets WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
+      `SELECT COALESCE(SUM(amount), 0) as amount FROM monthly_budget_items WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
       [testDeleteCatId]
     );
     if (parseFloat(budgetBefore10.rows[0]?.amount) !== 1500000) {
-      throw new Error('Budget should be 1,500,000 before delete');
+      throw new Error('Items total should be 1,500,000 before delete');
     }
-    console.log('  ✅ Budget before delete: $1,500,000');
+    console.log('  ✅ Items total before delete: $1,500,000');
 
     // Delete the template via UI
     await goToPresupuesto(page);
@@ -843,16 +844,16 @@ async function testBudgetAndTemplateScope() {
     }
     console.log('  ✅ Template hard-deleted from DB');
 
-    // Verify budget went to 0 (not left at 1,500,000!)
+    // Verify items total went to 0 (no items remain for this category)
     const budgetAfter10 = await pool.query(
-      `SELECT amount FROM monthly_budgets WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
+      `SELECT COALESCE(SUM(amount), 0) as amount FROM monthly_budget_items WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
       [testDeleteCatId]
     );
     const budgetAfterAmount = parseFloat(budgetAfter10.rows[0]?.amount || -1);
     if (budgetAfterAmount !== 0) {
-      throw new Error(`Budget should be 0 after deleting last template, got: ${budgetAfterAmount}`);
+      throw new Error(`Items total should be 0 after deleting last template, got: ${budgetAfterAmount}`);
     }
-    console.log('  ✅ Budget set to 0 after deleting last template');
+    console.log('  ✅ Items total = 0 after deleting last template');
 
     console.log('✅ Test 10 PASSED: Deleting last template sets budget to 0\n');
 

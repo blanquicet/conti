@@ -26,7 +26,13 @@ func (r *PostgresRepository) GetByMonth(ctx context.Context, householdID, month 
 	}
 
 	query := `
-		SELECT 
+		WITH items_budget AS (
+			SELECT category_id, COALESCE(SUM(amount), 0) as amount
+			FROM monthly_budget_items
+			WHERE household_id = $1 AND month = $2
+			GROUP BY category_id
+		)
+		SELECT
 			mb.id,
 			c.id as category_id,
 			c.name as category_name,
@@ -34,22 +40,32 @@ func (r *PostgresRepository) GetByMonth(ctx context.Context, householdID, month 
 			cg.name as category_group_name,
 			cg.icon as category_group_icon,
 			cg.display_order as group_display_order,
-			COALESCE(mb.amount, 0) as amount,
+			CASE
+				WHEN mb.month = $2 THEN COALESCE(mb.amount, 0)
+				ELSE GREATEST(COALESCE(ib.amount, 0), COALESCE(mb.amount, 0))
+			END as amount,
 			COALESCE(mb.currency, 'COP') as currency,
 			COALESCE(SUM(m.amount), 0) as spent,
 			mb.created_at,
 			mb.updated_at
 		FROM categories c
 		LEFT JOIN category_groups cg ON cg.id = c.category_group_id
-		LEFT JOIN monthly_budgets mb ON mb.category_id = c.id 
-			AND mb.household_id = $1
-			AND mb.month = $2
-		LEFT JOIN movements m ON m.category_id = c.id 
+		LEFT JOIN LATERAL (
+			SELECT id, month, amount, currency, created_at, updated_at
+			FROM monthly_budgets
+			WHERE category_id = c.id
+				AND household_id = $1
+				AND month <= $2
+			ORDER BY month DESC
+			LIMIT 1
+		) mb ON true
+		LEFT JOIN items_budget ib ON ib.category_id = c.id
+		LEFT JOIN movements m ON m.category_id = c.id
 			AND m.household_id = $1
 			AND DATE_TRUNC('month', m.movement_date) = $2
 		WHERE c.household_id = $1
 			AND c.is_active = true
-		GROUP BY mb.id, c.id, c.name, cg.id, cg.name, cg.icon, cg.display_order, c.display_order, mb.amount, mb.currency, mb.created_at, mb.updated_at
+		GROUP BY mb.id, mb.month, c.id, c.name, cg.id, cg.name, cg.icon, cg.display_order, c.display_order, mb.amount, mb.currency, mb.created_at, mb.updated_at, ib.amount
 		ORDER BY cg.display_order NULLS LAST, c.display_order ASC, c.name ASC
 	`
 
@@ -246,6 +262,71 @@ func (r *PostgresRepository) DeleteFutureRecords(ctx context.Context, householdI
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+// GetEffectiveBudget returns the effective displayed budget amount for a category at a given month.
+// This matches the GetByMonth LATERAL JOIN + CASE logic: considers both monthly_budgets inheritance
+// and monthly_budget_items sum.
+func (r *PostgresRepository) GetEffectiveBudget(ctx context.Context, householdID, categoryID, month string) (float64, error) {
+	monthDate, err := ParseMonth(month)
+	if err != nil {
+		return 0, ErrInvalidMonth
+	}
+	var amount float64
+	err = r.pool.QueryRow(ctx, `
+		WITH items_budget AS (
+			SELECT COALESCE(SUM(amount), 0) as amount
+			FROM monthly_budget_items
+			WHERE household_id = $1 AND category_id = $2 AND month = $3
+		)
+		SELECT
+			CASE
+				WHEN mb.month = $3 THEN COALESCE(mb.amount, 0)
+				ELSE GREATEST(COALESCE(ib.amount, 0), COALESCE(mb.amount, 0))
+			END
+		FROM (SELECT 1) AS dummy
+		LEFT JOIN LATERAL (
+			SELECT month, amount
+			FROM monthly_budgets
+			WHERE household_id = $1 AND category_id = $2 AND month <= $3
+			ORDER BY month DESC LIMIT 1
+		) mb ON true
+		CROSS JOIN items_budget ib
+	`, householdID, categoryID, monthDate).Scan(&amount)
+	if err != nil {
+		return 0, err
+	}
+	return amount, nil
+}
+
+// PinMonthIfMissing inserts a budget record for the given month only if none exists yet
+func (r *PostgresRepository) PinMonthIfMissing(ctx context.Context, householdID, categoryID, month string, amount float64) error {
+	monthDate, err := ParseMonth(month)
+	if err != nil {
+		return ErrInvalidMonth
+	}
+	_, err = r.pool.Exec(ctx, `
+		INSERT INTO monthly_budgets (household_id, category_id, month, amount, currency)
+		VALUES ($1, $2, $3, $4, 'COP')
+		ON CONFLICT (household_id, category_id, month) DO NOTHING
+	`, householdID, categoryID, monthDate, amount)
+	return err
+}
+
+// UpsertBudgetFromItems creates or updates a monthly_budgets record to match items sum.
+// Always sets amount = items sum so the budget total tracks the actual templates.
+func (r *PostgresRepository) UpsertBudgetFromItems(ctx context.Context, householdID, categoryID, month string, itemsSum float64) error {
+	monthDate, err := ParseMonth(month)
+	if err != nil {
+		return ErrInvalidMonth
+	}
+	_, err = r.pool.Exec(ctx, `
+		INSERT INTO monthly_budgets (household_id, category_id, month, amount, currency)
+		VALUES ($1, $2, $3, $4, 'COP')
+		ON CONFLICT (household_id, category_id, month)
+		DO UPDATE SET amount = $4, updated_at = NOW()
+	`, householdID, categoryID, monthDate, itemsSum)
+	return err
 }
 
 // UpdateAllRecords updates all budget records for a category to a new amount

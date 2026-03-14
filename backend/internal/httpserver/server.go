@@ -192,7 +192,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 
 	// Create budget items service and handler (monthly snapshots)
 	budgetItemsRepo := budgets.NewBudgetItemsRepository(pool)
-	budgetItemsService := budgets.NewBudgetItemsService(budgetItemsRepo, budgetsRepo, logger)
+	budgetItemsService := budgets.NewBudgetItemsService(budgetItemsRepo, logger)
 	budgetItemsHandler := budgets.NewBudgetItemsHandler(
 		budgetItemsService,
 		authService,
@@ -219,7 +219,29 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	
 	// Now set the templates calculator in budgets service
 	budgetsService.SetTemplatesCalculator(recurringMovementsService)
-	
+
+	// Wire template sync so budget item updates propagate to recurring movement templates
+	budgetItemsService.SetSyncTemplateFn(func(ctx context.Context, templateID string, amount float64, name string) error {
+		_, err := recurringMovementsRepo.Update(ctx, templateID, &recurringmovements.UpdateTemplateInput{
+			Amount: &amount,
+			Name:   &name,
+		})
+		return err
+	})
+
+	// Wire budget sync so item create/update/delete auto-upserts monthly_budgets
+	budgetItemsService.SetBudgetSyncFn(func(ctx context.Context, householdID, categoryID, month string) error {
+		sum, err := budgetItemsRepo.GetItemsSumForCategory(ctx, householdID, categoryID, month)
+		if err != nil {
+			return err
+		}
+		if sum <= 0 {
+			return nil // No items → don't create a zero budget record
+		}
+		// Upsert: create with items sum, or update to items sum if it's higher than current
+		return budgetsRepo.UpsertBudgetFromItems(ctx, householdID, categoryID, month, sum)
+	})
+
 	// Create form config handler for movements (with templates closure to avoid import cycles)
 	getTemplatesByCategory := func(ctx context.Context, userID string) (map[string][]movements.TemplateBasicInfo, error) {
 		templatesMap, err := recurringMovementsService.ListByCategoryMap(ctx, userID)
@@ -260,6 +282,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Server,
 	// Create handler with generator for manual triggering
 	recurringMovementsHandler := recurringmovements.NewHandler(
 		recurringMovementsService,
+		recurringMovementsRepo,
 		generator,
 		authService,
 		cfg.SessionCookieName,

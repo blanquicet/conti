@@ -66,18 +66,32 @@ func (r *budgetItemsRepository) ListByMonth(ctx context.Context, householdID, mo
 			return nil, err
 		}
 
-		// Load participants for SPLIT items
-		if item.MovementType != nil && *item.MovementType == "SPLIT" {
-			participants, err := r.getParticipants(ctx, item.ID)
-			if err != nil {
-				return nil, err
-			}
-			item.Participants = participants
-		}
-
 		items = append(items, &item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	// Batch-load participants for all SPLIT items
+	var splitItemIDs []string
+	for _, item := range items {
+		if item.MovementType != nil && *item.MovementType == "SPLIT" {
+			splitItemIDs = append(splitItemIDs, item.ID)
+		}
+	}
+	if len(splitItemIDs) > 0 {
+		participantsMap, err := r.getParticipantsBatch(ctx, splitItemIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, item := range items {
+			if ps, ok := participantsMap[item.ID]; ok {
+				item.Participants = ps
+			}
+		}
+	}
+
+	return items, nil
 }
 
 func (r *budgetItemsRepository) getParticipants(ctx context.Context, itemID string) ([]BudgetItemParticipant, error) {
@@ -108,6 +122,41 @@ func (r *budgetItemsRepository) getParticipants(ctx context.Context, itemID stri
 		participants = append(participants, p)
 	}
 	return participants, rows.Err()
+}
+
+func (r *budgetItemsRepository) getParticipantsBatch(ctx context.Context, itemIDs []string) (map[string][]BudgetItemParticipant, error) {
+	rows, err := r.pool.Query(ctx, `
+		SELECT p.id, p.budget_item_id,
+			p.participant_user_id, p.participant_contact_id,
+			p.percentage,
+			COALESCE(u.name, c.name) as participant_name
+		FROM monthly_budget_item_participants p
+		LEFT JOIN users u ON p.participant_user_id = u.id
+		LEFT JOIN contacts c ON p.participant_contact_id = c.id
+		WHERE p.budget_item_id = ANY($1)
+	`, itemIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string][]BudgetItemParticipant)
+	for rows.Next() {
+		var p BudgetItemParticipant
+		err := rows.Scan(&p.ID, &p.BudgetItemID,
+			&p.ParticipantUserID, &p.ParticipantContactID,
+			&p.Percentage, &p.ParticipantName)
+		if err != nil {
+			return nil, err
+		}
+		result[p.BudgetItemID] = append(result[p.BudgetItemID], p)
+	}
+	return result, rows.Err()
+}
+
+// GetParticipantsBatch loads participants for multiple items at once (exported for interface)
+func (r *budgetItemsRepository) GetParticipantsBatch(ctx context.Context, itemIDs []string) (map[string][]BudgetItemParticipant, error) {
+	return r.getParticipantsBatch(ctx, itemIDs)
 }
 
 func (r *budgetItemsRepository) GetByID(ctx context.Context, id string) (*MonthlyBudgetItem, error) {
@@ -227,6 +276,12 @@ func (r *budgetItemsRepository) Create(ctx context.Context, householdID string, 
 }
 
 func (r *budgetItemsRepository) Update(ctx context.Context, id string, input *UpdateBudgetItemInput) (*MonthlyBudgetItem, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
 	// Build dynamic UPDATE
 	sets := []string{"updated_at = NOW()"}
 	args := []interface{}{id}
@@ -257,12 +312,12 @@ func (r *budgetItemsRepository) Update(ctx context.Context, id string, input *Up
 		args = append(args, *input.AutoGenerate)
 		argIdx++
 	}
-	if input.PayerUserID != nil {
+	if input.PayerUserID != nil && *input.PayerUserID != "" {
 		sets = append(sets, fmt.Sprintf("payer_user_id = $%d", argIdx))
 		args = append(args, *input.PayerUserID)
 		argIdx++
 	}
-	if input.PayerContactID != nil {
+	if input.PayerContactID != nil && *input.PayerContactID != "" {
 		sets = append(sets, fmt.Sprintf("payer_contact_id = $%d", argIdx))
 		args = append(args, *input.PayerContactID)
 		argIdx++
@@ -270,12 +325,12 @@ func (r *budgetItemsRepository) Update(ctx context.Context, id string, input *Up
 	if input.ClearPayer {
 		sets = append(sets, "payer_user_id = NULL, payer_contact_id = NULL")
 	}
-	if input.CounterpartyUserID != nil {
+	if input.CounterpartyUserID != nil && *input.CounterpartyUserID != "" {
 		sets = append(sets, fmt.Sprintf("counterparty_user_id = $%d", argIdx))
 		args = append(args, *input.CounterpartyUserID)
 		argIdx++
 	}
-	if input.CounterpartyContactID != nil {
+	if input.CounterpartyContactID != nil && *input.CounterpartyContactID != "" {
 		sets = append(sets, fmt.Sprintf("counterparty_contact_id = $%d", argIdx))
 		args = append(args, *input.CounterpartyContactID)
 		argIdx++
@@ -283,12 +338,12 @@ func (r *budgetItemsRepository) Update(ctx context.Context, id string, input *Up
 	if input.ClearCounterparty {
 		sets = append(sets, "counterparty_user_id = NULL, counterparty_contact_id = NULL")
 	}
-	if input.PaymentMethodID != nil {
+	if input.PaymentMethodID != nil && *input.PaymentMethodID != "" {
 		sets = append(sets, fmt.Sprintf("payment_method_id = $%d", argIdx))
 		args = append(args, *input.PaymentMethodID)
 		argIdx++
 	}
-	if input.ReceiverAccountID != nil {
+	if input.ReceiverAccountID != nil && *input.ReceiverAccountID != "" {
 		sets = append(sets, fmt.Sprintf("receiver_account_id = $%d", argIdx))
 		args = append(args, *input.ReceiverAccountID)
 		argIdx++
@@ -309,7 +364,7 @@ func (r *budgetItemsRepository) Update(ctx context.Context, id string, input *Up
 		strings.Join(sets, ", "))
 
 	var item MonthlyBudgetItem
-	err := r.pool.QueryRow(ctx, query, args...).Scan(
+	err = tx.QueryRow(ctx, query, args...).Scan(
 		&item.ID, &item.HouseholdID, &item.CategoryID, &item.Month,
 		&item.Name, &item.Description, &item.Amount, &item.Currency,
 		&item.MovementType, &item.AutoGenerate,
@@ -326,9 +381,11 @@ func (r *budgetItemsRepository) Update(ctx context.Context, id string, input *Up
 	// Update participants if provided
 	if input.Participants != nil {
 		// Delete existing participants and re-insert
-		_, _ = r.pool.Exec(ctx, `DELETE FROM monthly_budget_item_participants WHERE budget_item_id = $1`, id)
+		if _, err := tx.Exec(ctx, `DELETE FROM monthly_budget_item_participants WHERE budget_item_id = $1`, id); err != nil {
+			return nil, err
+		}
 		for _, p := range input.Participants {
-			_, err := r.pool.Exec(ctx, `
+			_, err := tx.Exec(ctx, `
 				INSERT INTO monthly_budget_item_participants (
 					budget_item_id, participant_user_id, participant_contact_id, percentage
 				) VALUES ($1, $2, $3, $4)
@@ -339,12 +396,94 @@ func (r *budgetItemsRepository) Update(ctx context.Context, id string, input *Up
 		}
 	}
 
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
 	return &item, nil
 }
 
 func (r *budgetItemsRepository) Delete(ctx context.Context, id string) error {
 	_, err := r.pool.Exec(ctx, `DELETE FROM monthly_budget_items WHERE id = $1`, id)
 	return err
+}
+
+// CreateInMonth creates the same item in a different month (for ScopeAll)
+func (r *budgetItemsRepository) CreateInMonth(ctx context.Context, householdID string, input *CreateBudgetItemInput, month string) (*MonthlyBudgetItem, error) {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var item MonthlyBudgetItem
+	err = tx.QueryRow(ctx, `
+		INSERT INTO monthly_budget_items (
+			household_id, category_id, month,
+			name, description, amount, currency,
+			movement_type, auto_generate,
+			payer_user_id, payer_contact_id,
+			counterparty_user_id, counterparty_contact_id,
+			payment_method_id, receiver_account_id,
+			source_template_id
+		) VALUES ($1, $2, ($3 || '-01')::DATE, $4, $5, $6, 'COP', $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		ON CONFLICT (household_id, category_id, month, name) DO NOTHING
+		RETURNING id, household_id, category_id, month,
+			name, description, amount, currency,
+			movement_type, auto_generate,
+			payer_user_id, payer_contact_id,
+			counterparty_user_id, counterparty_contact_id,
+			payment_method_id, receiver_account_id,
+			source_template_id,
+			created_at, updated_at
+	`, householdID, input.CategoryID, month,
+		input.Name, input.Description, input.Amount,
+		input.MovementType, input.AutoGenerate,
+		input.PayerUserID, input.PayerContactID,
+		input.CounterpartyUserID, input.CounterpartyContactID,
+		input.PaymentMethodID, input.ReceiverAccountID,
+		input.SourceTemplateID,
+	).Scan(
+		&item.ID, &item.HouseholdID, &item.CategoryID, &item.Month,
+		&item.Name, &item.Description, &item.Amount, &item.Currency,
+		&item.MovementType, &item.AutoGenerate,
+		&item.PayerUserID, &item.PayerContactID,
+		&item.CounterpartyUserID, &item.CounterpartyContactID,
+		&item.PaymentMethodID, &item.ReceiverAccountID,
+		&item.SourceTemplateID,
+		&item.CreatedAt, &item.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Insert participants
+	for _, p := range input.Participants {
+		_, err := tx.Exec(ctx, `
+			INSERT INTO monthly_budget_item_participants (
+				budget_item_id, participant_user_id, participant_contact_id, percentage
+			) VALUES ($1, $2, $3, $4)
+		`, item.ID, p.ParticipantUserID, p.ParticipantContactID, p.Percentage)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
+// DeleteByNameAndCategory deletes all items matching name+category across all months
+func (r *budgetItemsRepository) DeleteByNameAndCategory(ctx context.Context, householdID, categoryID, name string) (int64, error) {
+	result, err := r.pool.Exec(ctx, `
+		DELETE FROM monthly_budget_items
+		WHERE household_id = $1 AND category_id = $2 AND name = $3
+	`, householdID, categoryID, name)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 func (r *budgetItemsRepository) HasItemsForMonth(ctx context.Context, householdID, month string) (bool, error) {
@@ -483,23 +622,52 @@ func (r *budgetItemsRepository) UpdateAllMonths(ctx context.Context, householdID
 		args = append(args, *input.MovementType)
 		argIdx++
 	}
-	if input.PaymentMethodID != nil {
+	if input.PaymentMethodID != nil && *input.PaymentMethodID != "" {
 		sets = append(sets, fmt.Sprintf("payment_method_id = $%d", argIdx))
 		args = append(args, *input.PaymentMethodID)
 		argIdx++
 	}
-	if input.PayerUserID != nil {
+	if input.AutoGenerate != nil {
+		sets = append(sets, fmt.Sprintf("auto_generate = $%d", argIdx))
+		args = append(args, *input.AutoGenerate)
+		argIdx++
+	}
+	if input.PayerUserID != nil && *input.PayerUserID != "" {
 		sets = append(sets, fmt.Sprintf("payer_user_id = $%d", argIdx))
 		args = append(args, *input.PayerUserID)
 		argIdx++
 	}
-	if input.PayerContactID != nil {
+	if input.PayerContactID != nil && *input.PayerContactID != "" {
 		sets = append(sets, fmt.Sprintf("payer_contact_id = $%d", argIdx))
 		args = append(args, *input.PayerContactID)
 		argIdx++
 	}
+	if input.ClearPayer {
+		sets = append(sets, "payer_user_id = NULL, payer_contact_id = NULL")
+	}
+	if input.CounterpartyUserID != nil && *input.CounterpartyUserID != "" {
+		sets = append(sets, fmt.Sprintf("counterparty_user_id = $%d", argIdx))
+		args = append(args, *input.CounterpartyUserID)
+		argIdx++
+	}
+	if input.CounterpartyContactID != nil && *input.CounterpartyContactID != "" {
+		sets = append(sets, fmt.Sprintf("counterparty_contact_id = $%d", argIdx))
+		args = append(args, *input.CounterpartyContactID)
+		argIdx++
+	}
+	if input.ClearCounterparty {
+		sets = append(sets, "counterparty_user_id = NULL, counterparty_contact_id = NULL")
+	}
+	if input.ReceiverAccountID != nil && *input.ReceiverAccountID != "" {
+		sets = append(sets, fmt.Sprintf("receiver_account_id = $%d", argIdx))
+		args = append(args, *input.ReceiverAccountID)
+		argIdx++
+	}
+	if input.ClearReceiverAccount {
+		sets = append(sets, "receiver_account_id = NULL")
+	}
 
-	query := fmt.Sprintf(`UPDATE monthly_budget_items SET %s 
+	query := fmt.Sprintf(`UPDATE monthly_budget_items SET %s
 		WHERE household_id = $1 AND category_id = $2 AND name = $3`,
 		strings.Join(sets, ", "))
 
@@ -546,4 +714,22 @@ func (r *budgetItemsRepository) GetMostRecentMonth(ctx context.Context, househol
 		return "", err
 	}
 	return month, nil
+}
+
+// GetItemsSumForCategory returns the sum of all item amounts for a category in a month
+func (r *budgetItemsRepository) GetItemsSumForCategory(ctx context.Context, householdID, categoryID, month string) (float64, error) {
+	monthDate, err := ParseMonth(month)
+	if err != nil {
+		return 0, ErrInvalidMonth
+	}
+	var sum float64
+	err = r.pool.QueryRow(ctx, `
+		SELECT COALESCE(SUM(amount), 0)
+		FROM monthly_budget_items
+		WHERE household_id = $1 AND category_id = $2 AND month = $3
+	`, householdID, categoryID, monthDate).Scan(&sum)
+	if err != nil {
+		return 0, err
+	}
+	return sum, nil
 }

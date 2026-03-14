@@ -1794,10 +1794,9 @@ async function loadLoansData() {
  */
 async function loadBudgetsData() {
   try {
-    // Load budget items FIRST (triggers lazy copy which may create budget records)
-    const itemsResponse = await fetch(`${API_URL}/api/budget-items/${currentMonth}`, {
-      credentials: 'include'
-    });
+    // Load budget items FIRST (triggers lazy copy for new months),
+    // then budget totals (which depend on items being present)
+    const itemsResponse = await fetch(`${API_URL}/api/budget-items/${currentMonth}`, { credentials: 'include' });
 
     // Handle budget items response
     if (!itemsResponse.ok) {
@@ -1827,10 +1826,10 @@ async function loadBudgetsData() {
       }
     }
 
-    // THEN load budget totals (after lazy copy may have created records)
-    const budgetsResponse = await fetch(`${API_URL}/budgets/${currentMonth}`, {
-      credentials: 'include'
-    });
+    // Now fetch budget totals (items lazy copy is complete)
+    const budgetsResponse = await fetch(`${API_URL}/budgets/${currentMonth}`, { credentials: 'include' });
+
+    // Handle budget totals response
     if (!budgetsResponse.ok) {
       if (budgetsResponse.status === 404) {
         budgetsData = { month: currentMonth, budgets: [], totals: { total_budget: 0, total_spent: 0, percentage: 0 }, _loadedMonth: currentMonth };

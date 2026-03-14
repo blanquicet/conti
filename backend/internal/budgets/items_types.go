@@ -160,4 +160,16 @@ type BudgetItemsRepository interface {
 
 	// GetMostRecentMonth returns the most recent month that has items
 	GetMostRecentMonth(ctx context.Context, householdID string, beforeMonth string) (string, error)
+
+	// CreateInMonth creates a budget item in a specific month (for ScopeAll)
+	CreateInMonth(ctx context.Context, householdID string, input *CreateBudgetItemInput, month string) (*MonthlyBudgetItem, error)
+
+	// DeleteByNameAndCategory deletes items by name+category across all months
+	DeleteByNameAndCategory(ctx context.Context, householdID, categoryID, name string) (int64, error)
+
+	// GetParticipantsBatch loads participants for multiple items at once
+	GetParticipantsBatch(ctx context.Context, itemIDs []string) (map[string][]BudgetItemParticipant, error)
+
+	// GetItemsSumForCategory returns the sum of all item amounts for a category in a month
+	GetItemsSumForCategory(ctx context.Context, householdID, categoryID, month string) (float64, error)
 }

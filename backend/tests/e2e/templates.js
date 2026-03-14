@@ -782,21 +782,24 @@ async function testTemplates() {
       throw new Error('Template should have been hard-deleted with scope=THIS');
     }
     
-    // Verify the budget was updated (should be reduced by 500k, but since we set it to 1,000,000 in Test 6,
-    // and delete doesn't auto-reduce budget below templates sum, let's check it)
+    // Verify the budget was auto-updated to match remaining templates sum
     const budgetQuery9 = await pool.query(
-      `SELECT amount FROM monthly_budgets 
+      `SELECT amount FROM monthly_budgets
        WHERE category_id = $1 AND month = DATE_TRUNC('month', CURRENT_DATE)::DATE`,
       [categoryIds[0].id]
     );
-    
+
     const budget9 = parseFloat(budgetQuery9.rows[0].amount);
-    // Budget should still be 1,000,000 (deletion doesn't auto-reduce budget, only validates it's >= templates)
-    // The remaining template is Compras Carulla 300k, so budget >= 300k is valid
+    // Budget should now be 300,000 (auto-synced to remaining templates sum)
+    // The remaining template is Compras Carulla 300k
     console.log(`  Budget after deletion: $ ${budget9.toLocaleString('es-CO')}`);
     console.log(`  Remaining templates sum: $ 300.000 (only Compras Carulla)`);
-    
-    console.log('✅ Test 9 PASSED: Template deleted successfully (scope=THIS)');
+
+    if (budget9 !== 300000) {
+      throw new Error(`Expected budget of 300,000 (remaining items sum) but got ${budget9}`);
+    }
+
+    console.log('✅ Test 9 PASSED: Template deleted, budget auto-reduced to remaining items sum');
     
     // ==================================================================
     // SUMMARY

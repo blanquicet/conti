@@ -119,6 +119,18 @@ func (s *BudgetService) Set(ctx context.Context, userID string, input *SetBudget
 		}
 	}
 
+	// Determine scope early (needed for pre-upsert work)
+	scope := input.Scope
+	if scope == "" {
+		scope = ScopeFuture // Default: this month + delete future overrides
+	}
+
+	// For scope=THIS, capture old budget value before upsert so we can pin the next month
+	var oldAmount float64
+	if scope == ScopeThis {
+		oldAmount, _ = s.repo.GetEffectiveBudget(ctx, householdID, input.CategoryID, input.Month)
+	}
+
 	// Set budget (upsert operation)
 	budget, err := s.repo.Set(ctx, householdID, input)
 	if err != nil {
@@ -144,10 +156,6 @@ func (s *BudgetService) Set(ctx context.Context, userID string, input *SetBudget
 	})
 
 	// Apply scope side-effects
-	scope := input.Scope
-	if scope == "" {
-		scope = ScopeThis // Default: only affect this month
-	}
 	switch scope {
 	case ScopeFuture:
 		// Delete future budget records — future months will get lazy-copied
@@ -156,7 +164,11 @@ func (s *BudgetService) Set(ctx context.Context, userID string, input *SetBudget
 		// Update all existing budget records for this category
 		s.repo.UpdateAllRecords(ctx, householdID, input.CategoryID, input.Amount)
 	case ScopeThis:
-		// No side effects — only the specified month was set
+		// Pin next month to old value so inheritance doesn't bleed
+		if oldAmount > 0 && oldAmount != input.Amount {
+			nextMonth := NextMonth(input.Month)
+			s.repo.PinMonthIfMissing(ctx, householdID, input.CategoryID, nextMonth, oldAmount)
+		}
 	}
 
 	return budget, nil

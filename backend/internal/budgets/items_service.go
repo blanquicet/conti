@@ -11,18 +11,28 @@ import (
 
 // BudgetItemsService handles business logic for monthly budget items
 type BudgetItemsService struct {
-	itemsRepo BudgetItemsRepository
-	repo      Repository // existing budgets repo for manual budget buffer
-	logger    *slog.Logger
+	itemsRepo      BudgetItemsRepository
+	logger         *slog.Logger
+	syncTemplateFn func(ctx context.Context, templateID string, amount float64, name string) error
+	budgetSyncFn   func(ctx context.Context, householdID, categoryID, month string) error
 }
 
 // NewBudgetItemsService creates a new budget items service
-func NewBudgetItemsService(itemsRepo BudgetItemsRepository, budgetsRepo Repository, logger *slog.Logger) *BudgetItemsService {
+func NewBudgetItemsService(itemsRepo BudgetItemsRepository, logger *slog.Logger) *BudgetItemsService {
 	return &BudgetItemsService{
 		itemsRepo: itemsRepo,
-		repo:      budgetsRepo,
 		logger:    logger,
 	}
+}
+
+// SetSyncTemplateFn sets the function used to sync budget item changes back to the master template
+func (s *BudgetItemsService) SetSyncTemplateFn(fn func(ctx context.Context, templateID string, amount float64, name string) error) {
+	s.syncTemplateFn = fn
+}
+
+// SetBudgetSyncFn sets the function used to auto-sync monthly_budgets after item mutations
+func (s *BudgetItemsService) SetBudgetSyncFn(fn func(ctx context.Context, householdID, categoryID, month string) error) {
+	s.budgetSyncFn = fn
 }
 
 // GetItemsForMonth returns budget items for a month, with lazy copy from previous month
@@ -56,28 +66,24 @@ func (s *BudgetItemsService) GetItemsForMonth(ctx context.Context, householdID, 
 						"to_month", month,
 						"items_copied", copied,
 					)
-
-					// Recalculate budget totals per category from the copied items
-					items, err := s.itemsRepo.ListByMonth(ctx, householdID, month)
-					if err == nil {
-						categoryTotals := make(map[string]float64)
-						for _, item := range items {
-							categoryTotals[item.CategoryID] += item.Amount
-						}
-						for catID, total := range categoryTotals {
-							_, _ = s.repo.Set(ctx, householdID, &SetBudgetInput{
-								CategoryID: catID,
-								Month:      month,
-								Amount:     total,
-							})
-						}
-					}
 				}
 			}
 		}
 	}
 
 	return s.itemsRepo.ListByMonth(ctx, householdID, month)
+}
+
+// GetItemByID returns a single budget item, verifying household ownership
+func (s *BudgetItemsService) GetItemByID(ctx context.Context, householdID, id string) (*MonthlyBudgetItem, error) {
+	item, err := s.itemsRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if item.HouseholdID != householdID {
+		return nil, ErrNotAuthorized
+	}
+	return item, nil
 }
 
 // CreateItem creates a budget item with scope handling
@@ -93,7 +99,7 @@ func (s *BudgetItemsService) CreateItem(ctx context.Context, householdID string,
 		if err != nil {
 			return nil, err
 		}
-		s.updateBudgetTotal(ctx, householdID, input.CategoryID, input.Month)
+		s.syncBudgetTotal(ctx, householdID, input.CategoryID, input.Month)
 		return item, nil
 
 	case ScopeFuture:
@@ -107,7 +113,7 @@ func (s *BudgetItemsService) CreateItem(ctx context.Context, householdID string,
 			s.logger.Info("deleted future budget items for lazy re-copy",
 				"month", input.Month, "deleted", deleted)
 		}
-		s.updateBudgetTotal(ctx, householdID, input.CategoryID, input.Month)
+		s.syncBudgetTotal(ctx, householdID, input.CategoryID, input.Month)
 		return item, nil
 
 	case ScopeAll:
@@ -118,7 +124,8 @@ func (s *BudgetItemsService) CreateItem(ctx context.Context, householdID string,
 		}
 		// Also create in all other months that have items
 		s.createInAllOtherMonths(ctx, householdID, input)
-		s.updateBudgetTotalAllMonths(ctx, householdID, input.CategoryID)
+		// Sync budget totals for ALL affected months
+		s.syncBudgetAllMonths(ctx, householdID, input.CategoryID)
 		return item, nil
 
 	default:
@@ -127,7 +134,7 @@ func (s *BudgetItemsService) CreateItem(ctx context.Context, householdID string,
 }
 
 // UpdateItem updates a budget item with scope handling
-func (s *BudgetItemsService) UpdateItem(ctx context.Context, id string, input *UpdateBudgetItemInput, scope BudgetScope) (*MonthlyBudgetItem, error) {
+func (s *BudgetItemsService) UpdateItem(ctx context.Context, householdID, id string, input *UpdateBudgetItemInput, scope BudgetScope) (*MonthlyBudgetItem, error) {
 	if scope == "" {
 		scope = ScopeFuture
 	}
@@ -138,6 +145,10 @@ func (s *BudgetItemsService) UpdateItem(ctx context.Context, id string, input *U
 		return nil, err
 	}
 
+	if item.HouseholdID != householdID {
+		return nil, ErrNotAuthorized
+	}
+
 	switch scope {
 	case ScopeThis:
 		// Update only this specific item
@@ -145,8 +156,7 @@ func (s *BudgetItemsService) UpdateItem(ctx context.Context, id string, input *U
 		if err != nil {
 			return nil, err
 		}
-		month := FormatMonth(item.Month)
-		s.updateBudgetTotal(ctx, item.HouseholdID, item.CategoryID, month)
+		s.syncBudgetTotal(ctx, householdID, item.CategoryID, FormatMonth(item.Month))
 		return updated, nil
 
 	case ScopeFuture:
@@ -161,9 +171,9 @@ func (s *BudgetItemsService) UpdateItem(ctx context.Context, id string, input *U
 			s.logger.Info("deleted future budget items for lazy re-copy after update",
 				"month", month, "deleted", deleted)
 		}
-		s.updateBudgetTotal(ctx, item.HouseholdID, item.CategoryID, month)
 		// Also update the master template if linked
 		s.syncMasterTemplate(ctx, updated)
+		s.syncBudgetTotal(ctx, householdID, item.CategoryID, month)
 		return updated, nil
 
 	case ScopeAll:
@@ -178,8 +188,9 @@ func (s *BudgetItemsService) UpdateItem(ctx context.Context, id string, input *U
 			s.logger.Info("updated budget items across all months",
 				"name", item.Name, "months_updated", count)
 		}
-		s.updateBudgetTotalAllMonths(ctx, item.HouseholdID, item.CategoryID)
 		s.syncMasterTemplate(ctx, updated)
+		// Sync budget totals for ALL affected months
+		s.syncBudgetAllMonths(ctx, householdID, item.CategoryID)
 		return updated, nil
 
 	default:
@@ -188,7 +199,7 @@ func (s *BudgetItemsService) UpdateItem(ctx context.Context, id string, input *U
 }
 
 // DeleteItem deletes a budget item with scope handling
-func (s *BudgetItemsService) DeleteItem(ctx context.Context, id string, scope BudgetScope, deleteMovements bool) error {
+func (s *BudgetItemsService) DeleteItem(ctx context.Context, householdID, id string, scope BudgetScope) error {
 	if scope == "" {
 		scope = ScopeFuture
 	}
@@ -196,6 +207,10 @@ func (s *BudgetItemsService) DeleteItem(ctx context.Context, id string, scope Bu
 	item, err := s.itemsRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
+	}
+
+	if item.HouseholdID != householdID {
+		return ErrNotAuthorized
 	}
 
 	month := FormatMonth(item.Month)
@@ -206,7 +221,6 @@ func (s *BudgetItemsService) DeleteItem(ctx context.Context, id string, scope Bu
 		if err := s.itemsRepo.Delete(ctx, id); err != nil {
 			return err
 		}
-		s.updateBudgetTotal(ctx, item.HouseholdID, item.CategoryID, month)
 
 	case ScopeFuture:
 		// Delete this item + delete future month items (they'll lazy-copy without this item)
@@ -218,111 +232,92 @@ func (s *BudgetItemsService) DeleteItem(ctx context.Context, id string, scope Bu
 			s.logger.Info("deleted future budget items after item deletion",
 				"month", month, "deleted", deleted)
 		}
-		s.updateBudgetTotal(ctx, item.HouseholdID, item.CategoryID, month)
 
 	case ScopeAll:
-		// Delete this item from ALL months + optionally delete movements
+		// Delete this item from ALL months
 		if err := s.itemsRepo.Delete(ctx, id); err != nil {
 			return err
 		}
 		// Delete same-named items from all other months
 		s.deleteFromAllOtherMonths(ctx, item)
-		s.updateBudgetTotalAllMonths(ctx, item.HouseholdID, item.CategoryID)
+		// Sync budget totals for ALL affected months
+		s.syncBudgetAllMonths(ctx, householdID, item.CategoryID)
+		return nil
 	}
 
-	// Delete linked movements if requested and template exists
-	if deleteMovements && item.SourceTemplateID != nil {
-		s.logger.Info("movement deletion requested for template",
-			"source_template_id", *item.SourceTemplateID)
-		// TODO: call movements service to delete generated movements
-	}
+	// For ScopeThis and ScopeFuture, sync only the affected month
+	s.syncBudgetTotal(ctx, householdID, item.CategoryID, month)
 
 	return nil
 }
 
-// updateBudgetTotal recalculates and sets the budget for a category in a month
-func (s *BudgetItemsService) updateBudgetTotal(ctx context.Context, householdID, categoryID, month string) {
-	items, err := s.itemsRepo.ListByMonth(ctx, householdID, month)
-	if err != nil {
-		s.logger.Warn("failed to list items for budget total", "error", err)
+// syncBudgetTotal auto-syncs the monthly_budgets record after item mutations
+func (s *BudgetItemsService) syncBudgetTotal(ctx context.Context, householdID, categoryID, month string) {
+	if s.budgetSyncFn == nil {
 		return
 	}
-
-	var total float64
-	for _, item := range items {
-		if item.CategoryID == categoryID {
-			total += item.Amount
-		}
-	}
-
-	// Get existing budget to check for manual buffer
-	budgets, err := s.repo.GetByMonth(ctx, householdID, month)
-	if err != nil {
-		s.logger.Warn("failed to get budgets for total", "error", err)
-	}
-
-	// Find existing budget amount for this category
-	var existingAmount float64
-	for _, b := range budgets {
-		if b.CategoryID == categoryID {
-			existingAmount = b.Amount
-			break
-		}
-	}
-
-	// If items exist, set budget to max of (items total, existing budget)
-	// This preserves any manual buffer the user added above the items sum
-	// If NO items remain, set budget to items total (0)
-	newAmount := total
-	if total > 0 && existingAmount > total {
-		newAmount = existingAmount
-	}
-
-	_, err = s.repo.Set(ctx, householdID, &SetBudgetInput{
-		CategoryID: categoryID,
-		Month:      month,
-		Amount:     newAmount,
-	})
-	if err != nil {
-		s.logger.Warn("failed to update budget total", "error", err, "category_id", categoryID, "month", month)
+	if err := s.budgetSyncFn(ctx, householdID, categoryID, month); err != nil {
+		s.logger.Warn("failed to sync budget total after item mutation",
+			"error", err,
+			"household_id", householdID,
+			"category_id", categoryID,
+			"month", month,
+		)
 	}
 }
 
-// updateBudgetTotalAllMonths recalculates budgets for a category across all months
-func (s *BudgetItemsService) updateBudgetTotalAllMonths(ctx context.Context, householdID, categoryID string) {
-	months, err := s.itemsRepo.GetDistinctMonths(ctx, householdID, categoryID)
-	if err != nil {
-		s.logger.Warn("failed to get months for budget recalc", "error", err)
+// syncBudgetAllMonths syncs budget totals for every month that has items in this category
+func (s *BudgetItemsService) syncBudgetAllMonths(ctx context.Context, householdID, categoryID string) {
+	if s.budgetSyncFn == nil {
 		return
 	}
-	for _, month := range months {
-		s.updateBudgetTotal(ctx, householdID, categoryID, month)
+	months, err := s.itemsRepo.GetDistinctMonths(ctx, householdID, categoryID)
+	if err != nil {
+		s.logger.Warn("failed to get distinct months for budget sync", "error", err)
+		return
+	}
+	for _, m := range months {
+		s.syncBudgetTotal(ctx, householdID, categoryID, m)
 	}
 }
 
 // syncMasterTemplate updates the recurring_movement_templates record to match
 func (s *BudgetItemsService) syncMasterTemplate(ctx context.Context, item *MonthlyBudgetItem) {
-	if item.SourceTemplateID == nil {
+	if item.SourceTemplateID == nil || s.syncTemplateFn == nil {
 		return
 	}
-	// TODO: update the master template with new values from the item
-	// This keeps auto-generation in sync
-	s.logger.Info("should sync master template",
-		"source_template_id", *item.SourceTemplateID,
-		"new_amount", item.Amount)
+	if err := s.syncTemplateFn(ctx, *item.SourceTemplateID, item.Amount, item.Name); err != nil {
+		s.logger.Warn("failed to sync master template", "error", err, "template_id", *item.SourceTemplateID)
+	}
 }
 
 // createInAllOtherMonths creates the same item in all other months that have items
 func (s *BudgetItemsService) createInAllOtherMonths(ctx context.Context, householdID string, input *CreateBudgetItemInput) {
-	// TODO: query distinct months, create item in each
-	s.logger.Info("should create item in all other months", "name", input.Name)
+	months, err := s.itemsRepo.GetDistinctMonths(ctx, householdID, input.CategoryID)
+	if err != nil {
+		s.logger.Warn("failed to get months for ScopeAll create", "error", err)
+		return
+	}
+	for _, m := range months {
+		if m == input.Month {
+			continue // already created in this month
+		}
+		_, err := s.itemsRepo.CreateInMonth(ctx, householdID, input, m)
+		if err != nil {
+			s.logger.Warn("failed to create item in month", "error", err, "month", m, "name", input.Name)
+		}
+	}
 }
 
 // deleteFromAllOtherMonths removes same-named items from all months
 func (s *BudgetItemsService) deleteFromAllOtherMonths(ctx context.Context, item *MonthlyBudgetItem) {
-	month := FormatMonth(item.Month)
-	s.logger.Info("deleting item from all months",
-		"name", item.Name, "category_id", item.CategoryID, "except_month", month)
-	// Delete by name + category across all months except the one already deleted
-	// The individual Delete already handled the current month
+	deleted, err := s.itemsRepo.DeleteByNameAndCategory(ctx, item.HouseholdID, item.CategoryID, item.Name)
+	if err != nil {
+		s.logger.Warn("failed to delete items from all months", "error", err)
+		return
+	}
+	if deleted > 0 {
+		s.logger.Info("deleted budget items from all months",
+			"name", item.Name, "category_id", item.CategoryID, "deleted", deleted)
+	}
 }

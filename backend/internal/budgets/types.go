@@ -16,6 +16,7 @@ var (
 	ErrNoHousehold         = errors.New("user does not belong to a household")
 	ErrBudgetsExist        = errors.New("budgets already exist for target month")
 	ErrBudgetBelowTemplates = errors.New("budget amount must be at least the sum of all templates for this category")
+	ErrInvalidScope         = errors.New("invalid scope (must be THIS, FUTURE, or ALL)")
 )
 
 // TemplatesSumCalculator is an interface for calculating template sums
@@ -92,6 +93,10 @@ func (i *SetBudgetInput) Validate() error {
 	if i.Amount < 0 {
 		return ErrInvalidAmount
 	}
+	// Validate scope if provided
+	if i.Scope != "" && i.Scope != ScopeThis && i.Scope != ScopeFuture && i.Scope != ScopeAll {
+		return ErrInvalidScope
+	}
 	return nil
 }
 
@@ -150,6 +155,15 @@ type Repository interface {
 	
 	// UpdateAllRecords updates all budget records for a category to a new amount
 	UpdateAllRecords(ctx context.Context, householdID, categoryID string, amount float64) (int64, error)
+
+	// GetEffectiveBudget returns the effective budget amount for a category at a given month
+	GetEffectiveBudget(ctx context.Context, householdID, categoryID, month string) (float64, error)
+
+	// PinMonthIfMissing inserts a budget record only if none exists for that month
+	PinMonthIfMissing(ctx context.Context, householdID, categoryID, month string, amount float64) error
+
+	// UpsertBudgetFromItems creates or updates budget to match items sum (preserves user buffer)
+	UpsertBudgetFromItems(ctx context.Context, householdID, categoryID, month string, itemsSum float64) error
 }
 
 // Service defines the interface for budget business logic
@@ -185,4 +199,13 @@ func ParseMonth(month string) (time.Time, error) {
 // FormatMonth formats a time.Time to month string (YYYY-MM)
 func FormatMonth(t time.Time) string {
 	return t.Format("2006-01")
+}
+
+// NextMonth returns the month string for the month after the given one
+func NextMonth(month string) string {
+	t, err := ParseMonth(month)
+	if err != nil {
+		return month
+	}
+	return FormatMonth(t.AddDate(0, 1, 0))
 }

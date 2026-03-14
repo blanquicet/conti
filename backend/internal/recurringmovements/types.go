@@ -21,6 +21,7 @@ var (
 	ErrRecurrenceRequired       = errors.New("recurrence_pattern and start_date required when auto_generate is true")
 	ErrInvalidParticipants      = errors.New("participants required for SPLIT templates")
 	ErrInvalidPercentageSum     = errors.New("participant percentages must sum to 100%")
+	ErrInvalidScope             = errors.New("invalid scope (must be THIS, FUTURE, or ALL)")
 )
 
 // NullableDate represents a date that can be parsed from multiple formats
@@ -468,6 +469,8 @@ type Repository interface {
 	UpdateGenerationTracking(ctx context.Context, id string, lastGenerated, nextScheduled time.Time) error
 	Delete(ctx context.Context, id string) error
 	GetTemplatesUsedInMonth(ctx context.Context, householdID, month string) (map[string]bool, error)
+	DeleteMovementsByTemplateID(ctx context.Context, templateID string) (int64, error)
+	UpdateMovementsByTemplateID(ctx context.Context, templateID string, amount float64, description string) (int64, error)
 }
 
 // Service defines the interface for recurring movement template business logic

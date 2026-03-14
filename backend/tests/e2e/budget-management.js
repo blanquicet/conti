@@ -186,33 +186,29 @@ async function testBudgetManagement() {
     await categoryHeader.click();
     await page.waitForTimeout(500);
     
-    // Now look for the "Agregar presupuesto total" button (should be visible now)
+    // Now look for the "Definir presupuesto total" button (should be visible now)
     const addBudgetBtn = firstBudgetCard.locator('button[data-action="add-budget"]');
     await addBudgetBtn.waitFor({ timeout: 5000 });
     await addBudgetBtn.click();
     await page.waitForTimeout(1000);
-    
-    // Wait for modal to appear
-    await page.waitForSelector('.modal', { timeout: 3000 });
-    
-    // Fill budget amount in modal input (uses id="modal-input")
+
+    // Scope modal appears FIRST — select FUTURE and confirm
+    await page.locator('#scope-modal-overlay').waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('input[name="scope"][value="FUTURE"]').check();
+    await page.locator('#scope-confirm-btn').click();
+    await page.waitForTimeout(1000);
+
+    // THEN the amount input modal appears
+    await page.waitForSelector('.modal', { timeout: 5000 });
     const modalInput = page.locator('#modal-input');
     await modalInput.fill('500000');
     await page.waitForTimeout(300);
-    
+
     // Click confirm button in modal
     const addConfirmBtn = page.locator('.modal button#modal-confirm').first();
     await addConfirmBtn.click();
-    await page.waitForTimeout(1000);
-    
-    // Handle scope modal (appears for add budget)
-    const addScopeModal = page.locator('#scope-modal-overlay');
-    if (await addScopeModal.count() > 0) {
-      await page.locator('input[name="scope"][value="FUTURE"]').check();
-      await page.locator('#scope-confirm-btn').click();
-      await page.waitForTimeout(2000);
-    }
-    
+    await page.waitForTimeout(2000);
+
     // Close success modal (showSuccess uses modal-ok)
     const addSuccessOkBtn = page.locator('.modal button#modal-ok').first();
     await addSuccessOkBtn.click();
@@ -245,29 +241,25 @@ async function testBudgetManagement() {
     await editBudgetBtn.waitFor({ timeout: 5000 });
     await editBudgetBtn.click();
     await page.waitForTimeout(500);
-    
-    // Wait for modal to appear
-    await page.waitForSelector('.modal', { timeout: 3000 });
-    
-    // Clear and fill new budget amount in modal input (uses id="modal-input")
+
+    // Scope modal appears FIRST — select FUTURE and confirm
+    await page.locator('#scope-modal-overlay').waitFor({ state: 'visible', timeout: 5000 });
+    await page.locator('input[name="scope"][value="FUTURE"]').check();
+    await page.locator('#scope-confirm-btn').click();
+    await page.waitForTimeout(1000);
+
+    // THEN the amount input modal appears
+    await page.waitForSelector('.modal', { timeout: 5000 });
     const editModalInput = page.locator('#modal-input');
     await editModalInput.selectText();
     await editModalInput.fill('750000');
     await page.waitForTimeout(300);
-    
+
     // Click confirm button in modal
     const editConfirmBtn = page.locator('.modal button#modal-confirm').first();
     await editConfirmBtn.click();
-    await page.waitForTimeout(1000);
-    
-    // Handle scope modal (appears for edit budget)
-    const editScopeModal = page.locator('#scope-modal-overlay');
-    if (await editScopeModal.count() > 0) {
-      await page.locator('input[name="scope"][value="FUTURE"]').check();
-      await page.locator('#scope-confirm-btn').click();
-      await page.waitForTimeout(2000);
-    }
-    
+    await page.waitForTimeout(2000);
+
     // Close success modal (showSuccess uses modal-ok)
     const editSuccessOkBtn = page.locator('.modal button#modal-ok').first();
     await editSuccessOkBtn.click();
