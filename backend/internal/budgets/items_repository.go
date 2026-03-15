@@ -19,7 +19,7 @@ func NewBudgetItemsRepository(pool *pgxpool.Pool) BudgetItemsRepository {
 
 func (r *budgetItemsRepository) ListByMonth(ctx context.Context, householdID, month string) ([]*MonthlyBudgetItem, error) {
 	rows, err := r.pool.Query(ctx, `
-		SELECT 
+		SELECT
 			i.id, i.household_id, i.category_id, i.month,
 			i.name, i.description, i.amount, i.currency,
 			i.movement_type, i.auto_generate,
@@ -31,7 +31,8 @@ func (r *budgetItemsRepository) ListByMonth(ctx context.Context, householdID, mo
 			COALESCE(pu.name, pc.name) as payer_name,
 			COALESCE(cu.name, cc.name) as counterparty_name,
 			pm.name as payment_method_name,
-			ra.name as receiver_account_name
+			ra.name as receiver_account_name,
+			rmt.day_of_month
 		FROM monthly_budget_items i
 		LEFT JOIN users pu ON i.payer_user_id = pu.id
 		LEFT JOIN contacts pc ON i.payer_contact_id = pc.id
@@ -39,6 +40,7 @@ func (r *budgetItemsRepository) ListByMonth(ctx context.Context, householdID, mo
 		LEFT JOIN contacts cc ON i.counterparty_contact_id = cc.id
 		LEFT JOIN payment_methods pm ON i.payment_method_id = pm.id
 		LEFT JOIN accounts ra ON i.receiver_account_id = ra.id
+		LEFT JOIN recurring_movement_templates rmt ON i.source_template_id = rmt.id
 		WHERE i.household_id = $1 AND i.month = ($2 || '-01')::DATE
 		ORDER BY i.auto_generate DESC, i.amount DESC, i.name ASC
 	`, householdID, month)
@@ -61,6 +63,7 @@ func (r *budgetItemsRepository) ListByMonth(ctx context.Context, householdID, mo
 			&item.CreatedAt, &item.UpdatedAt,
 			&item.PayerName, &item.CounterpartyName,
 			&item.PaymentMethodName, &item.ReceiverAccountName,
+			&item.DayOfMonth,
 		)
 		if err != nil {
 			return nil, err
@@ -162,7 +165,7 @@ func (r *budgetItemsRepository) GetParticipantsBatch(ctx context.Context, itemID
 func (r *budgetItemsRepository) GetByID(ctx context.Context, id string) (*MonthlyBudgetItem, error) {
 	var item MonthlyBudgetItem
 	err := r.pool.QueryRow(ctx, `
-		SELECT 
+		SELECT
 			i.id, i.household_id, i.category_id, i.month,
 			i.name, i.description, i.amount, i.currency,
 			i.movement_type, i.auto_generate,
@@ -174,7 +177,8 @@ func (r *budgetItemsRepository) GetByID(ctx context.Context, id string) (*Monthl
 			COALESCE(pu.name, pc.name) as payer_name,
 			COALESCE(cu.name, cc.name) as counterparty_name,
 			pm.name as payment_method_name,
-			ra.name as receiver_account_name
+			ra.name as receiver_account_name,
+			rmt.day_of_month
 		FROM monthly_budget_items i
 		LEFT JOIN users pu ON i.payer_user_id = pu.id
 		LEFT JOIN contacts pc ON i.payer_contact_id = pc.id
@@ -182,6 +186,7 @@ func (r *budgetItemsRepository) GetByID(ctx context.Context, id string) (*Monthl
 		LEFT JOIN contacts cc ON i.counterparty_contact_id = cc.id
 		LEFT JOIN payment_methods pm ON i.payment_method_id = pm.id
 		LEFT JOIN accounts ra ON i.receiver_account_id = ra.id
+		LEFT JOIN recurring_movement_templates rmt ON i.source_template_id = rmt.id
 		WHERE i.id = $1
 	`, id).Scan(
 		&item.ID, &item.HouseholdID, &item.CategoryID, &item.Month,
@@ -194,6 +199,7 @@ func (r *budgetItemsRepository) GetByID(ctx context.Context, id string) (*Monthl
 		&item.CreatedAt, &item.UpdatedAt,
 		&item.PayerName, &item.CounterpartyName,
 		&item.PaymentMethodName, &item.ReceiverAccountName,
+		&item.DayOfMonth,
 	)
 	if err != nil {
 		return nil, err

@@ -47,6 +47,9 @@ type MonthlyBudgetItem struct {
 
 	SourceTemplateID *string `json:"source_template_id,omitempty"`
 
+	// From source template (for display)
+	DayOfMonth *int `json:"day_of_month,omitempty"`
+
 	// Participants (for SPLIT)
 	Participants []BudgetItemParticipant `json:"participants,omitempty"`
 

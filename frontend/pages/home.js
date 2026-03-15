@@ -897,7 +897,7 @@ function renderTemplateItem(template) {
   const amountDisplay = formatCurrency(template.amount);
   
   const scheduleDisplay = template.auto_generate
-    ? `Cada día ${template.day_of_month}`
+    ? (template.day_of_month ? `Cada día ${template.day_of_month}` : 'Mensual')
     : 'Manual';
   
   // Status badge based on whether the template was used this month
